@@ -1,0 +1,52 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "radiowriter"
+version = "0.1.0"
+description = "Find the literature for a Radiopaedia article, screen it, and write the article against it."
+readme = "README.md"
+requires-python = ">=3.11"
+license = "AGPL-3.0-only"
+authors = [{ name = "Giorgio Maria Agazzi" }]
+keywords = ["pubmed", "radiology", "radiopaedia", "literature", "screening"]
+classifiers = [
+  "Development Status :: 4 - Beta",
+  "Environment :: Web Environment",
+  "Intended Audience :: Healthcare Industry",
+  "Intended Audience :: Science/Research",
+  "Operating System :: MacOS",
+  "Operating System :: Microsoft :: Windows",
+  "Operating System :: POSIX :: Linux",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: 3.13",
+  "Topic :: Scientific/Engineering :: Medical Science Apps.",
+]
+
+dependencies = [
+  "streamlit>=1.40",
+  "pandas>=2.0",
+  "requests>=2.31",
+  "markdown-it-py>=3.0",
+  # Le regole del linter Radiopaedia usano lookbehind a lunghezza variabile, che
+  # il modulo `re` della standard library non compila. Con `regex` i pattern
+  # restano identici ai loro, quindi data/lint-rules.json resta un copia-incolla
+  # anche quando cambiano le regole a monte.
+  "regex>=2023.0",
+]
+
+[project.urls]
+Homepage = "https://github.com/gmadevs/Radiowriter"
+Documentation = "https://github.com/gmadevs/Radiowriter#readme"
+Issues = "https://github.com/gmadevs/Radiowriter/issues"
+
+[project.scripts]
+radiowriter = "radiowriter.__main__:main"
+
+[tool.setuptools]
+packages = ["radiowriter"]
+
+[tool.setuptools.package-data]
+radiowriter = ["data/*.json", "data/*.txt"]

@@ -1,0 +1,1864 @@
+{
+ "_": "Transcribed by hand from the radiopaedia.work linter's own rule listing (Lint Listing → Errors / Warnings / Suggestions). Not generated: when the linter's rules change, this is an old transcription until somebody redoes it. The patterns are the linter's own, unchanged; `kind` follows Vale, which is what the linter is built on.",
+ "transcribed": "2026-08-27",
+ "source": "radiopaedia.work/lints",
+ "engine": "vale-subset",
+ "counts": {
+  "error": 42,
+  "warning": 27,
+  "suggestion": 10
+ },
+ "rules": [
+  {
+   "name": "AMPM",
+   "severity": "error",
+   "kind": "existence",
+   "scope": [
+    "text"
+   ],
+   "nonword": true,
+   "tokens": [
+    "\\d{1,2}[AP]M\\b",
+    "\\d{1,2} ?[ap]m\\b",
+    "\\d{1,2} ?[aApP]\\.[mM]\\."
+   ],
+   "message": "Use 'AM' or 'PM' (preceded by a space)."
+  },
+  {
+   "name": "AdjectivalHyphens",
+   "severity": "error",
+   "kind": "existence",
+   "scope": [
+    "text"
+   ],
+   "nonword": true,
+   "ignorecase": true,
+   "tokens": [
+    "\\btrans\\-(?!s)\\S*",
+    "\\bpseudo\\-(?!o)\\S*",
+    "\\bhemi\\-(?!o)\\S*",
+    "\\bpre\\-(?!e)\\S*",
+    "\\bpost\\-(?!t)\\S*"
+   ],
+   "exceptions": [
+    "pseudo-severe",
+    "pre-radiographic",
+    "non-radiographic",
+    "(pre|post)-contrast",
+    "(pre|post)-op",
+    "(pre|post)-operative"
+   ],
+   "message": "Only use medical adjectival hyphens where the letters at the end and start of the compound word are the same, e.g. post-transplant. In this case, don't use the hyphen: '%s'."
+  },
+  {
+   "name": "ApproximationSpacing",
+   "severity": "error",
+   "kind": "existence",
+   "scope": [
+    "text"
+   ],
+   "nonword": true,
+   "tokens": [
+    "[~≈] +\\d"
+   ],
+   "message": "No space after an approximation symbol: '%s'.",
+   "link": "/articles/figures-and-percentages"
+  },
+  {
+   "name": "BetweenAnd",
+   "severity": "error",
+   "kind": "existence",
+   "scope": [
+    "text"
+   ],
+   "nonword": true,
+   "tokens": [
+    "between \\w* to \\w*"
+   ],
+   "message": "'%s' should use between ... and ..."
+  },
+  {
+   "name": "BiographicalDateFormat",
+   "severity": "error",
+   "kind": "existence",
+   "scope": [
+    "raw"
+   ],
+   "nonword": true,
+   "tokens": [
+    "<strong>.*<\\/strong> \\((?:fl\\. )?(?:\\d{2} |\\d{4} |\\d{4}-\\d{1,2}\\))"
+   ],
+   "message": "In a biographical citation, the date be correctly formatted: '%s'"
+  },
+  {
+   "name": "BiographicalDatePosition",
+   "severity": "error",
+   "kind": "existence",
+   "scope": [
+    "raw"
+   ],
+   "nonword": true,
+   "tokens": [
+    "\\((?:fl\\. )?\\d{4}.*?\\) ?<\\/strong>"
+   ],
+   "message": "In a biographical citation, the date should never be bold: '%s'"
+  },
+  {
+   "name": "BiographicalDateSpacing",
+   "severity": "error",
+   "kind": "existence",
+   "scope": [
+    "raw"
+   ],
+   "nonword": true,
+   "tokens": [
+    "<strong>.*<\\/strong>(?:\\(\\d{4}| \\(\\d{4}.*?\\)\\w)"
+   ],
+   "message": "In a biographical citation, the date should be correctly spaced: '%s'"
+  },
+  {
+   "name": "BiographicalName",
+   "severity": "error",
+   "kind": "existence",
+   "scope": [
+    "raw"
+   ],
+   "nonword": true,
+   "tokens": [
+    "<strong>.*( [A-Z] ).*<\\/strong> \\(\\d{4}"
+   ],
+   "message": "In a biographical citation, the name should be formatted correctly: '%s'"
+  },
+  {
+   "name": "CeleSuffix",
+   "severity": "error",
+   "kind": "existence",
+   "scope": [
+    "text"
+   ],
+   "ignorecase": true,
+   "tokens": [
+    "\\w*coele\\w*"
+   ],
+   "message": "The suffix is '-cele', not '-coele': '%s'.",
+   "link": "/articles/common-medical-misspellings"
+  },
+  {
+   "name": "CitationOrder",
+   "severity": "error",
+   "kind": "script",
+   "scope": [
+    "raw"
+   ],
+   "message": "Citations must appear in numeric order."
+  },
+  {
+   "name": "CitationPrecedingSpace",
+   "severity": "error",
+   "kind": "existence",
+   "scope": [
+    "raw"
+   ],
+   "nonword": true,
+   "ignorecase": true,
+   "tokens": [
+    "\\b(?<!mm)(?<!\\d ?[cmkdµ]?m)(?<!\\d ?[a-zA-Z]{1,3}/[a-zA-Z]{1,3})<sup>[\\d,-]+<\\/sup>"
+   ],
+   "message": "Citations must have a preceding space, e.g. needs evidence <sup>2</sup>. '%s'"
+  },
+  {
+   "name": "CitationPunctuationSpace",
+   "severity": "error",
+   "kind": "existence",
+   "scope": [
+    "raw"
+   ],
+   "nonword": true,
+   "ignorecase": true,
+   "tokens": [
+    "<sup>[\\d,-]+<\\/sup> [\\.,:;\\)]"
+   ],
+   "message": "Citations should not have spaces between themselves and punctuation. '%s'"
+  },
+  {
+   "name": "CitationPunctuationSup",
+   "severity": "error",
+   "kind": "existence",
+   "scope": [
+    "raw"
+   ],
+   "nonword": true,
+   "ignorecase": true,
+   "tokens": [
+    "<sup>[\\d,-]+ ?[\\.,:;\\)] ?<\\/sup>"
+   ],
+   "message": "Punctuation after citations should never be superscripted. '%s'"
+  },
+  {
+   "name": "CitationSyntax",
+   "severity": "error",
+   "kind": "script",
+   "scope": [
+    "raw"
+   ],
+   "message": "Citations are separated by commas, except when the range is over 2."
+  },
+  {
+   "name": "ColonSpacing",
+   "severity": "error",
+   "kind": "existence",
+   "scope": [
+    "text"
+   ],
+   "nonword": true,
+   "tokens": [
+    "\\w +:"
+   ],
+   "message": "A colon takes no space before it: '%s'.",
+   "link": "/articles/colon-punctuation"
+  },
+  {
+   "name": "Contractions",
+   "severity": "error",
+   "kind": "substitution",
+   "scope": [
+    "text"
+   ],
+   "ignorecase": true,
+   "swaps": [
+    [
+     "aren't",
+     "are not"
+    ],
+    [
+     "can't",
+     "cannot"
+    ],
+    [
+     "couldn't",
+     "could not"
+    ],
+    [
+     "doesn't",
+     "does not"
+    ],
+    [
+     "didn't",
+     "did not"
+    ],
+    [
+     "don't",
+     "do not"
+    ],
+    [
+     "hadn't",
+     "had not"
+    ],
+    [
+     "hasn't",
+     "has not"
+    ],
+    [
+     "haven't",
+     "have not"
+    ],
+    [
+     "he'd",
+     "he would"
+    ],
+    [
+     "how'd",
+     "how did"
+    ],
+    [
+     "how's",
+     "how is"
+    ],
+    [
+     "I'd",
+     "I had"
+    ],
+    [
+     "isn't",
+     "is not"
+    ],
+    [
+     "it'd",
+     "it would"
+    ],
+    [
+     "it's",
+     "it is"
+    ],
+    [
+     "oughtn't",
+     "ought not"
+    ],
+    [
+     "shan't",
+     "shall not"
+    ],
+    [
+     "shouldn't",
+     "should not"
+    ],
+    [
+     "should've",
+     "should have"
+    ],
+    [
+     "there'd",
+     "there would"
+    ],
+    [
+     "there're",
+     "there are"
+    ],
+    [
+     "there's",
+     "there is or there has"
+    ],
+    [
+     "that's",
+     "that is"
+    ],
+    [
+     "they're",
+     "they are"
+    ],
+    [
+     "they've",
+     "they have"
+    ],
+    [
+     "wasn't",
+     "was not"
+    ],
+    [
+     "we'd",
+     "we would"
+    ],
+    [
+     "we're",
+     "we are"
+    ],
+    [
+     "we've",
+     "we have"
+    ],
+    [
+     "weren't",
+     "were not"
+    ],
+    [
+     "what's",
+     "what is"
+    ],
+    [
+     "when's",
+     "when is"
+    ],
+    [
+     "where's",
+     "where is"
+    ],
+    [
+     "who're",
+     "who are"
+    ],
+    [
+     "who's",
+     "who is"
+    ],
+    [
+     "won't",
+     "will not"
+    ],
+    [
+     "would've",
+     "would have"
+    ],
+    [
+     "you'd",
+     "you had or you would"
+    ],
+    [
+     "you'll",
+     "you will"
+    ],
+    [
+     "you're",
+     "you are"
+    ],
+    [
+     "you've",
+     "you have"
+    ]
+   ],
+   "actions": true,
+   "message": "Never use contractions: use '%s' in place of '%s'."
+  },
+  {
+   "name": "DateFormat",
+   "severity": "error",
+   "kind": "existence",
+   "scope": [
+    "text"
+   ],
+   "nonword": true,
+   "ignorecase": true,
+   "tokens": [
+    "\\d{1,2}(?:\\.|/)\\d{1,2}(?:\\.|/)\\d{4}",
+    "(?:Jan(?:uary)?|Feb(?:ruary)?|Mar(?:ch)?|Apr(?:il)?|May|Jun(?:e)?|Jul(?:y)?|Aug(?:ust)?|Sep(?:tember)?|Oct(?:ober)?|Nov(?:ember)?|Dec(?:ember)?) \\d{1,2}(?:st|nd|rd|th)?,? \\d{4}",
+    "\\d{1,2}(?:st|nd|rd|th) (?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\\w* \\d{4}",
+    "\\d{1,2} (?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\\w*, \\d{4}"
+   ],
+   "message": "Use '1 January 2020' format, not '%s'.",
+   "link": "/articles/dates-1"
+  },
+  {
+   "name": "EmDash",
+   "severity": "error",
+   "kind": "existence",
+   "scope": [
+    "text"
+   ],
+   "nonword": true,
+   "tokens": [
+    "—"
+   ],
+   "actions": true,
+   "message": "Don't use em-dashes, replace them with spaces either side of a hyphen-minus"
+  },
+  {
+   "name": "EnDash",
+   "severity": "error",
+   "kind": "existence",
+   "scope": [
+    "text"
+   ],
+   "nonword": true,
+   "tokens": [
+    "–"
+   ],
+   "actions": true,
+   "message": "Use a hyphen-minus ('-') instead of an en-dash ('–')."
+  },
+  {
+   "name": "Exclamation",
+   "severity": "error",
+   "kind": "existence",
+   "scope": [
+    "text"
+   ],
+   "nonword": true,
+   "tokens": [
+    "\\w!(?:\\s|$)"
+   ],
+   "message": "Don't use exclamation points in text."
+  },
+  {
+   "name": "FetusSpelling",
+   "severity": "error",
+   "kind": "substitution",
+   "scope": [
+    "text"
+   ],
+   "ignorecase": true,
+   "swaps": [
+    [
+     "foetus",
+     "fetus"
+    ],
+    [
+     "foetuses",
+     "fetuses"
+    ],
+    [
+     "foetal",
+     "fetal"
+    ],
+    [
+     "foeticide",
+     "feticide"
+    ],
+    [
+     "foetor",
+     "fetor"
+    ]
+   ],
+   "message": "Use the 'fetus' spelling: '%s' rather than '%s'.",
+   "link": "/articles/fetus-vs-foetus"
+  },
+  {
+   "name": "HeadingCitation",
+   "severity": "error",
+   "kind": "existence",
+   "scope": [
+    "raw"
+   ],
+   "nonword": true,
+   "tokens": [
+    "<h[2-6][^>]*>(?:(?!<\\/h[2-6]>).)*(?<!mm)(?<!\\d ?[cmkdµ]?m)(?<!\\d ?[a-zA-Z]{1,3}/[a-zA-Z]{1,3})<sup>[\\d,-]+<\\/sup>"
+   ],
+   "message": "Do not put citations in headings."
+  },
+  {
+   "name": "HeadingPunctuation",
+   "severity": "error",
+   "kind": "existence",
+   "scope": [
+    "heading"
+   ],
+   "nonword": true,
+   "tokens": [
+    "[a-z0-9][.:]\\s*$"
+   ],
+   "message": "Do not put punctuation at the end of a heading."
+  },
+  {
+   "name": "HeadingsSpacing",
+   "severity": "error",
+   "kind": "existence",
+   "scope": [
+    "raw"
+   ],
+   "nonword": true,
+   "tokens": [
+    "(?:<h[2-6]> .*?<\\/h[2-6]>)",
+    "(?:<h[2-6]>.*? <\\/h[2-6]>)"
+   ],
+   "message": "Never put spaces at either end of headings."
+  },
+  {
+   "name": "HybridImagingSlash",
+   "severity": "error",
+   "kind": "existence",
+   "scope": [
+    "text"
+   ],
+   "nonword": true,
+   "tokens": [
+    "\\b(PET|SPECT)/(CT|MRI?)\\b"
+   ],
+   "message": "Hybrid imaging takes a hyphen, not a slash: '%s'.",
+   "link": "/articles/slash"
+  },
+  {
+   "name": "IsotopeNotation",
+   "severity": "error",
+   "kind": "existence",
+   "scope": [
+    "text"
+   ],
+   "nonword": true,
+   "tokens": [
+    "\\b(11C|13N|15O|18F|32P|67Ga|68Ga|82Rb|89Sr|89Zr|99mTc|111In|123I|124I|125I|131I|133Xe|153Sm|177Lu|201Tl|223Ra)\\b"
+   ],
+   "message": "Write the isotope as symbol-mass, e.g. F-18, not '%s'.",
+   "link": "/articles/isotope-notation"
+  },
+  {
+   "name": "LinkPlacement",
+   "severity": "error",
+   "kind": "existence",
+   "scope": [
+    "raw"
+   ],
+   "nonword": true,
+   "tokens": [
+    "<h[1-6][^>]*>(?:(?!</h[1-6]>).)*<a",
+    "<strong>(?:(?!</strong>).)*<a",
+    "<a [^>]*>(?:(?!</a>).)*<strong>",
+    "</a>\\s*<a"
+   ],
+   "message": "Links belong on normal text, one per phrase: '%s'.",
+   "link": "/articles/linking-1"
+  },
+  {
+   "name": "ListPunctuation",
+   "severity": "error",
+   "kind": "existence",
+   "scope": [
+    "list"
+   ],
+   "nonword": true,
+   "tokens": [
+    "\\S*\\.$"
+   ],
+   "exceptions": [
+    "etc",
+    "spp",
+    "e\\.g",
+    "i\\.e"
+   ],
+   "message": "Do not put full stops at the end of a list item."
+  },
+  {
+   "name": "MedicalMisspellings",
+   "severity": "error",
+   "kind": "substitution",
+   "scope": [
+    "text"
+   ],
+   "ignorecase": true,
+   "swaps": [
+    [
+     "azygous",
+     "azygos"
+    ],
+    [
+     "diverticulae",
+     "diverticula"
+    ],
+    [
+     "diverticuli",
+     "diverticula"
+    ],
+    [
+     "epididymi",
+     "epididymides"
+    ],
+    [
+     "epididymises",
+     "epididymides"
+    ],
+    [
+     "neuropraxia",
+     "neurapraxia"
+    ],
+    [
+     "radio-opaque",
+     "radiopaque"
+    ],
+    [
+     "septae",
+     "septa"
+    ],
+    [
+     "septi",
+     "septa"
+    ]
+   ],
+   "message": "This is a misspelling: use '%s' rather than '%s'.",
+   "link": "/articles/common-medical-misspellings"
+  },
+  {
+   "name": "NumberComparisons",
+   "severity": "error",
+   "kind": "existence",
+   "scope": [
+    "text"
+   ],
+   "nonword": true,
+   "tokens": [
+    "[<>] \\d"
+   ],
+   "actions": true,
+   "message": "There should never be a space after less and greater than signs."
+  },
+  {
+   "name": "NumberSpacing",
+   "severity": "error",
+   "kind": "existence",
+   "scope": [
+    "text"
+   ],
+   "nonword": true,
+   "ignorecase": true,
+   "tokens": [
+    "[0-9]+ -[0-9]+",
+    "[0-9]+- [0-9]+",
+    "[0-9]+ - [0-9]+"
+   ],
+   "message": "In a number range, there should not be spaces around the hyphen ('%s')."
+  },
+  {
+   "name": "OptionalPlurals",
+   "severity": "error",
+   "kind": "existence",
+   "scope": [
+    "text"
+   ],
+   "nonword": true,
+   "tokens": [
+    "\\b\\w+\\(s\\)"
+   ],
+   "actions": true,
+   "message": "Do not use plurals in parentheses such as in '%s'."
+  },
+  {
+   "name": "Periods",
+   "severity": "error",
+   "kind": "existence",
+   "scope": [
+    "text"
+   ],
+   "nonword": true,
+   "tokens": [
+    "\\b(?:[A-Z]\\.){3,}"
+   ],
+   "message": "Don't use periods with acronyms or initialisms such as '%s'."
+  },
+  {
+   "name": "Quotes",
+   "severity": "error",
+   "kind": "existence",
+   "scope": [
+    "text"
+   ],
+   "nonword": true,
+   "tokens": [
+    "\"[^\"]+[.,]\"",
+    "“[^”]+[.,]”"
+   ],
+   "message": "Commas and periods go outside quotation marks (in nearly all circumstances)."
+  },
+  {
+   "name": "So",
+   "severity": "error",
+   "kind": "existence",
+   "scope": [
+    "sentence",
+    "list",
+    "heading"
+   ],
+   "tokens": [
+    "^So\\b",
+    "[;-]\\s+so\\b"
+   ],
+   "message": "Don't start a sentence with '%s'."
+  },
+  {
+   "name": "Spacing",
+   "severity": "error",
+   "kind": "existence",
+   "scope": [
+    "text"
+   ],
+   "nonword": true,
+   "tokens": [
+    "[a-z][.?!] {2,}[A-Z]",
+    "[a-z][.?!][A-Z]"
+   ],
+   "message": "'%s' should have one space."
+  },
+  {
+   "name": "SpinalLevelSpacing",
+   "severity": "error",
+   "kind": "existence",
+   "scope": [
+    "text"
+   ],
+   "nonword": true,
+   "tokens": [
+    "[CTLS]\\d - (?:[CTLS]?\\d|conus)"
+   ],
+   "message": "'%s' should not have spaces around the hyphen for spinal levels."
+  },
+  {
+   "name": "StrongListColonPosition",
+   "severity": "error",
+   "kind": "existence",
+   "scope": [
+    "raw"
+   ],
+   "nonword": true,
+   "ignorecase": true,
+   "tokens": [
+    "<strong>[\\S ]+: ?<\\/strong> ?\\w*"
+   ],
+   "message": "When enboldening an intro, the colon should not be bold. '%s'"
+  },
+  {
+   "name": "SulfurSpelling",
+   "severity": "error",
+   "kind": "substitution",
+   "scope": [
+    "text"
+   ],
+   "ignorecase": true,
+   "swaps": [
+    [
+     "sulphur",
+     "sulfur"
+    ],
+    [
+     "sulphuric",
+     "sulfuric"
+    ],
+    [
+     "sulphurous",
+     "sulfurous"
+    ],
+    [
+     "sulphuryl",
+     "sulfuryl"
+    ],
+    [
+     "sulphate",
+     "sulfate"
+    ],
+    [
+     "sulphates",
+     "sulfates"
+    ],
+    [
+     "sulphide",
+     "sulfide"
+    ],
+    [
+     "sulphides",
+     "sulfides"
+    ],
+    [
+     "sulphite",
+     "sulfite"
+    ],
+    [
+     "sulphites",
+     "sulfites"
+    ],
+    [
+     "sulphonamide",
+     "sulfonamide"
+    ],
+    [
+     "sulphonamides",
+     "sulfonamides"
+    ],
+    [
+     "sulphanilamide",
+     "sulfanilamide"
+    ],
+    [
+     "busulphan",
+     "busulfan"
+    ],
+    [
+     "disulphite",
+     "disulfite"
+    ],
+    [
+     "polysulphane",
+     "polysulfane"
+    ]
+   ],
+   "message": "Use the 'f' spelling: '%s' rather than '%s'.",
+   "link": "/articles/sulfur-vs-sulphur"
+  },
+  {
+   "name": "Uncomparables",
+   "severity": "error",
+   "kind": "existence",
+   "scope": [
+    "text"
+   ],
+   "ignorecase": true,
+   "raw": [
+    "\\b(?:absolutely|most|more|less|least|very|quite|largely|extremely|increasingly|kind of|mildy|hardly|greatly|sort of)\\b\\s*"
+   ],
+   "tokens": [
+    "absolute",
+    "adequate",
+    "complete",
+    "correct",
+    "certain",
+    "devoid",
+    "entire",
+    "false",
+    "fatal",
+    "favorite",
+    "final",
+    "ideal",
+    "impossible",
+    "inevitable",
+    "infinite",
+    "irrevocable",
+    "main",
+    "manifest",
+    "only",
+    "paramount",
+    "perfect",
+    "perpetual",
+    "possible",
+    "preferable",
+    "principal",
+    "singular",
+    "stationary",
+    "sufficient",
+    "true",
+    "unanimous",
+    "unavoidable",
+    "unbroken",
+    "uniform",
+    "unique",
+    "universal",
+    "void",
+    "whole"
+   ],
+   "message": "'%s' is not comparable"
+  },
+  {
+   "name": "Units",
+   "severity": "error",
+   "kind": "existence",
+   "scope": [
+    "text"
+   ],
+   "nonword": true,
+   "tokens": [
+    "\\d+(?:ns|ms|min|h|d|y)",
+    "\\b\\d{1,3}s\\b",
+    "\\b\\d{3}[1-9]s\\b",
+    "\\b\\d{5,}s\\b",
+    "\\d+(?:mm|cm|km)",
+    "\\d+(?:mL|L)",
+    "\\w*-?\\d+(mm|cm|m|km)-?\\w*"
+   ],
+   "exceptions": [
+    "Tc-99m",
+    "99m-methyl",
+    "technetium-99m",
+    "H3K27m.*",
+    "[2-9]0s"
+   ],
+   "message": "Put a space between the number and the unit in '%s'."
+  },
+  {
+   "name": "WordsWeNeverUse",
+   "severity": "error",
+   "kind": "substitution",
+   "scope": [
+    "text"
+   ],
+   "ignorecase": true,
+   "swaps": [
+    [
+     "artefact",
+     "artifact"
+    ],
+    [
+     "artefacts",
+     "artifacts"
+    ],
+    [
+     "artefactual",
+     "artifactual"
+    ],
+    [
+     "echos",
+     "echoes"
+    ],
+    [
+     "gall bladder",
+     "gallbladder"
+    ],
+    [
+     "dorsal spine",
+     "thoracic spine"
+    ]
+   ],
+   "message": "Radiopaedia always uses '%s' rather than '%s'.",
+   "link": "/articles/words-we-never-use"
+  },
+  {
+   "name": "AcceptedAbbreviations",
+   "severity": "warning",
+   "kind": "existence",
+   "scope": [
+    "text"
+   ],
+   "nonword": true,
+   "tokens": [
+    "(?<=[a-z,] )X-ray",
+    "\\bxray\\b",
+    "\\bXRAY\\b",
+    "\\bc\\.\\d{4}",
+    "etc\\.\\.",
+    "\\be\\.t\\.c\\.|\\bet\\.c\\.|&c\\."
+   ],
+   "message": "Check the abbreviation form against the style guide: '%s'.",
+   "link": "/articles/accepted-abbreviations"
+  },
+  {
+   "name": "Acronyms",
+   "severity": "warning",
+   "kind": "script",
+   "scope": [
+    "raw"
+   ],
+   "message": "'%s' has no definition. Spell it out if it's unfamiliar to the audience.",
+   "common": [
+    "CT",
+    "MRI",
+    "MR",
+    "PET",
+    "SPECT",
+    "DSA",
+    "CTA",
+    "CTV",
+    "CTPA",
+    "MRA",
+    "MRV",
+    "MRCP",
+    "ERCP",
+    "HRCT",
+    "CXR",
+    "AXR",
+    "KUB",
+    "DEXA",
+    "DXA",
+    "IVU",
+    "VCUG",
+    "T1",
+    "T2",
+    "DWI",
+    "ADC",
+    "FLAIR",
+    "SWI",
+    "STIR",
+    "GRE",
+    "FSE",
+    "TSE",
+    "FDG",
+    "HU",
+    "ROI",
+    "MIP",
+    "MPR",
+    "FOV",
+    "SNR",
+    "TR",
+    "TE",
+    "AP",
+    "PA",
+    "CSF",
+    "CNS",
+    "GI",
+    "GU",
+    "MSK",
+    "ENT",
+    "IV",
+    "IM",
+    "LV",
+    "RV",
+    "LA",
+    "RA",
+    "DVT",
+    "COPD",
+    "HIV",
+    "AIDS",
+    "TB",
+    "WHO",
+    "ACR",
+    "RSNA",
+    "DNA",
+    "RNA",
+    "PCR",
+    "ECG",
+    "EEG",
+    "CRP",
+    "ESR",
+    "ICU",
+    "II",
+    "III",
+    "IV",
+    "VI",
+    "VII",
+    "VIII",
+    "IX",
+    "XI",
+    "XII"
+   ],
+   "_common": "Ours, not the linter's: the rule allows an acronym that is 'very common (e.g. CT or MRI)' and does not publish the list. Kept short, and without the ones that mean two things depending on the sentence. The shared acronyms.txt is where to add more."
+  },
+  {
+   "name": "Ampersand",
+   "severity": "warning",
+   "kind": "existence",
+   "scope": [
+    "text"
+   ],
+   "nonword": true,
+   "tokens": [
+    "\\s&\\s"
+   ],
+   "exceptions": [
+    "H&E",
+    "[A-Z]\\w+ & [A-Z]\\w+",
+    "[Hh]ead & [Nn]eck"
+   ],
+   "message": "Radiopaedia favours the word 'and' rather than '&'.",
+   "link": "/articles/ampersand"
+  },
+  {
+   "name": "Colons",
+   "severity": "warning",
+   "kind": "existence",
+   "scope": [
+    "raw"
+   ],
+   "nonword": true,
+   "tokens": [
+    ":\\s([A-Z]\\S*\\s?\\S*)"
+   ],
+   "exceptions": [
+    "NB\\. ?.*",
+    "M*(C[MD]|D?C{0,3})(X[CL]|L?X{0,3})(I[XV]|V?I{0,3})[MDCLXVI]{1,}\\b.*",
+    "\\b[A-Z]\\w* (syndrome|complex|disease|sign|classification)",
+    "\\b([A-Z\\-]{3,})\\b",
+    "CT"
+   ],
+   "message": "The first word after a colon should almost always be lowercase. In this case, it's not: '%s'."
+  },
+  {
+   "name": "DiscSpelling",
+   "severity": "warning",
+   "kind": "substitution",
+   "scope": [
+    "text"
+   ],
+   "ignorecase": true,
+   "swaps": [
+    [
+     "disk",
+     "disc"
+    ],
+    [
+     "disks",
+     "discs"
+    ],
+    [
+     "diskal",
+     "discal"
+    ],
+    [
+     "diskectomy",
+     "discectomy"
+    ],
+    [
+     "diskectomies",
+     "discectomies"
+    ],
+    [
+     "diskitis",
+     "discitis"
+    ],
+    [
+     "disklike",
+     "disclike"
+    ],
+    [
+     "diskogenic",
+     "discogenic"
+    ],
+    [
+     "diskopathy",
+     "discopathy"
+    ],
+    [
+     "diskovertebral",
+     "discovertebral"
+    ],
+    [
+     "interdiskal",
+     "interdiscal"
+    ],
+    [
+     "intradiskal",
+     "intradiscal"
+    ],
+    [
+     "juxtadiskal",
+     "juxtadiscal"
+    ],
+    [
+     "paradiskal",
+     "paradiscal"
+    ],
+    [
+     "retrodiskal",
+     "retrodiscal"
+    ],
+    [
+     "spondylodiskitis",
+     "spondylodiscitis"
+    ]
+   ],
+   "message": "Radiopaedia favours the 'disc' spelling: '%s' rather than '%s'.",
+   "link": "/articles/disc-vs-disk"
+  },
+  {
+   "name": "EGListAnd",
+   "severity": "warning",
+   "kind": "existence",
+   "scope": [
+    "text"
+   ],
+   "nonword": true,
+   "tokens": [
+    "e\\.g\\.[^.;:()]*,[^.;:()]*\\b(and|or)\\b"
+   ],
+   "message": "An e.g. list gives selected examples, so it should not end with 'and' or 'or': '%s'.",
+   "link": "/articles/using-eg"
+  },
+  {
+   "name": "Ellipses",
+   "severity": "warning",
+   "kind": "existence",
+   "scope": [
+    "text"
+   ],
+   "nonword": true,
+   "tokens": [
+    "\\.\\.\\."
+   ],
+   "actions": true,
+   "message": "Don't use an ellipsis... in written text."
+  },
+  {
+   "name": "Emphasis",
+   "severity": "warning",
+   "kind": "existence",
+   "scope": [
+    "raw"
+   ],
+   "nonword": true,
+   "tokens": [
+    "<(em|i)>.*<\\/(em|i)>(?! (gene|mutation))"
+   ],
+   "exceptions": [
+    "[Ee](scherichia|\\.) coli",
+    "[Pp]neumocystis jiroveci pneumonia",
+    "[Ss]almonella",
+    "PTPN11",
+    "SOS1",
+    "KRAS",
+    "RAF1",
+    "NRAS",
+    "SHOC2"
+   ],
+   "message": "Italics should be used only in exceptional circumstances: '%s'",
+   "link": "/articles/when-to-use-italics"
+  },
+  {
+   "name": "EponymApostrophe",
+   "severity": "warning",
+   "kind": "existence",
+   "scope": [
+    "text"
+   ],
+   "tokens": [
+    "\\b[A-Z][a-zA-Zöéèü]+'s (disease|syndrome|sign|line|hernia|fracture|diverticulum|tenosynovitis)"
+   ],
+   "message": "Radiopaedia prefers the non-possessive eponym: '%s'.",
+   "link": "/articles/apostrophe-use-and-eponyms-1"
+  },
+  {
+   "name": "GreaterLessThanEqualTo",
+   "severity": "warning",
+   "kind": "substitution",
+   "scope": [
+    "text"
+   ],
+   "nonword": true,
+   "ignorecase": true,
+   "swaps": [
+    [
+     "\\>=",
+     "≥"
+    ],
+    [
+     "<=",
+     "≤"
+    ]
+   ],
+   "actions": true,
+   "message": "Use the combined greater than and less than equal to signs: use '%s' instead of '%s'."
+  },
+  {
+   "name": "GreySpelling",
+   "severity": "warning",
+   "kind": "substitution",
+   "scope": [
+    "text"
+   ],
+   "ignorecase": true,
+   "swaps": [
+    [
+     "(?<!\\d )(?<!Louis )gray(?!s? ?\\((?:m|c|k|µ)?Gy\\))(?!'s)",
+     "grey"
+    ]
+   ],
+   "message": "Radiopaedia uses the 'grey' spelling: '%s' rather than '%s'.",
+   "link": "/articles/grey-vs-gray"
+  },
+  {
+   "name": "HeadingsCase",
+   "severity": "warning",
+   "kind": "capitalization",
+   "scope": [
+    "heading"
+   ],
+   "exceptions": [
+    "CT",
+    "[A-Z]{3,}"
+   ],
+   "message": "'%s' should use sentence-style capitalization."
+  },
+  {
+   "name": "HeterogeneousSpelling",
+   "severity": "warning",
+   "kind": "substitution",
+   "scope": [
+    "text"
+   ],
+   "ignorecase": true,
+   "swaps": [
+    [
+     "heterogenous",
+     "heterogeneous"
+    ],
+    [
+     "heterogenously",
+     "heterogeneously"
+    ],
+    [
+     "homogenous",
+     "homogeneous"
+    ],
+    [
+     "homogenously",
+     "homogeneously"
+    ]
+   ],
+   "message": "Radiopaedia advises the '-eous' form: '%s' rather than '%s'.",
+   "link": "/articles/heterogeneous-vs-heterogenous"
+  },
+  {
+   "name": "Illusions",
+   "severity": "warning",
+   "kind": "repetition",
+   "scope": [
+    "text"
+   ],
+   "ignorecase": true,
+   "tokens": [
+    "[^\\s]+"
+   ],
+   "actions": true,
+   "message": "'%s' is repeated!"
+  },
+  {
+   "name": "Latin",
+   "severity": "warning",
+   "kind": "substitution",
+   "scope": [
+    "text"
+   ],
+   "nonword": true,
+   "ignorecase": true,
+   "swaps": [
+    [
+     "\\baka\\b",
+     "a.k.a."
+    ],
+    [
+     "\\bc\\.f\\.",
+     "cf."
+    ],
+    [
+     "\\beg$",
+     "e.g."
+    ],
+    [
+     "\\be\\.g$",
+     "e.g."
+    ],
+    [
+     "\\beg\\.",
+     "e.g."
+    ],
+    [
+     "\\betc$",
+     "etc."
+    ],
+    [
+     "\\bet cetera\\b",
+     "etc."
+    ],
+    [
+     "\\bi\\.e$",
+     "i.e."
+    ],
+    [
+     "\\bie\\.",
+     "i.e."
+    ],
+    [
+     "\\bnota bene\\b",
+     "NB"
+    ],
+    [
+     "\\bN\\.B\\.",
+     "NB"
+    ],
+    [
+     "\\bN\\.B$",
+     "NB"
+    ],
+    [
+     "\\bn\\.b\\.",
+     "NB"
+    ],
+    [
+     "\\bnb\\.",
+     "NB"
+    ],
+    [
+     "\\bvs\\.",
+     "vs"
+    ],
+    [
+     "\\bet\\. al\\.?",
+     "et al."
+    ]
+   ],
+   "actions": true,
+   "message": "Use appropriate Latin forms: '%s' rather than '%s'."
+  },
+  {
+   "name": "ListCaps",
+   "severity": "warning",
+   "kind": "existence",
+   "scope": [
+    "list"
+   ],
+   "nonword": true,
+   "tokens": [
+    "^(?![A-Z0-9]{2,}(?:[-/.][A-Z0-9]+)*(?:'?s)?(?![a-z])|[A-Z]-[a-z])[A-Z].*"
+   ],
+   "exceptions": [
+    "[A-Z]\\w*\\S* (?:[Mm]edal|[Pp]rize)",
+    "[A-Z]\\w*(?:[\\S])* (syndrome|complex|disease|sign|classification)",
+    "[CTDLS][1-9]{1,2}([-,][1-9]{1,2})?",
+    "M*(C[MD]|D?C{0,3})(X[CL]|L?X{0,3})(I[XV]|V?I{0,3})[MDCLXVI]{1,}(?:[a-z])?",
+    "[A-Z]\\w* (gene|mutation)",
+    "Marfan",
+    "Roentgen",
+    "Nobel",
+    "Sprengel",
+    "Takayasu",
+    "Hashimoto",
+    "Kommerell",
+    "Wilms?",
+    "Philadelphia",
+    "MIBG",
+    "Tc-99m",
+    "FDG.*",
+    "N-Myc.*",
+    "TRK-A.*",
+    "Graves",
+    "TSH",
+    "HLA\\-B27.*",
+    "IgG4.*",
+    "^A(?:[A-Z]|ß|β)\\w*"
+   ],
+   "message": "In general, we don't start a list item with a capital letter. Exceptions are proper nouns."
+  },
+  {
+   "name": "Litotes",
+   "severity": "warning",
+   "kind": "substitution",
+   "scope": [
+    "text"
+   ],
+   "ignorecase": true,
+   "swaps": [
+    [
+     "no minor",
+     "major"
+    ],
+    [
+     "no ordinary",
+     "extraordinary"
+    ],
+    [
+     "no(?:t)? small",
+     "large"
+    ],
+    [
+     "not (?:a)? bad",
+     "good"
+    ],
+    [
+     "not accept(?:ed)?",
+     "rejected"
+    ],
+    [
+     "not allow(?:ed)?",
+     "prevented"
+    ],
+    [
+     "not certain",
+     "uncertain"
+    ],
+    [
+     "not consider(?:ed)?",
+     "ignored"
+    ],
+    [
+     "not fail",
+     "passed"
+    ],
+    [
+     "not have",
+     "lack(s)"
+    ],
+    [
+     "not many",
+     "few"
+    ],
+    [
+     "not old enough",
+     "too young"
+    ],
+    [
+     "not remember",
+     "forgot"
+    ],
+    [
+     "not succeed",
+     "failed"
+    ],
+    [
+     "not the brightest",
+     "dumb"
+    ],
+    [
+     "not the same",
+     "different"
+    ],
+    [
+     "not unaware",
+     "aware"
+    ],
+    [
+     "not unclean",
+     "clean"
+    ],
+    [
+     "not unfamiliar",
+     "familiar"
+    ],
+    [
+     "not unlike",
+     "like"
+    ],
+    [
+     "not unpleasant",
+     "pleasant"
+    ],
+    [
+     "not useless",
+     "useful"
+    ],
+    [
+     "not wrong",
+     "right"
+    ]
+   ],
+   "message": "Consider using '%s' instead of '%s'"
+  },
+  {
+   "name": "NumberFormatting",
+   "severity": "warning",
+   "kind": "existence",
+   "scope": [
+    "text"
+   ],
+   "nonword": true,
+   "tokens": [
+    "(?<![\\d.])\\.\\d+",
+    "[¼½¾⅓⅔⅛]"
+   ],
+   "message": "Check the number format against the style guide: '%s'.",
+   "link": "/articles/numbers-units-and-operators"
+  },
+  {
+   "name": "NumbersOver10000",
+   "severity": "warning",
+   "kind": "existence",
+   "scope": [
+    "text"
+   ],
+   "nonword": true,
+   "tokens": [
+    "\\b\\d{5,}\\b"
+   ],
+   "message": "Use a thousands separators for large numbers."
+  },
+  {
+   "name": "OrganismNotation",
+   "severity": "warning",
+   "kind": "existence",
+   "scope": [
+    "raw"
+   ],
+   "nonword": true,
+   "tokens": [
+    "<(em|i)>[^<]*\\bspp?\\.\\s*</(em|i)>",
+    "<(em|i)>[A-Z][a-z]+ [A-Z][a-z]+</(em|i)>"
+   ],
+   "message": "Check the binomial: species is lowercase and sp./spp. is not italicised: '%s'.",
+   "link": "/articles/naming-of-organisms"
+  },
+  {
+   "name": "Pending",
+   "severity": "warning",
+   "kind": "existence",
+   "scope": [
+    "sentence"
+   ],
+   "ignorecase": true,
+   "tokens": [
+    "content pending"
+   ],
+   "message": "Complete the content for content pending sections"
+  },
+  {
+   "name": "PersonalNames",
+   "severity": "warning",
+   "kind": "existence",
+   "scope": [
+    "text"
+   ],
+   "nonword": true,
+   "tokens": [
+    "\\b(Dr|Prof|Mr|Mrs|Ms|Sir|St)\\.",
+    "\\b[A-Z]\\.\\s?[A-Z]\\.\\s"
+   ],
+   "message": "Titles and initials take no full stops: '%s'.",
+   "link": "/articles/names"
+  },
+  {
+   "name": "PrefixHyphens",
+   "severity": "warning",
+   "kind": "existence",
+   "scope": [
+    "text"
+   ],
+   "nonword": true,
+   "ignorecase": true,
+   "tokens": [
+    "\\bextra-(?!a)\\w+",
+    "\\bintra-(?!a)\\w+",
+    "\\binfra-(?!a)\\w+",
+    "\\bsupra-(?!a)\\w+",
+    "\\bperi-(?!i)\\w+",
+    "\\bretro-(?!o)\\w+",
+    "\\bhyper-(?!r)\\w+",
+    "\\bhypo-(?!o)\\w+",
+    "\\binter-(?!r)\\w+"
+   ],
+   "message": "A prefix takes a hyphen only to avoid a duplicate letter: '%s'.",
+   "link": "/articles/dashes-and-hyphens"
+  },
+  {
+   "name": "Ranges",
+   "severity": "warning",
+   "kind": "existence",
+   "scope": [
+    "text"
+   ],
+   "nonword": true,
+   "tokens": [
+    "(?:from|between)\\s\\d+\\s?-\\s?\\d+"
+   ],
+   "message": "Don't add words such as 'from' or 'between' to describe a range of numbers."
+  },
+  {
+   "name": "SpinalLevelFormat",
+   "severity": "warning",
+   "kind": "existence",
+   "scope": [
+    "text"
+   ],
+   "nonword": true,
+   "tokens": [
+    "C\\d+-C\\d+",
+    "T\\d+-T\\d+",
+    "L\\d+-L\\d+",
+    "S\\d+-S\\d+"
+   ],
+   "message": "Consider removing the duplication of spinal level in the second reference '%s'."
+  },
+  {
+   "name": "Strong",
+   "severity": "warning",
+   "kind": "script",
+   "scope": [
+    "raw"
+   ],
+   "message": "Generally, don't use bold in text: '%s'",
+   "link": "/articles/when-to-use-bold"
+  },
+  {
+   "name": "UnitCapitalisation",
+   "severity": "warning",
+   "kind": "existence",
+   "scope": [
+    "text"
+   ],
+   "nonword": true,
+   "tokens": [
+    "\\b\\d+(\\.\\d+)? ?(Tesla|Sievert|Gray|Becquerel|Curie|Hertz|Kelvin|Newton|Pascal|Watt|Volt|Ampere)\\b",
+    "\\b\\d+ ?ml\\b"
+   ],
+   "message": "Unit names are lowercase in full, and the litre takes a capital L: '%s'.",
+   "link": "/articles/units-of-measurement"
+  },
+  {
+   "name": "BiographicalLifespan",
+   "severity": "suggestion",
+   "kind": "existence",
+   "scope": [
+    "raw"
+   ],
+   "nonword": true,
+   "tokens": [
+    "<h4>History and etymology<\\/h4>[\\s\\S]*?<strong>(.*?)<\\/strong> (?!\\([0-9])"
+   ],
+   "capture": 1,
+   "message": "A bold element in the History and etymology section should be a person; it would be useful to have their lifespan details: '%s'"
+  },
+  {
+   "name": "Commas",
+   "severity": "suggestion",
+   "kind": "occurrence",
+   "scope": [
+    "sentence"
+   ],
+   "ignorecase": true,
+   "tokens": [
+    ","
+   ],
+   "max": 5,
+   "message": "More than 5 commas in a single sentence might make it more difficult to read."
+  },
+  {
+   "name": "HiddenSpace",
+   "severity": "suggestion",
+   "kind": "existence",
+   "scope": [
+    "raw"
+   ],
+   "nonword": true,
+   "tokens": [
+    "&nbsp;"
+   ],
+   "message": "There is a hidden non-breaking space in the HTML (&nbsp;). These should be avoided"
+  },
+  {
+   "name": "InlineEG",
+   "severity": "suggestion",
+   "kind": "existence",
+   "scope": [
+    "text"
+   ],
+   "nonword": true,
+   "tokens": [
+    "\\(e\\.g\\..*\\)[\\.,:;]?$"
+   ],
+   "message": "Consider replacing a bracketed e.g. with an inline e.g. after a comma."
+  },
+  {
+   "name": "MRIVendorSequences",
+   "severity": "suggestion",
+   "kind": "existence",
+   "scope": [
+    "sentence"
+   ],
+   "tokens": [
+    "FISP",
+    "DRIVE"
+   ],
+   "message": "'%s' is an MRI-manufacturer-specific sequence, try to avoid using these."
+  },
+  {
+   "name": "OxfordComma",
+   "severity": "suggestion",
+   "kind": "existence",
+   "scope": [
+    "sentence"
+   ],
+   "tokens": [
+    "(?<!e\\.g\\.[^.;:]{0,120})(?:[\\w^,]+,){1,}\\s\\w+\\s(?:and|or)\\s[\\w^,]+"
+   ],
+   "exceptions": [
+    "chest, abdomen and pelvis",
+    "1, 2 or 4S"
+   ],
+   "message": "Use the Oxford comma in '%s'."
+  },
+  {
+   "name": "Parentheses",
+   "severity": "suggestion",
+   "kind": "occurrence",
+   "scope": [
+    "text"
+   ],
+   "ignorecase": true,
+   "tokens": [
+    "\\("
+   ],
+   "max": 3,
+   "message": "Use parentheses judiciously. There are at least 3 sets in this paragraph."
+  },
+  {
+   "name": "Recency",
+   "severity": "suggestion",
+   "kind": "existence",
+   "scope": [
+    "text"
+   ],
+   "ignorecase": true,
+   "tokens": [
+    "\\brecent(ly)? (published|reported|described|proposed|shown|demonstrated)\\b",
+    "\\ba recent (study|series|paper|review|analysis|meta-analysis|publication|report|trial)\\b",
+    "\\bcurrently\\b"
+   ],
+   "message": "Avoid describing evidence as recent; give a date instead: '%s'.",
+   "link": "/articles/describing-recency"
+  },
+  {
+   "name": "Semicolons",
+   "severity": "suggestion",
+   "kind": "existence",
+   "scope": [
+    "sentence"
+   ],
+   "nonword": true,
+   "tokens": [
+    ";\\s"
+   ],
+   "message": "Use semicolons judiciously."
+  },
+  {
+   "name": "ThereIs",
+   "severity": "suggestion",
+   "kind": "existence",
+   "scope": [
+    "sentence",
+    "list",
+    "heading"
+   ],
+   "ignorecase": true,
+   "tokens": [
+    "^There\\s(is|are)\\b",
+    "[;-]\\s+There\\s(is|are)\\b"
+   ],
+   "message": "Don't start a sentence with '%s'."
+  }
+ ]
+}

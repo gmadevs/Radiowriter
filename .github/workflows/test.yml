@@ -1,0 +1,66 @@
+name: Tests
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    # I tre sistemi su cui l'app dichiara di funzionare. `paths.py` sceglie una
+    # cartella diversa per ognuno, ed e' esattamente il genere di cosa che si
+    # rompe solo su Windows e che nessuno si accorge finche' non gliela provi.
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+        python: ["3.11", "3.13"]
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python }}
+          cache: pip
+
+      - name: Install
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e .
+
+      - name: The Radiopaedia linter rules
+        run: python check_rules.py
+
+      - name: The article structures
+        run: python check_structure.py
+
+      - name: Query building, filters, strategies, lists
+        run: python check_search.py
+
+      - name: Journals, open access, backups
+        run: python check_journals.py
+
+      - name: The interface
+        run: python check_app.py
+
+      - name: It starts, and it answers
+        # Nessuna delle prove sopra accende un server vero. Questa si': se
+        # l'entry point o i file di dati del package si rompono, si rompono qui.
+        shell: bash
+        run: |
+          radiowriter --version
+          radiowriter --where
+          radiowriter --port 8599 --no-browser &
+          for i in $(seq 1 30); do
+            sleep 2
+            if curl -sf http://localhost:8599/_stcore/health | grep -q ok; then
+              echo "up after ${i} tries"; exit 0
+            fi
+          done
+          echo "the server never came up"; exit 1

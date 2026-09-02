@@ -1,0 +1,38 @@
+# L'archivio di chi usa l'app. Contiene i suoi articoli, le sue liste, le sue
+# bozze e le sue impostazioni - email e identificativo della biblioteca
+# compresi. Non deve finire in un repository per nessuna ragione.
+*.db
+*.db-shm
+*.db-wal
+pubmed_database*.db*
+
+# Quello che l'app esporta: stessa roba, in un altro formato.
+export/
+*.nbib
+
+# Il file SCImago. Non e' nostro da ridistribuire (i loro dati sono CC BY-NC) e
+# sono undici megabyte che si riscaricano in trenta secondi da scimagojr.com.
+scimagojr*.csv
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+build/
+dist/
+.venv/
+venv/
+
+# macOS
+.DS_Store
+
+# Impostazioni locali degli strumenti
+.claude/
+
+# Vecchie versioni dell'app, tenute per sicurezza dopo un refactoring, e la
+# scorciatoia che lanciava l'app col percorso assoluto di chi la usava. Il
+# comando `radiowriter` le sostituisce tutte.
+app.py.bak
+app.py.pre-iofix
+review.command
+requirements.txt
