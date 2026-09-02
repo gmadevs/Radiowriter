@@ -41,13 +41,25 @@ jobs:
       - run: npm run docs:build
 
       - uses: actions/configure-pages@v5
+        if: ${{ !github.event.repository.private }}
 
       - uses: actions/upload-pages-artifact@v3
+        if: ${{ !github.event.repository.private }}
         with:
           path: docs/.vitepress/dist
 
+      - name: Il sito e' stato costruito ma non pubblicato
+        if: ${{ github.event.repository.private }}
+        run: echo "Repository privata: GitHub Pages vuole un piano a pagamento. Il sito e' stato costruito e verificato, non pubblicato."
+
   deploy:
     needs: build
+    # GitHub Pages su una repository PRIVATA vuole un piano a pagamento.
+    # Finche' questa lo e', il sito si costruisce lo stesso - cosi' un link
+    # rotto o una config sbagliata si vedono - ma non si pubblica, e la run
+    # resta verde invece di fallire a ogni push per una ragione che non e' un
+    # errore. Quando la repository diventa pubblica riparte da sola.
+    if: ${{ !github.event.repository.private }}
     runs-on: ubuntu-latest
     environment:
       name: github-pages

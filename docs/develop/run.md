@@ -45,3 +45,16 @@ otherwise — it costs a five-line test.
 control's value from a callback (they run before that run's widgets are
 created), or put a counter in the key so the next one is a new widget that
 reads its `value=` again. Both patterns are in the code, commented.
+
+## The documentation site
+
+```bash
+npm install
+npm run docs:dev        # http://localhost:5173/Radiowriter/
+npm run docs:build      # writes docs/.vitepress/dist
+```
+
+CI builds it on every push that touches `docs/`, and publishes it to GitHub
+Pages — but only while the repository is public. Pages on a private repository
+needs a paid plan, so for now the site is built and checked without being
+deployed. It starts publishing by itself the day the repository is made public.
