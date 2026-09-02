@@ -50,7 +50,11 @@ jobs:
 
       - name: Il sito e' stato costruito ma non pubblicato
         if: ${{ github.event.repository.private }}
-        run: echo "Repository privata: GitHub Pages vuole un piano a pagamento. Il sito e' stato costruito e verificato, non pubblicato."
+        # Scalare a blocco: il messaggio contiene "due punti spazio", che in un
+        # valore YAML non quotato viene letto come l'inizio di una chiave.
+        run: >
+          echo "Private repository - GitHub Pages needs a paid plan.
+          The site was built and checked, not deployed."
 
   deploy:
     needs: build
