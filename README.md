@@ -30,8 +30,10 @@ Radiowriter is a Python program that serves a page to your own browser. One
 command installs it, and one command runs it — the same on all three systems.
 
 ```bash
-uv tool install radiowriter
+uv tool install git+https://github.com/gmadevs/Radiowriter
 ```
+
+<!-- pypi: swap the line above for `uv tool install radiowriter` at the first release -->
 
 Then, whenever you want it:
 
@@ -57,12 +59,17 @@ Windows, in PowerShell:
 powershell -c "irm https://astral.sh/uv/install.ps1 | iex"
 ```
 
-`pipx install radiowriter` works just as well if you already have pipx.
+`pipx install git+https://github.com/gmadevs/Radiowriter` works just as well
+if you already have pipx.
 
 </details>
 
 To update: `uv tool upgrade radiowriter`. To remove it:
 `uv tool uninstall radiowriter` — your archive stays where it is.
+
+> Not on PyPI yet, so the install goes through git. Once `radiowriter` is
+> published the command becomes `uv tool install radiowriter` — see
+> [releasing](docs/develop/release.md).
 
 ## First run
 
@@ -156,6 +163,20 @@ python3 check_app.py         # the interface, driven without a browser
 `check_mesh_live.py` is the one exception: it asks PubMed whether every MeSH
 term the strategies use still exists. Run it when you change them, or when MeSH
 changes — once a year, in January.
+
+## Documentation
+
+**[gmadevs.github.io/Radiowriter](https://gmadevs.github.io/Radiowriter/)**
+
+| | |
+|---|---|
+| [Install and first run](docs/guide/install.md) | Getting it going, and the SCImago file |
+| [Search PubMed](docs/guide/search.md) · [in blocks](docs/guide/blocks.md) | The filters, and building a query concept by concept |
+| [Screen](docs/guide/screen.md) · [journals](docs/guide/journals.md) | Reading lists, quartiles, open access |
+| [Write](docs/guide/write.md) | Structures, citations, the linter |
+| [Backup](docs/guide/backup.md) | Moving to another computer |
+| [How it works](docs/internals/architecture.md) | Architecture, storage, the services it calls |
+| [Known limitations](docs/limitations.md) | What it does not do, written down |
 
 ## Licence
 

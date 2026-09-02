@@ -36,3 +36,10 @@ app.py.bak
 app.py.pre-iofix
 review.command
 requirements.txt
+
+# Il sito delle docs
+node_modules/
+docs/.vitepress/dist/
+docs/.vitepress/cache/
+docs/.vitepress/.temp/
+package-lock.json

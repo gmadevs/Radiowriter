@@ -1,0 +1,14 @@
+{
+  "name": "radiowriter-docs",
+  "private": true,
+  "type": "module",
+  "description": "Only the documentation site. The app itself is Python \u2014 see pyproject.toml.",
+  "scripts": {
+    "docs:dev": "vitepress dev docs",
+    "docs:build": "vitepress build docs",
+    "docs:preview": "vitepress preview docs"
+  },
+  "devDependencies": {
+    "vitepress": "^1.6.3"
+  }
+}
