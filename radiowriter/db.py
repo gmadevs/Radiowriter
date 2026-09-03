@@ -103,6 +103,11 @@ def db_retry(fn, attempts: int = 4, delay: float = 0.15):
             if i == attempts - 1:
                 raise
             time.sleep(delay * (2 ** i))
+    # Irraggiungibile: l'ultimo giro o torna o rilancia. Sta scritto perche' un
+    # lettore non deve dedurlo dal ciclo, e perche' senza, la funzione ha un
+    # cammino che finisce restituendo None - che qui vorrebbe dire una
+    # scrittura data per fatta e mai avvenuta.
+    raise AssertionError("db_retry fell out of its loop")
 
 
 # ---------------------------------------------------------------------------
