@@ -39,7 +39,7 @@ dependencies = [
 
 [project.urls]
 Homepage = "https://github.com/gmadevs/Radiowriter"
-Documentation = "https://github.com/gmadevs/Radiowriter#readme"
+Documentation = "https://gmadevs.github.io/Radiowriter/"
 Issues = "https://github.com/gmadevs/Radiowriter/issues"
 
 [project.scripts]
