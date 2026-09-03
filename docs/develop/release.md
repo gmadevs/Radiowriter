@@ -40,8 +40,25 @@ successful run creates it.
 ## Trying it on TestPyPI first
 
 [test.pypi.org](https://test.pypi.org) is a full copy of PyPI that nobody
-installs from by accident. Register there too, add a pending publisher the same
-way, and push a tag like `v0.1.0rc1`. Then check the result is installable:
+installs from by accident. It is a **separate site with a separate account**:
+registering on PyPI does not register you there, and the pending publisher has
+to be added again, with `testpypi` as the environment.
+
+**Where a tag goes is decided by its shape**, so trying something out is not a
+separate procedure to remember:
+
+| Tag | Goes to |
+|---|---|
+| `v0.1.0rc1`, `v0.2.0a3`, `v1.0.0b2` | TestPyPI |
+| `v0.1.0`, `v1.2.3` | PyPI |
+
+The version in `pyproject.toml` has to say the same thing, and the workflow
+stops if it does not — a release page that contradicts what `pip` installed is
+a thing nobody notices until it matters. The comparison goes through
+`packaging` rather than string equality, because PEP 440 normalises:
+`0.1.0-rc1` and `0.1.0rc1` are the same version written two ways.
+
+Push a release candidate, then check the result is installable:
 
 ```bash
 uv tool install --index-url https://test.pypi.org/simple/ \

@@ -1,8 +1,18 @@
 name: Release
 
 # Un tag `v*` e' l'unica cosa che pubblica. Non un push su main, non un
-# workflow_dispatch: una versione su PyPI non si puo' sostituire, e la
+# workflow_dispatch: una versione pubblicata non si puo' sostituire, e la
 # deliberazione di premere il tasto dev'essere esplicita.
+#
+# DOVE finisce lo decide la forma del tag:
+#
+#     v0.1.0rc1, v0.2.0a3, v1.0.0b2   ->  TestPyPI
+#     v0.1.0, v1.2.3                  ->  PyPI
+#
+# Cosi' provare non e' un percorso separato da ricordarsi: e' lo stesso
+# workflow, e la differenza sta nel numero di versione, che e' dove uno la
+# cerca. Un rc su PyPI vero sarebbe un errore silenzioso - installabile, e li'
+# per sempre.
 on:
   push:
     tags: ['v*']
@@ -13,6 +23,8 @@ permissions:
 jobs:
   build:
     runs-on: ubuntu-latest
+    outputs:
+      prerelease: ${{ steps.check.outputs.prerelease }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -20,15 +32,29 @@ jobs:
           python-version: "3.12"
 
       - name: Il tag e la versione devono dire la stessa cosa
+        id: check
         # Se non coincidono, la pagina della release contraddice quello che
         # `pip` ha installato, e nessuno se ne accorge finche' non serve.
+        # Il confronto passa da `packaging`, non da una stringa: PEP 440
+        # normalizza, e `0.1.0-rc1` e `0.1.0rc1` sono la stessa versione
+        # scritta in due modi.
         run: |
-          python -m pip install --upgrade pip
+          python -m pip install --upgrade pip packaging
           pip install -e .
           TAG="${GITHUB_REF_NAME#v}"
-          PKG="$(python -c 'from importlib.metadata import version; print(version("radiowriter"))')"
-          echo "tag=$TAG  pyproject=$PKG"
-          test "$TAG" = "$PKG"
+          python - "$TAG" <<'PY'
+          import sys
+          from importlib.metadata import version
+          from packaging.version import Version
+          tag = Version(sys.argv[1])
+          pkg = Version(version("radiowriter"))
+          print(f"tag={tag}  pyproject={pkg}  prerelease={tag.is_prerelease}")
+          if tag != pkg:
+              raise SystemExit(f"il tag dice {tag}, pyproject.toml dice {pkg}")
+          import os
+          with open(os.environ["GITHUB_OUTPUT"], "a") as fh:
+              fh.write(f"prerelease={str(tag.is_prerelease).lower()}\n")
+          PY
 
       - name: I test, tutti
         run: |
@@ -44,40 +70,67 @@ jobs:
           python -m build
           twine check dist/*
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v5
         with:
           name: dist
           path: dist/
 
-  publish:
+  # --- una prova: TestPyPI ------------------------------------------------
+  testpypi:
     needs: build
+    if: needs.build.outputs.prerelease == 'true'
+    runs-on: ubuntu-latest
+    environment:
+      name: testpypi
+      url: https://test.pypi.org/p/radiowriter
+    permissions:
+      # Il token OIDC con cui l'indice verifica che sia davvero questo
+      # workflow. Niente API token da tenere da qualche parte.
+      id-token: write
+    steps:
+      - uses: actions/download-artifact@v5
+        with:
+          name: dist
+          path: dist/
+      - uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          repository-url: https://test.pypi.org/legacy/
+
+  # --- la cosa vera: PyPI -------------------------------------------------
+  pypi:
+    needs: build
+    if: needs.build.outputs.prerelease == 'false'
     runs-on: ubuntu-latest
     environment:
       name: pypi
       url: https://pypi.org/p/radiowriter
     permissions:
-      # Il token OIDC con cui PyPI verifica che sia davvero questo workflow.
-      # Niente API token da tenere da qualche parte.
       id-token: write
     steps:
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v5
         with:
           name: dist
           path: dist/
       - uses: pypa/gh-action-pypi-publish@release/v1
 
   github-release:
-    needs: publish
+    needs: [build, testpypi, pypi]
+    # `always()` perche' uno dei due job di pubblicazione viene sempre saltato,
+    # e un job saltato basterebbe a saltare anche questo. Si guarda che nessuno
+    # dei due sia FALLITO, che e' la cosa che conta davvero.
+    if: always() && !contains(needs.*.result, 'failure')
     runs-on: ubuntu-latest
     permissions:
       contents: write
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v5
         with:
           name: dist
           path: dist/
       - name: Release
         env:
           GH_TOKEN: ${{ github.token }}
-        run: gh release create "${GITHUB_REF_NAME}" dist/* --generate-notes
+        run: |
+          gh release create "${GITHUB_REF_NAME}" dist/* --generate-notes \
+            ${{ needs.build.outputs.prerelease == 'true' && '--prerelease' || '' }}
