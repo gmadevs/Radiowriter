@@ -84,8 +84,8 @@ STRATEGIES: dict[str, dict[str, list[str]]] = {
     },
     "Macroscopic appearance": {
         "mesh": ['pathology[sh]', '"Autopsy"[Mesh]'],
-        "keywords": ['macroscop*[tiab]', '"gross appearance"[tiab]', '"gross '
-                     'pathology"[tiab]', 'specimen*[tiab]'],
+        "keywords": ['macroscop*[tiab]', '"gross appearance"[tiab]',
+                     '"gross pathology"[tiab]', 'specimen*[tiab]'],
     },
     "Microscopic appearance": {
         "mesh": ['"Histology"[Mesh]', 'pathology[sh]', '"Immunohistochemistry"[Mesh]'],
@@ -122,8 +122,8 @@ STRATEGIES: dict[str, dict[str, list[str]]] = {
         "mesh": ['"Diagnostic Imaging"[Mesh]', '"Sensitivity and Specificity"[Mesh]',
                  '"diagnostic imaging"[sh]'],
         "keywords": ['"role of imaging"[tiab]', '"diagnostic accuracy"[tiab]',
-                     'sensitivit*[tiab]', 'specificit*[tiab]', '"diagnostic '
-                     'performance"[tiab]'],
+                     'sensitivit*[tiab]', 'specificit*[tiab]',
+                     '"diagnostic performance"[tiab]'],
     },
     "Plain radiograph": {
         "mesh": ['"Radiography"[Mesh]', 'radiography[sh]'],
@@ -137,8 +137,8 @@ STRATEGIES: dict[str, dict[str, list[str]]] = {
                      'MSCT[tiab]', '"CT angiograph*"[tiab]'],
     },
     "Dual-energy CT": {
-        "mesh": ['"Tomography, X-Ray Computed"[Mesh]', '"Radiography, Dual-Energy '
-                 'Scanned Projection"[Mesh]'],
+        "mesh": ['"Tomography, X-Ray Computed"[Mesh]',
+                 '"Radiography, Dual-Energy Scanned Projection"[Mesh]'],
         "keywords": ['"dual energy"[tiab]', '"dual-energy"[tiab]', 'DECT[tiab]',
                      '"spectral CT"[tiab]', '"photon counting"[tiab]'],
     },
@@ -683,8 +683,8 @@ STRATEGIES: dict[str, dict[str, list[str]]] = {
                      'insufficien*[tiab]'],
     },
     "Toxicity": {
-        "mesh": ['toxicity[sh]', '"adverse effects"[sh]', '"Drug-Related Side Effects '
-                 'and Adverse Reactions"[Mesh]'],
+        "mesh": ['toxicity[sh]', '"adverse effects"[sh]',
+                 '"Drug-Related Side Effects and Adverse Reactions"[Mesh]'],
         "keywords": ['toxicit*[tiab]', 'overdose[tiab]', '"adverse reaction*"[tiab]',
                      'nephrotoxic*[tiab]'],
     },

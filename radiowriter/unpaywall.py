@@ -104,6 +104,9 @@ def enrich(dois: list[str], email: str, session: requests.Session | None = None,
         try:
             out[doi] = lookup(doi, email, http)
         except (UnpaywallError, requests.RequestException, ValueError):
+            # Questo DOI non si sa, gli altri si': si tira dritto. Chi non ha
+            # risposto resta senza `oa_fetched_at`, quindi la prossima volta
+            # rientra da solo fra quelli da chiedere.
             pass
         if progress:
             progress(i, len(unique))

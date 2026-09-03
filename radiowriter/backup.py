@@ -29,7 +29,6 @@ sarebbe solo peso.
 from __future__ import annotations
 
 import json
-import sqlite3
 from datetime import datetime, timezone
 
 from radiowriter import db

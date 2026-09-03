@@ -248,6 +248,21 @@ bad = [t for name in stg.covered() for t in stg.terms_for(name)
        if "?" in t or t.count('"') % 2 or t.count("(") != t.count(")")]
 is_("nessun termine con jolly Ovid o virgolette dispari", bad, [])
 
+# Una virgola dimenticata fra due voci della lista non e' un errore di sintassi:
+# Python le incolla, e resta un termine solo che a PubMed non trova niente. In un
+# file di settecento righe scritto a mano e' la cosa piu' facile da fare e la
+# piu' difficile da vedere. Un termine sano finisce con UN tag di campo e non ne
+# ha altri in mezzo.
+FIELD_TAG = __import__("re").compile(r"\[[A-Za-z][A-Za-z0-9 :,/._-]*\]")
+merged = []
+for name in stg.covered():
+    for term in stg.terms_for(name):
+        tags = FIELD_TAG.findall(term)
+        if len(tags) != 1 or not term.rstrip().endswith("]"):
+            merged.append((name, term))
+is_("nessun termine con due tag di campo dentro (virgola dimenticata)",
+    merged, [])
+
 # Una strategia dev'essere componibile senza rompere la query che la ospita.
 built = qb.compose([qb.Block(terms=[qb.Term("joubert syndrome")]),
                     qb.Block(terms=[qb.Term(stg.fragment("MRI"), "raw")])])

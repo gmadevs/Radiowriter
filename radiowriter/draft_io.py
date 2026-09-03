@@ -96,9 +96,12 @@ def to_markdown(data: dict) -> str:
         f"> Bozza Radiopaedia · esportata il {data['exported']}"
         + (f" · tipo: {data['profile']}" if data.get("profile") else ""),
         ">",
-        "> Questa copia e' da leggere. Il `.json` accanto e' quello da"
-        " reimportare: ha dentro il tipo di articolo, le note della"
-        " bibliografia e le citazioni gia' risolte, che qui non ci sono.",
+        # Le parentesi dicono che il pezzo unico e' voluto: in una lista di
+        # stringhe, due righe accostate senza virgola sono indistinguibili da
+        # una virgola dimenticata.
+        ("> Questa copia e' da leggere. Il `.json` accanto e' quello da"
+         " reimportare: ha dentro il tipo di articolo, le note della"
+         " bibliografia e le citazioni gia' risolte, che qui non ci sono."),
         "",
         "---",
         "",

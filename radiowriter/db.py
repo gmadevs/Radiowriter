@@ -11,7 +11,6 @@ import os
 import sqlite3
 import time
 from datetime import datetime, timezone
-from pathlib import Path
 
 from radiowriter import journals as jr
 from radiowriter import paths
@@ -79,6 +78,9 @@ def get_connection() -> sqlite3.Connection:
     try:
         conn.execute("PRAGMA journal_mode=WAL")
     except sqlite3.DatabaseError:
+        # WAL non c'e' su tutti i filesystem - una share di rete, certi volumi
+        # montati - e li' sqlite rifiuta il PRAGMA. Non e' un guasto: si
+        # continua col journal classico, che e' piu' lento e funziona sempre.
         pass
     conn.execute("PRAGMA busy_timeout=30000")
     return conn
@@ -90,6 +92,10 @@ def db_retry(fn, attempts: int = 4, delay: float = 0.15):
     Su macOS con disco quasi pieno sqlite puo' restituire 'disk I/O error' in
     modo intermittente: un secondo tentativo di solito va a buon fine.
     """
+    if attempts < 1:
+        # Senza questo, `attempts=0` non esegue mai il ciclo e la funzione
+        # torna None: chi ha chiamato crede che la scrittura sia andata.
+        raise ValueError("db_retry needs at least one attempt")
     for i in range(attempts):
         try:
             return fn()

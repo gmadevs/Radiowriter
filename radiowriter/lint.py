@@ -507,7 +507,8 @@ def _units(doc: Document, rule: Rule):
 
 def run_existence(doc: Document, rule: Rule, out: list[Finding]) -> None:
     if "raw" in rule.scope:
-        return run_raw(doc, rule, out)
+        run_raw(doc, rule, out)
+        return
     if rule.pattern is None:
         return
     for i, text, offset in _units(doc, rule):
