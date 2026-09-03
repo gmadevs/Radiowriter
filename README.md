@@ -31,22 +31,21 @@ searches themselves.
 ## Install
 
 Radiowriter is a Python program that serves a page to your own browser. One
-command installs it, and one command runs it — the same on all three systems.
+command installs it, one command runs it — the same on macOS, Linux and
+Windows.
 
+<!-- install: at the first PyPI release this becomes `uv tool install radiowriter` -->
 ```bash
 uv tool install git+https://github.com/gmadevs/Radiowriter
 ```
-
-<!-- pypi: swap the line above for `uv tool install radiowriter` at the first release -->
-
-Then, whenever you want it:
 
 ```bash
 radiowriter
 ```
 
 It opens `http://localhost:8501` in your browser. `Ctrl+C` in the terminal
-stops it.
+stops it. `uv tool upgrade radiowriter` updates it, and
+`uv tool uninstall radiowriter` removes it — your archive stays where it is.
 
 <details>
 <summary>If you do not have <code>uv</code></summary>
@@ -63,18 +62,16 @@ Windows, in PowerShell:
 powershell -c "irm https://astral.sh/uv/install.ps1 | iex"
 ```
 
-`pipx install git+https://github.com/gmadevs/Radiowriter` works just as well
-if you already have pipx.
+`pipx install git+https://github.com/gmadevs/Radiowriter` does the same job if
+you already have pipx.
 
 </details>
 
-To update: `uv tool upgrade radiowriter`. To remove it:
-`uv tool uninstall radiowriter` — your archive stays where it is.
-
-> Not on PyPI yet, so the install goes through git — which needs nothing but
-> `uv` and works on all three systems. Once `radiowriter` is published the
-> command becomes the shorter `uv tool install radiowriter`; see
-> [releasing](docs/develop/release.md).
+> **Why from git and not from PyPI?** Because nothing has been released there
+> yet. Installing from the repository needs no index and no account, and gives
+> you exactly what is on `main`. When the first version is published the
+> command shortens to `uv tool install radiowriter` and nothing else changes.
+> [How releasing works](docs/develop/release.md).
 
 ## First run
 

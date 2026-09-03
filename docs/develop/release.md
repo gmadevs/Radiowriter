@@ -23,19 +23,32 @@ can publish something that is not yours.
 `release.yml` in `gmadevs/Radiowriter` may publish `radiowriter`", and GitHub
 signs each run so PyPI can check it. Nothing is stored anywhere.
 
-Set it up once, before the first release:
+Set it up once, before the first release. **Twice, in fact** — PyPI and
+TestPyPI are separate sites with separate accounts, and the only difference in
+the form is the environment name:
 
-1. On PyPI: **Your projects → Publishing → Add a new pending publisher**
-2. Fill in:
-   - PyPI project name: `radiowriter`
-   - Owner: `gmadevs`
-   - Repository: `Radiowriter`
-   - Workflow: `release.yml`
-   - Environment: `pypi`
-3. On GitHub: **Settings → Environments → New environment**, named `pypi`
+| | PyPI | TestPyPI |
+|---|---|---|
+| Where | [pypi.org](https://pypi.org/manage/account/publishing/) | [test.pypi.org](https://test.pypi.org/manage/account/publishing/) |
+| Project name | `radiowriter` | `radiowriter` |
+| Owner | `gmadevs` | `gmadevs` |
+| Repository | `Radiowriter` | `Radiowriter` |
+| Workflow | `release.yml` | `release.yml` |
+| Environment | `pypi` | `testpypi` |
+
+On GitHub both environments have to exist too: **Settings → Environments → New
+environment**, named `pypi` and `testpypi`.
 
 "Pending publisher" is the form to use before the project exists — the first
 successful run creates it.
+
+::: tip When it says `invalid-publisher`
+The workflow fails with *"valid token, but no corresponding publisher"* and
+then prints the claims it sent — `repository`, `workflow_ref`, `environment`.
+Those are what the form has to match. Most of the time the mismatch is the
+environment, or the publisher having been added on the other one of the two
+sites.
+:::
 
 ## Trying it on TestPyPI first
 
