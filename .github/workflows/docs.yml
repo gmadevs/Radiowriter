@@ -27,12 +27,12 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           # VitePress legge la storia git per la data di ogni pagina.
           fetch-depth: 0
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version: 22
 
@@ -40,10 +40,10 @@ jobs:
 
       - run: npm run docs:build
 
-      - uses: actions/configure-pages@v5
+      - uses: actions/configure-pages@v6
         if: ${{ !github.event.repository.private }}
 
-      - uses: actions/upload-pages-artifact@v3
+      - uses: actions/upload-pages-artifact@v5
         if: ${{ !github.event.repository.private }}
         with:
           path: docs/.vitepress/dist
