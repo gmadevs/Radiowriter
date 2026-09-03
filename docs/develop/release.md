@@ -1,8 +1,8 @@
 # Releasing to PyPI
 
-PyPI is the index `pip` and `uv` install from. Until a version is on it,
-`uv tool install radiowriter` has nothing to find and people install from git
-instead.
+PyPI is the index `pip` and `uv` install from. `radiowriter` has been there
+since **0.1.0** (3 September 2026), which is what makes
+`uv tool install radiowriter` work. This page is how the next one gets there.
 
 ## What has to exist first
 
@@ -127,13 +127,14 @@ hidden from new installs while staying available to anything that pinned it —
 but never overwritten. Which is why TestPyPI exists, and why release candidates
 are worth the extra minute.
 
-## Installing from git in the meantime
+## Installing from git instead
 
-Perfectly good, and it needs no index at all:
+Still perfectly good, and it needs no index at all:
 
 ```bash
 uv tool install git+https://github.com/gmadevs/Radiowriter
 ```
 
-While the repository is private, whoever runs it needs access to it — git will
-ask for credentials.
+The difference is what you get: the index gives you the last released version,
+git gives you whatever is on `main` at that moment — which may be ahead of any
+release, and may be mid-change.

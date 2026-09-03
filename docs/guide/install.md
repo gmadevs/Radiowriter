@@ -9,13 +9,13 @@ of yours leaves the machine.
 One command, the same on macOS, Linux and Windows:
 
 ```bash
-uv tool install git+https://github.com/gmadevs/Radiowriter
+uv tool install radiowriter
 ```
 
-::: info Not on PyPI yet
-Once `radiowriter` is published to PyPI the command becomes the shorter
-`uv tool install radiowriter`. Until then it installs straight from the
-repository, which needs nothing else and works just as well.
+::: tip Or the very latest
+`uv tool install git+https://github.com/gmadevs/Radiowriter` installs from the
+repository instead of from the index: whatever is on `main` right now, released
+or not.
 :::
 
 Then, whenever you want it:
@@ -40,8 +40,7 @@ Windows, in PowerShell:
 powershell -c "irm https://astral.sh/uv/install.ps1 | iex"
 ```
 
-`pipx install git+https://github.com/gmadevs/Radiowriter` does the same job if
-you already have pipx.
+`pipx install radiowriter` does the same job if you already have pipx.
 :::
 
 Updating is `uv tool upgrade radiowriter`. Removing it is

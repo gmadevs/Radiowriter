@@ -2,6 +2,7 @@
 
 # Radiowriter
 
+[![PyPI](https://img.shields.io/pypi/v/radiowriter?style=flat-square&logo=pypi&logoColor=white)](https://pypi.org/project/radiowriter/)
 [![Licence: AGPL-3.0-only](https://img.shields.io/badge/licence-AGPL--3.0--only-blue?style=flat-square)](LICENSE)
 [![Platform: macOS, Linux, Windows](https://img.shields.io/badge/platform-macOS%20%7C%20Linux%20%7C%20Windows-lightgrey?style=flat-square)](#install)
 [![Python 3.11+](https://img.shields.io/badge/python-3.11%2B-3776AB?style=flat-square&logo=python&logoColor=white)](https://www.python.org/)
@@ -34,9 +35,8 @@ Radiowriter is a Python program that serves a page to your own browser. One
 command installs it, one command runs it — the same on macOS, Linux and
 Windows.
 
-<!-- install: at the first PyPI release this becomes `uv tool install radiowriter` -->
 ```bash
-uv tool install git+https://github.com/gmadevs/Radiowriter
+uv tool install radiowriter
 ```
 
 ```bash
@@ -62,16 +62,14 @@ Windows, in PowerShell:
 powershell -c "irm https://astral.sh/uv/install.ps1 | iex"
 ```
 
-`pipx install git+https://github.com/gmadevs/Radiowriter` does the same job if
-you already have pipx.
+`pipx install radiowriter` does the same job if you already have pipx.
 
 </details>
 
-> **Why from git and not from PyPI?** Because nothing has been released there
-> yet. Installing from the repository needs no index and no account, and gives
-> you exactly what is on `main`. When the first version is published the
-> command shortens to `uv tool install radiowriter` and nothing else changes.
-> [How releasing works](docs/develop/release.md).
+> **Want what is on `main` instead of the last release?**
+> `uv tool install git+https://github.com/gmadevs/Radiowriter` installs straight
+> from the repository — no index, no account, whatever is on the branch right
+> now. [How releasing works](docs/develop/release.md).
 
 ## First run
 
