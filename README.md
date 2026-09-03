@@ -5,7 +5,9 @@
 [![Licence: AGPL-3.0-only](https://img.shields.io/badge/licence-AGPL--3.0--only-blue?style=flat-square)](LICENSE)
 [![Platform: macOS, Linux, Windows](https://img.shields.io/badge/platform-macOS%20%7C%20Linux%20%7C%20Windows-lightgrey?style=flat-square)](#install)
 [![Python 3.11+](https://img.shields.io/badge/python-3.11%2B-3776AB?style=flat-square&logo=python&logoColor=white)](https://www.python.org/)
+[![Docs](https://img.shields.io/badge/docs-gmadevs.github.io-4c9aff?style=flat-square)](https://gmadevs.github.io/Radiowriter/)
 [![Tests](https://github.com/gmadevs/Radiowriter/actions/workflows/test.yml/badge.svg)](https://github.com/gmadevs/Radiowriter/actions/workflows/test.yml)
+[![Docs build](https://github.com/gmadevs/Radiowriter/actions/workflows/docs.yml/badge.svg)](https://github.com/gmadevs/Radiowriter/actions/workflows/docs.yml)
 
 </div>
 
@@ -67,8 +69,9 @@ if you already have pipx.
 To update: `uv tool upgrade radiowriter`. To remove it:
 `uv tool uninstall radiowriter` — your archive stays where it is.
 
-> Not on PyPI yet, so the install goes through git. Once `radiowriter` is
-> published the command becomes `uv tool install radiowriter` — see
+> Not on PyPI yet, so the install goes through git — which needs nothing but
+> `uv` and works on all three systems. Once `radiowriter` is published the
+> command becomes the shorter `uv tool install radiowriter`; see
 > [releasing](docs/develop/release.md).
 
 ## First run

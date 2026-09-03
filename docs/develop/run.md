@@ -54,7 +54,9 @@ npm run docs:dev        # http://localhost:5173/Radiowriter/
 npm run docs:build      # writes docs/.vitepress/dist
 ```
 
-CI builds it on every push that touches `docs/`, and publishes it to GitHub
-Pages — but only while the repository is public. Pages on a private repository
-needs a paid plan, so for now the site is built and checked without being
-deployed. It starts publishing by itself the day the repository is made public.
+CI builds it on every push that touches `docs/` and publishes it to
+[gmadevs.github.io/Radiowriter](https://gmadevs.github.io/Radiowriter/).
+
+The deploy job is skipped while the repository is private, because Pages on a
+private repository needs a paid plan. The site is still built in that case, so
+a broken link or a bad config is caught either way.

@@ -15,7 +15,7 @@ uv tool install git+https://github.com/gmadevs/Radiowriter
 ::: info Not on PyPI yet
 Once `radiowriter` is published to PyPI the command becomes the shorter
 `uv tool install radiowriter`. Until then it installs straight from the
-repository, which works just as well.
+repository, which needs nothing else and works just as well.
 :::
 
 Then, whenever you want it:
