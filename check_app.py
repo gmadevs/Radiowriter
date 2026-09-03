@@ -563,5 +563,36 @@ shown = " ".join([m.value for m in at_z.markdown] + [c.value for c in at_z.capti
 is_("azzerare le faccette rimette tutto", "Showing" in shown, "False")
 is_("...senza sollevare", exceptions(at_z), "[]")
 
+# ---------------------------------------------------------------------------
+# dove sta l'archivio, detto a schermo
+# ---------------------------------------------------------------------------
+#
+# Chi si trova davanti un archivio inatteso deve poter LEGGERE da dove viene.
+# Senza, l'unica strada e' aprire un terminale e indovinare - ed e' successo.
+
+from radiowriter import paths as _paths       # noqa: E402
+
+at = AppTest.from_file(APP, default_timeout=60)
+at.run()
+side = " ".join([m.value for m in at.sidebar.markdown]
+                + [c.value for c in at.sidebar.caption])
+is_("la barra laterale dice quanti articoli ci sono",
+    "Archive" in side and "articles" in side, "True")
+is_("...e mostra il percorso del file",
+    _paths.short(_paths.db_path()) in side, "True")
+is_("i test girano su un database scelto da RADIOPAEDIA_DB",
+    _paths.db_origin()[1], _paths.FROM_ENV)
+is_("...e la barra laterale lo dice invece di tacere",
+    "RADIOPAEDIA_DB" in side, "True")
+
+# La ragione va detta anche quando il database sta accanto al codice, che e' il
+# caso che ha generato il dubbio: sembra che l'app abbia scelto a caso.
+from radiowriter import __main__ as _cli      # noqa: E402
+for origin in (_paths.FROM_ENV, _paths.FROM_SOURCE, _paths.FROM_DATA_DIR):
+    is_(f"la riga di comando spiega l'origine '{origin}'",
+        bool(_cli._why(origin).strip()), "True")
+is_("...e per l'archivio accanto al codice dice perche' non viene spostato",
+    "never moved out" in _cli._why(_paths.FROM_SOURCE), "True")
+
 print(f"\n{checked} controlli, {failed} falliti")
 sys.exit(1 if failed else 0)

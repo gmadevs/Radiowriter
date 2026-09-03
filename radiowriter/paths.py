@@ -59,21 +59,43 @@ def home(create: bool = True) -> Path:
     return path
 
 
+# Da dove viene il percorso del database. Non e' un dettaglio interno: se
+# l'archivio non e' quello che uno si aspetta, la ragione e' sempre una di
+# queste tre, e l'app deve poterla dire invece di lasciarlo indovinare.
+FROM_ENV = "env"            # RADIOPAEDIA_DB
+FROM_SOURCE = "beside-code"  # accanto al codice: installazione storica o `pip install -e`
+FROM_DATA_DIR = "data-dir"   # la cartella dei dati del sistema, il caso normale
+
+
+def db_origin() -> tuple[Path, str]:
+    """(percorso del database, quale delle tre regole l'ha scelto)."""
+    explicit = os.environ.get("RADIOPAEDIA_DB")
+    if explicit:
+        return Path(explicit).expanduser(), FROM_ENV
+
+    beside_code = PROJECT_DIR / DB_NAME
+    if beside_code.exists():
+        return beside_code, FROM_SOURCE
+
+    return home() / DB_NAME, FROM_DATA_DIR
+
+
 def db_path() -> Path:
     """Il file del database.
 
     `RADIOPAEDIA_DB` continua a valere e vince su tutto: e' quello che usano i
     test per non toccare l'archivio vero, ed e' in giro da prima di questo
     modulo."""
-    explicit = os.environ.get("RADIOPAEDIA_DB")
-    if explicit:
-        return Path(explicit).expanduser()
+    return db_origin()[0]
 
-    beside_code = PROJECT_DIR / DB_NAME
-    if beside_code.exists():
-        return beside_code
 
-    return home() / DB_NAME
+def short(path: Path) -> str:
+    """Il percorso con la home abbreviata in `~`: piu' corto e piu' leggibile
+    in una barra laterale stretta."""
+    try:
+        return "~/" + str(path.relative_to(Path.home()))
+    except ValueError:
+        return str(path)
 
 
 def journal_csv() -> Path | None:

@@ -38,10 +38,12 @@ def main(argv: list[str] | None = None) -> int:
         return 0
 
     if args.where:
+        db_file, origin = paths.db_origin()
         print(f"data folder: {paths.home(create=False)}")
-        print(f"database:    {paths.db_path()}")
+        print(f"database:    {db_file}")
+        print(f"             {_why(origin)}")
         csv = paths.journal_csv()
-        print(f"SCImago CSV: {csv if csv else '(none — quartiles are off)'}")
+        print(f"SCImago CSV: {csv if csv else '(none - quartiles are off)'}")
         return 0
 
     # La cartella dei dati si crea adesso, prima che parta il server: se il
@@ -65,12 +67,31 @@ def main(argv: list[str] | None = None) -> int:
         "client.toolbarMode": "minimal",
         "global.developmentMode": False,
     }
-    print(f"Radiowriter — http://localhost:{args.port}")
-    print(f"Archive: {paths.db_path()}")
+    db_file, origin = paths.db_origin()
+    print(f"Radiowriter - http://localhost:{args.port}")
+    print(f"Archive: {db_file}")
+    if origin != paths.FROM_DATA_DIR:
+        # Il caso normale non ha bisogno di spiegazioni; gli altri due si'.
+        print(f"         {_why(origin)}")
     print("Press Ctrl+C to stop.")
     bootstrap.load_config_options(flag_options=flags)
     bootstrap.run(str(APP), False, [], flags)
     return 0
+
+
+def _why(origin: str) -> str:
+    """Perche' l'archivio e' quello e non un altro.
+
+    Detto sempre, non solo quando qualcosa va storto: chi si trova davanti un
+    archivio inatteso deve poterlo leggere, non dedurlo."""
+    from radiowriter import paths
+
+    if origin == paths.FROM_ENV:
+        return "(chosen by RADIOPAEDIA_DB)"
+    if origin == paths.FROM_SOURCE:
+        return ("(found next to the source, so that one is used - "
+                "an existing archive is never moved out from under you)")
+    return "(the data folder for this platform)"
 
 
 def _version() -> str:

@@ -27,6 +27,25 @@ next to the code, that one keeps being used. Moving somebody's archive out from
 under them is the sort of thing you do once and then spend the evening
 explaining.
 
+This also catches a case that surprises people: `pip install -e .` does not
+copy anything, it points at the source tree — so a developer install finds the
+database sitting next to the source rather than the one in the data folder.
+That is the rule working as intended, but from outside it looks as if the app
+picked an archive at random.
+
+**Which is why the app says so.** The sidebar shows the archive it is using,
+how much is in it, and — when the answer is not the ordinary one — where the
+path came from:
+
+```
+🗄 Archive · 2,453 articles · 1 draft
+~/Documents/Radiowriter/pubmed_database.db
+Next to the source, not the data folder — why
+```
+
+`radiowriter --where` prints the same thing with the reason spelled out, and so
+does the line the app writes when it starts.
+
 ## The SCImago file
 
 Looked for in the data folder first, then beside the code. The most recent name

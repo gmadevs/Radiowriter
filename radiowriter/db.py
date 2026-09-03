@@ -564,6 +564,25 @@ def store_oa(found: dict[str, dict], by_doi: dict[str, str]) -> int:
     return db_retry(_run)
 
 
+def archive_summary() -> dict:
+    """Due numeri per la barra laterale: quanti articoli e quante liste.
+
+    Serve a rispondere a colpo d'occhio alla domanda "ma questo e' il mio
+    archivio?", che senza un indicatore uno si porta dietro finche' non apre
+    il file a mano."""
+    conn = get_connection()
+    try:
+        return {
+            "articles": conn.execute("SELECT COUNT(*) FROM articles").fetchone()[0],
+            "lists": conn.execute("SELECT COUNT(*) FROM lists").fetchone()[0],
+            "drafts": conn.execute("SELECT COUNT(*) FROM drafts").fetchone()[0],
+        }
+    except sqlite3.Error:
+        return {"articles": 0, "lists": 0, "drafts": 0}
+    finally:
+        conn.close()
+
+
 def articles_for_export(scope: str = "all", list_id: int | None = None) -> list[sqlite3.Row]:
     """I record grezzi da mandare in un file MEDLINE, nell'ordine in cui sono
     entrati. `scope`: 'all', 'flagged', 'unread', 'read' o 'list'."""

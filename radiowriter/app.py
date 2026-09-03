@@ -29,6 +29,7 @@ from radiowriter import draft_io
 from radiowriter import issg
 from radiowriter import journals as jr
 from radiowriter import lint
+from radiowriter import paths
 from radiowriter import pubmed
 from radiowriter import querybuilder as qb
 from radiowriter import radiopaedia as rp
@@ -506,6 +507,28 @@ if (not (settings.get("ncbi_email") or "").strip()
 # ---------------------------------------------------------------------------
 
 with st.sidebar:
+    # Dove sta l'archivio, sempre a schermo. Prima non lo diceva nessuno, e
+    # l'unico modo di sapere quale dei possibili file si stesse usando era
+    # aprire un terminale: chi si e' trovato davanti un archivio inatteso ha
+    # dovuto chiedersi se fosse un residuo del pacchetto invece di leggerlo.
+    _db_file, _db_origin = paths.db_origin()
+    _counts = db.archive_summary()
+    st.markdown(
+        f"**🗄 Archive** · {_counts['articles']:,} articles"
+        + (f" · {_counts['lists']} list(s)" if _counts["lists"] else "")
+        + (f" · {_counts['drafts']} draft(s)" if _counts["drafts"] else ""))
+    st.caption(f"`{paths.short(_db_file)}`")
+    # Il caso normale non si commenta; gli altri due si', in una riga sola. La
+    # ragione per esteso sta nelle docs: qui serve solo che nessuno debba
+    # chiedersi da dove sia uscito questo archivio.
+    if _db_origin == paths.FROM_SOURCE:
+        st.caption(
+            "Next to the source, not the data folder — "
+            "[why](https://gmadevs.github.io/Radiowriter/internals/storage)")
+    elif _db_origin == paths.FROM_ENV:
+        st.caption("Set by `RADIOPAEDIA_DB`.")
+    st.divider()
+
     if removed_at_boot:
         st.info(f"🧹 {removed_at_boot} already-read articles were purged at startup.")
 
