@@ -3,6 +3,8 @@
 The **📚 Screening** tab is the archive: everything you saved, in one list you
 can narrow from several directions at once.
 
+![The archive](/shots/04-screening.png)
+
 ## Two states, and as many lists as you like
 
 **Read** and **Flagged** are two states, the same for everybody. **Reading

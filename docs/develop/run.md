@@ -60,3 +60,24 @@ CI builds it on every push that touches `docs/` and publishes it to
 The deploy job is skipped while the repository is private, because Pages on a
 private repository needs a paid plan. The site is still built in that case, so
 a broken link or a bad config is caught either way.
+
+## Screenshots
+
+They are taken by a script, not by hand, because a hand-taken screenshot ages
+in silence: a button gets renamed, the picture does not, and the page that was
+meant to explain ends up lying.
+
+```bash
+pip install playwright && playwright install chromium
+python3 scripts/shots.py
+```
+
+It builds a throwaway archive in `/tmp` with a made-up email, runs a real
+PubMed search in it, drives the app and writes `docs/public/shots/*.png`.
+
+**It never touches your archive.** The results are real papers; the identity is
+not. Without that separation the screenshots would carry the email address and
+the library ID of whoever took them.
+
+If a control it looks for is gone, the script fails instead of photographing
+the wrong thing.

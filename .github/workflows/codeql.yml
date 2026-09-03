@@ -1,0 +1,39 @@
+name: CodeQL
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  schedule:
+    # Una volta la settimana: le query di CodeQL si aggiornano, e un codice
+    # fermo puo' diventare vulnerabile senza che nessuno lo tocchi.
+    - cron: '17 4 * * 1'
+
+permissions:
+  contents: read
+
+jobs:
+  analyze:
+    runs-on: ubuntu-latest
+    permissions:
+      security-events: write
+      packages: read
+      actions: read
+      contents: read
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: github/codeql-action/init@v3
+        with:
+          languages: python
+          # `security-and-quality` aggiunge alle query di sicurezza quelle sulla
+          # qualita': in un progetto di questa dimensione il rumore in piu' e'
+          # poco e trova cose vere - risorse non chiuse, confronti che non
+          # possono essere veri.
+          queries: security-and-quality
+
+      - uses: github/codeql-action/analyze@v3
+        with:
+          category: "/language:python"

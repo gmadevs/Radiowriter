@@ -14,6 +14,8 @@ Block 2   MRI[tiab] OR "magnetic resonance"[tiab]
 Inside a block, **OR**: any one of the wordings is enough. Between blocks,
 **AND**: all of them must hold.
 
+![Two concept blocks](/shots/02-blocks.png)
+
 ## The parts of a block
 
 **＋ Another wording** adds a line. That is what it is for: *myocardial

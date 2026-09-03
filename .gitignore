@@ -43,3 +43,7 @@ docs/.vitepress/dist/
 docs/.vitepress/cache/
 docs/.vitepress/.temp/
 package-lock.json
+
+# L'archivio usa e getta degli screenshot vive in /tmp, ma se qualcuno lo
+# sposta qui non deve finire committato.
+radiowriter-shots/

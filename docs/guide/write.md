@@ -4,6 +4,8 @@ The **✍️ Write** tab is a Markdown editor that knows two things a plain edit
 does not: the structure Radiopaedia recommends for this kind of article, and
 how their citations work.
 
+![The Write tab](/shots/05-write.png)
+
 ## The structure
 
 Radiopaedia does not have one article structure. It has twenty-three. The
@@ -18,6 +20,8 @@ anatomy* and has no business being asked for *Epidemiology*.
 the title and remembered once you change it. Insert the required ones, all of
 them, or one at a time on a line you choose — and if you put a heading where its
 parent is not, the app says so without refusing.
+
+![The headings panel, and the formatted output](/shots/06-headings.png)
 
 The parent is part of a heading's identity. *Complications* under *Clinical
 presentation* are the disease's; under *Treatment and prognosis* they are the

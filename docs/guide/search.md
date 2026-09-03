@@ -4,6 +4,8 @@ Two ways in, chosen with the pills at the top: **One line** takes PubMed syntax
 as you write it, **Blocks** builds the query a concept at a time. Blocks has
 [its own page](/guide/blocks).
 
+![The search tab](/shots/01-search.png)
+
 ## The filters
 
 They sit in a panel that is always open, because a filter you cannot see is a
@@ -63,6 +65,8 @@ records:
 A line under the panel says *Showing 15 of 200*. What you save, add to a list
 or add to a draft is what you can see: a tick left on a record the filter is
 hiding does not come along.
+
+![Results, with the facets open](/shots/03-results.png)
 
 ## What happens to a search
 

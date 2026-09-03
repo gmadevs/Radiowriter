@@ -1,0 +1,42 @@
+version: 2
+
+updates:
+  # Le dipendenze Python. Raggruppate in una PR sola per settimana: cinque PR
+  # separate per cinque bump di patch sono cinque notifiche e una CI che gira
+  # cinque volte per niente.
+  - package-ecosystem: pip
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 5
+    groups:
+      python:
+        patterns: ['*']
+        update-types: [minor, patch]
+    commit-message:
+      prefix: "deps"
+
+  # Le action nei workflow. Sono la superficie che si dimentica: una action
+  # non aggiornata resta a girare finche' qualcuno non la guarda.
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+    groups:
+      actions:
+        patterns: ['*']
+    commit-message:
+      prefix: "ci"
+
+  # Solo VitePress, per le docs.
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: monthly
+    groups:
+      docs:
+        patterns: ['*']
+    commit-message:
+      prefix: "docs"

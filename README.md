@@ -26,6 +26,8 @@ searches themselves.
 
 > Unofficial. Not affiliated with or endorsed by Radiopaedia.org.
 
+![Screening the archive](docs/public/shots/04-screening.png)
+
 ## Install
 
 Radiowriter is a Python program that serves a page to your own browser. One
@@ -103,6 +105,8 @@ year.
 > impact factor but over Scopus. Both are shown, both are labelled.
 
 ## What it does
+
+![Building a query in blocks](docs/public/shots/02-blocks.png)
 
 **Search.** PubMed syntax on one line, or the block builder: one block per
 concept, every wording of it inside joined by OR, the blocks joined by AND.

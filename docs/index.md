@@ -29,3 +29,6 @@ features:
 ---
 
 > Unofficial. Not affiliated with or endorsed by Radiopaedia.org.
+
+![Screening the archive](/shots/04-screening.png)
+
