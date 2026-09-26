@@ -1,5 +1,8 @@
 #!/usr/bin/env python3
-"""Ogni termine di vocabolario controllato di `strategies.py`, chiesto a PubMed.
+"""Ogni termine di vocabolario controllato, chiesto a PubMed.
+
+Copre `strategies.py` (i titoli Radiopaedia) e `modalities.py` (le modalita' di
+imaging): sono le due liste scritte a mano, e sono le due che invecchiano.
 
     python3 check_mesh_live.py
 
@@ -22,6 +25,7 @@ import time
 import requests
 
 from radiowriter import db
+from radiowriter import modalities as mod
 from radiowriter import strategies as stg
 
 ESEARCH = "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esearch.fcgi"
@@ -35,18 +39,23 @@ def main() -> int:
         print("Manca l'email NCBI nelle impostazioni: le E-utilities la vogliono.")
         return 1
 
-    terms: list[str] = []
-    for entry in stg.STRATEGIES.values():
+    # Da dove viene ogni termine, cosi' quando uno cade si sa in quale dei due
+    # file andare a metterci le mani senza cercarlo.
+    terms: dict[str, str] = {}
+    for name, entry in stg.STRATEGIES.items():
         for term in entry["mesh"]:
-            if term not in terms:
-                terms.append(term)
-    print(f"{len(terms)} termini di vocabolario controllato da verificare.\n")
+            terms.setdefault(term, f"strategies: {name}")
+    for name, entry in mod.MODALITIES.items():
+        for term in entry["mesh"]:
+            terms.setdefault(term, f"modalities: {name}")
+    print(f"{len(terms)} termini di vocabolario controllato da verificare "
+          f"({len(stg.STRATEGIES)} titoli e {len(mod.MODALITIES)} modalita').\n")
 
     session = requests.Session()
     pause = 0.11 if api_key else 0.35
     bad: list[str] = []
 
-    for i, term in enumerate(terms, 1):
+    for i, (term, where) in enumerate(terms.items(), 1):
         params = {"db": "pubmed", "term": term, "retmax": 0, "retmode": "json",
                   "tool": "radiopaedia-lit-screener", "email": email}
         if api_key:
@@ -57,7 +66,7 @@ def main() -> int:
             result = resp.json().get("esearchresult", {})
         except (requests.RequestException, ValueError) as exc:
             bad.append(term)
-            print(f"  ERR {term}: {exc}")
+            print(f"  ERR {term}  [{where}]: {exc}")
         else:
             errors = result.get("errorlist") or {}
             count = int(result.get("count", 0))
@@ -65,7 +74,7 @@ def main() -> int:
             # sia, in MEDLINE qualcosa lo trova sempre.
             if count == 0 or errors.get("phrasesnotfound") or errors.get("fieldsnotfound"):
                 bad.append(term)
-                print(f"  NO  {term}   count={count} errorlist={errors}")
+                print(f"  NO  {term}  [{where}]   count={count} errorlist={errors}")
         if i % 25 == 0:
             print(f"  ...{i}/{len(terms)}")
         time.sleep(pause)

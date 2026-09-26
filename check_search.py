@@ -5,8 +5,8 @@
 
 Niente rete: quello che si prova qui e' come si scrive una query e come si
 tengono le liste, non cosa risponde PubMed. I termini di vocabolario
-controllato di `strategies` li verifica `check_mesh_live.py`, che sta a parte
-proprio perche' e' l'unico che ha bisogno della rete.
+controllato di `strategies` e di `modalities` li verifica `check_mesh_live.py`,
+che sta a parte proprio perche' e' l'unico che ha bisogno della rete.
 """
 
 from __future__ import annotations
@@ -21,6 +21,7 @@ os.environ["RADIOPAEDIA_DB"] = _TMP_DB
 
 from radiowriter import db                      # noqa: E402
 from radiowriter import issg                    # noqa: E402
+from radiowriter import modalities as mod       # noqa: E402
 from radiowriter import pubmed                  # noqa: E402
 from radiowriter import querybuilder as qb      # noqa: E402
 from radiowriter import strategies as stg       # noqa: E402
@@ -329,6 +330,84 @@ is_("la lista cancellata sparisce", db.get_list(first), None)
 is_("...e non lascia righe orfane", db.lists_for(["111"]).get("111"),
     "[(%d, 'Ottimi')]" % second)
 is_("...e l'articolo resta in archivio", "111" in db.known_pmids("db"), "True")
+
+# ---------------------------------------------------------------------------
+# le modalita' di imaging
+# ---------------------------------------------------------------------------
+print("\n--- modalita' di imaging ---")
+
+is_("una modalita' c'e'", mod.has("CT"), "True")
+is_("una inventata no", mod.has("Risonanza magnetica"), "False")
+
+# Ogni modalita' in un gruppo e ogni gruppo di modalita' vere: senza questo, una
+# voce aggiunta a MODALITIES e non messa in GROUPS non comparirebbe
+# nell'interfaccia - `covered()` legge i gruppi - e non se ne accorgerebbe
+# nessuno, perche' offline funziona tutto.
+grouped = [n for names in mod.GROUPS.values() for n in names]
+is_("ogni modalita' sta in un gruppo",
+    sorted(set(mod.MODALITIES)) == sorted(set(grouped)), "True")
+is_("...e nessuna in due gruppi", len(grouped), len(set(grouped)))
+is_("l'elenco segue l'ordine dei gruppi", mod.covered(), grouped)
+is_("ogni modalita' sa il suo gruppo",
+    all(mod.group_of(n) for n in mod.covered()), "True")
+is_("una inventata non ne ha uno", mod.group_of("Risonanza magnetica"), "")
+
+mesh = mod.terms_for("Doppler ultrasound", "mesh")
+words = mod.terms_for("Doppler ultrasound", "keywords")
+both = mod.terms_for("Doppler ultrasound", "both")
+is_("i termini mesh sono vocabolario controllato",
+    all("[Mesh]" in x or "[sh]" in x or "[pt]" in x for x in mesh), "True")
+is_("le keyword no", any("[Mesh]" in x for x in words), "False")
+is_("le due insieme sono l'unione", both, mesh + words)
+is_("una modalita' inventata non da' termini", mod.terms_for("Risonanza"), [])
+
+# Il sottotitolo di modalita' e' la trappola che questo modulo esiste per
+# evitare: il MeSH li ha fusi in `diagnostic imaging`, quindi `ultrasonography[sh]`
+# non vuol dire ecografia, vuol dire imaging - e in una modalita' allarga invece
+# di restringere. Ne resta uno solo, e solo dove e' quello che si vuole dire.
+sh_terms = [(n, x) for n in mod.covered() for x in mod.terms_for(n, "mesh")
+            if "[sh]" in x]
+is_("il solo sottotitolo che resta e' 'diagnostic imaging' in 'Any imaging'",
+    sh_terms, [("Any imaging (broad)", '"diagnostic imaging"[sh]')])
+is_("...e i sottotitoli fusi non sono tornati in strategies",
+    [n for n in stg.covered() for x in stg.terms_for(n, "mesh")
+     if x in ("radiography[sh]", "ultrasonography[sh]",
+              '"radionuclide imaging"[sh]')], [])
+
+frag = mod.fragment("CT")
+is_("un frammento e' racchiuso in parentesi",
+    frag.startswith("(") and frag.endswith(")"), "True")
+is_("una modalita' inventata non da' frammento", mod.fragment("Risonanza"), "")
+
+two = mod.clause(["MRI", "MR perfusion"])
+is_("piu' modalita' finiscono in un OR solo", two.count("(") - two.count(")"), 0)
+is_("...senza doppioni",
+    two.count('"Magnetic Resonance Imaging"[Mesh]'), 1)
+is_("nessuna modalita' scelta non da' clausola", mod.clause([]), "")
+is_("None nemmeno", mod.clause(None), "")
+is_("una sola modalita' da' il suo frammento",
+    mod.clause(["Elastography"]), mod.fragment("Elastography"))
+
+bad = [x for n in mod.covered() for x in mod.terms_for(n)
+       if "?" in x or x.count('"') % 2 or x.count("(") != x.count(")")]
+is_("nessun termine con jolly Ovid o virgolette dispari", bad, [])
+
+# La stessa virgola dimenticata di `strategies`: Python incolla due righe e
+# resta un termine con due tag dentro, che a PubMed non trova niente.
+merged = []
+for name in mod.covered():
+    for term in mod.terms_for(name):
+        if len(FIELD_TAG.findall(term)) != 1 or not term.rstrip().endswith("]"):
+            merged.append((name, term))
+is_("nessun termine con due tag di campo dentro (virgola dimenticata)",
+    merged, [])
+
+built = qb.compose([qb.Block(terms=[qb.Term("pancreatic neoplasms")]),
+                    qb.Block(terms=[qb.Term(mod.fragment("CT"), "raw")])])
+is_("una modalita' entra in un blocco senza essere ritaggata",
+    built.endswith(mod.fragment("CT")), "True")
+is_("...e il blocco che la ospita resta bilanciato",
+    built.count("(") == built.count(")"), "True")
 
 print(f"\n{checked} controlli, {failed} falliti")
 sys.exit(1 if failed else 0)

@@ -2,8 +2,10 @@
 
 ## Where a paper was published
 
-Quartiles and SJR come from the SCImago file you dropped in the data folder —
-see [Install](/guide/install#journal-quartiles).
+Quartiles and SJR come from SCImago. A copy of the 2025 table ships with the
+app, so this works without setting anything up; dropping a newer
+`scimagojr*.csv` into the data folder replaces it — see
+[Install](/guide/install#journal-quartiles).
 
 ::: danger This is not the Journal Impact Factor
 The impact factor is Clarivate's and lives in the Journal Citation Reports,

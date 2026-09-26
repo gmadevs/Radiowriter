@@ -63,3 +63,50 @@ The controlled-vocabulary terms were checked against the live PubMed API — a
 descriptor that does not exist returns zero results forever without saying why.
 `check_mesh_live.py` re-runs that check when MeSH changes, once a year.
 :::
+
+## Imaging modalities
+
+The modality is one of the three concepts a search is made of, and it is the one
+most often got wrong, because every technique has three or four names and nobody
+uses all of them. Searching `ultrasound` loses the papers that say
+*sonography*; searching `MRI` loses the ones that only write *magnetic
+resonance*; and neither finds what is indexed under the MeSH descriptor and
+never named in the abstract.
+
+Open **🩻 Imaging modalities** and pick from the list. 43 modalities in nine
+families — plain radiography and fluoroscopy, CT, MRI, ultrasound, nuclear
+medicine, vascular and interventional, contrast studies, breast imaging, and the
+across-modality ones. Each is written out in every form the literature uses:
+
+| Pick | You get |
+|---|---|
+| **Doppler ultrasound** | three MeSH descriptors, plus `doppler`, `duplex ultraso*`, `power doppler`, both spellings of *colour*, and `resistive index` |
+| **Transoesophageal echocardiography** | the descriptor, plus `transoesophageal`, `transesophageal`, `TOE` and `TEE` |
+| **Cholangiography (ERCP, MRCP, PTC)** | three descriptors, plus `ERCP`, `MRCP`, `cholangiograph*` and `percutaneous transhepatic` |
+
+The same three modes apply as for the headings, and they go into one block
+joined by OR: picking CT and ultrasound means either one, not a paper that used
+both. If you do want both, add two blocks — which is an explicit thing to do
+rather than a surprise.
+
+::: warning Short abbreviations are limited to the title
+`US`, `MR` and `CT` on their own are ambiguous in an abstract: `US` matches every
+paper that writes "US population", `MR` every "Mr Smith". Where the abbreviation
+is too short to be safe it is restricted to the title with `[ti]`, and the
+coverage is made up by the descriptor and the spelled-out forms.
+:::
+
+::: danger Why there are no modality subheadings
+There is no `ultrasonography[sh]` here, and that is deliberate. MeSH merged
+`radiography`, `ultrasonography` and `radionuclide imaging` into a single
+subheading, `diagnostic imaging`, and PubMed maps the old names onto it — asked
+one at a time they all return the same 1,665,656 records, and the difference
+between any two of them is zero in both directions.
+
+So `ultrasonography[sh]` does not mean ultrasound. It means *this paper involves
+imaging*, and on its own it drags in 376,616 CT papers. It looks like it
+narrows and it widens instead, which is the worst way for a query to be wrong.
+The descriptors do separate properly, so only those are used.
+`"diagnostic imaging"[sh]` is still there, but only under *Any imaging (broad)*,
+where it says what it means.
+:::

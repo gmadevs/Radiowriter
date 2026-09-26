@@ -42,8 +42,18 @@ def main(argv: list[str] | None = None) -> int:
         print(f"data folder: {paths.home(create=False)}")
         print(f"database:    {db_file}")
         print(f"             {_why(origin)}")
-        csv = paths.journal_csv()
-        print(f"SCImago CSV: {csv if csv else '(none - quartiles are off)'}")
+        csv, csv_origin = paths.journal_csv_origin()
+        if csv is None:
+            print("SCImago:     (none - quartiles are off)")
+        elif csv_origin == paths.FROM_USER:
+            print(f"SCImago:     {csv}")
+            print("             (your own download, so it wins over the bundled one)")
+        else:
+            print(f"SCImago:     {csv}")
+            print("             (the one that ships with the app - drop a newer "
+                  "scimagojr*.csv")
+            print("              into the data folder above and that one is used "
+                  "instead)")
         return 0
 
     # La cartella dei dati si crea adesso, prima che parta il server: se il

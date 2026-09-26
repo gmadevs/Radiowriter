@@ -85,14 +85,20 @@ subscription).
 
 ### Journal quartiles
 
-To see journal quartiles and SJR, download the CSV from
-[scimagojr.com](https://www.scimagojr.com/journalrank.php) — *Download data*,
-top right — and drop it in the folder that `radiowriter --where` prints. Any
-name starting with `scimagojr` works; the app picks the most recent one it
-finds and matches your articles by ISSN.
+They work out of the box. A copy of the SCImago table (2025) ships with the
+app, and your articles are matched to it by ISSN at first start.
 
-The file is not bundled: SCImago's data is CC BY-NC, and it is a new file every
-year.
+For a newer year, take *Download data* from
+[scimagojr.com](https://www.scimagojr.com/journalrank.php) — top right of the
+table — and drop the CSV into the folder that `radiowriter --where` prints. Any
+name starting with `scimagojr` wins over the bundled copy, so updating is one
+drag and nothing else.
+
+The bundled copy is SCImago's data, not ours: cut down to the ten columns the
+app reads and to the rows that are journals, and used under
+[CC BY-NC](https://creativecommons.org/licenses/by-nc/4.0/).
+`radiowriter/data/scimagojr-2025.about.txt` records where it came from, when,
+and exactly what was cut.
 
 > **This is not the Journal Impact Factor.** That one is Clarivate's and lives
 > in the JCR. SCImago gives *SJR*, which weighs citations by the prestige of
@@ -109,6 +115,10 @@ The ISSG published search filters for guidelines and evidence syntheses are
 built in. So is a generator that turns the section headings of a Radiopaedia
 article into search strategies — `Epidemiology` becomes prevalence and
 incidence, `MRI` becomes the MeSH terms and the words for magnetic resonance.
+And forty-three **imaging modalities** are written out for you: pick *Doppler
+ultrasound* and you get the MeSH descriptors, `doppler`, `duplex`, the colour
+and the color spelling, and the resistive index — the things a paper says
+instead of naming the technique.
 
 **Screen.** The archive, filtered by read, flagged, reading list, journal
 quartile, and sorted by citations or by SJR. Full text through LibKey if your
@@ -186,5 +196,13 @@ changes — once a year, in January.
 
 The Radiopaedia article structures in `radiowriter/data/article-structure.json`
 and the linter rules in `radiowriter/data/lint-rules.json` are transcriptions
-of Radiopaedia's own published guidance, not ours. Journal metrics come from
-[SCImago](https://www.scimagojr.com/), CC BY-NC.
+of Radiopaedia's own published guidance, not ours.
+
+`radiowriter/data/scimagojr-2025.csv.gz` is journal metrics from
+[SCImago Journal & Country Rank](https://www.scimagojr.com/), derived from
+Elsevier's Scopus, used under
+[CC BY-NC 4.0](https://creativecommons.org/licenses/by-nc/4.0/). It is
+redistributed here cut down to the columns the app reads; the numbers are
+theirs and unmodified. The `.about.txt` beside it records the download date and
+the cut. **The NonCommercial term applies to that file**, whatever you do with
+the rest of the code.

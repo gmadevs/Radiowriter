@@ -1,0 +1,35 @@
+scimagojr-2025.csv.gz - da dove viene e cosa gli e' stato fatto
+================================================================
+
+LORO. I dati sono di SCImago Journal & Country Rank
+(https://www.scimagojr.com/), ricavati dal database Scopus di Elsevier.
+Licenza CC BY-NC. Non sono nostri, non li abbiamo calcolati noi e non li
+abbiamo corretti.
+
+Scaricato il 2026-09-26 da https://www.scimagojr.com/journalrank.php
+(il link "Download data" in alto a destra della tabella).
+Anno dei dati: 2025.
+
+NOSTRO. Solo il taglio, fatto da `scripts/trim_scimago.py`:
+
+- delle 25 colonne dell'export ne restano 10, quelle che l'app legge:
+  Title
+  Type
+  Issn
+  SJR
+  SJR Best Quartile
+  H index
+  Citations / Doc. (2years)
+  Categories
+  Country
+  Publisher
+- delle 32,193 righe restano le 30,412 di tipo "journal": atti di
+  convegni e collane di libri non finiscono in una bibliografia di Radiopaedia
+- il file e' compresso con gzip
+
+Niente altro e' stato toccato: valori, nomi delle colonne, separatore (punto e
+virgola) e virgola decimale sono quelli di SCImago.
+
+L'ANNO PROSSIMO. Non serve rifare niente per far valere un file nuovo: basta
+lasciare `scimagojr 2026.csv` nella cartella che `radiowriter --where` stampa,
+e quello vince su questo. Questo serve a chi non l'ha scaricato.

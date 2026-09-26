@@ -34,6 +34,8 @@ di case report.
 from __future__ import annotations
 
 import csv
+import gzip
+import io
 import re
 from pathlib import Path
 
@@ -73,11 +75,29 @@ def norm_issn(text) -> str:
 
 
 def find_file() -> Path | None:
-    """Il file SCImago piu' recente fra quelli che ci sono, o None.
+    """Il file delle metriche da leggere, o None.
 
-    Dove cercarlo lo sa `paths`: la cartella dei dati dell'utente prima di
-    tutto, poi quella del progetto per l'installazione storica."""
+    Dove cercarlo lo sa `paths`: il file che ha scaricato l'utente prima di
+    tutto, poi quello che il pacchetto porta con se'."""
     return paths.journal_csv()
+
+
+def _open(path: Path):
+    """Il file in lettura, compresso o no.
+
+    Quello dentro il pacchetto e' un `.csv.gz` - undici megabyte di export non
+    stanno in una wheel - e quello che scarica l'utente e' il `.csv` come gliel'
+    ha dato SCImago. Sotto sono lo stesso formato, e il lettore e' lo stesso:
+    cambia solo come si arriva ai byte.
+
+    `utf-8-sig` in tutti e due i casi: l'export ha un BOM davanti, e senza
+    saltarlo la prima colonna si chiamerebbe `\ufeffRank` e nessun controllo
+    sui nomi delle colonne tornerebbe.
+    """
+    if path.suffix.lower() == ".gz":
+        return io.TextIOWrapper(gzip.open(path, "rb"), encoding="utf-8-sig",
+                                newline="")
+    return open(path, encoding="utf-8-sig", newline="")
 
 
 def _number(text) -> float | None:
@@ -121,12 +141,11 @@ def read(path: Path | None = None) -> list[dict]:
     path = path or find_file()
     if path is None:
         raise JournalDataError(
-            "No SCImago file found. Download the CSV from scimagojr.com and "
-            "drop it into the project folder (any name starting with "
-            "'scimagojr').")
+            "No journal metrics file at all — not even the one that ships with "
+            "the app. The install looks incomplete; reinstalling should fix it.")
 
     rows: list[dict] = []
-    with open(path, encoding="utf-8-sig", newline="") as fh:
+    with _open(path) as fh:
         reader = csv.DictReader(fh, delimiter=";")
         missing = {"Title", "Issn", "SJR", "SJR Best Quartile"} - set(reader.fieldnames or ())
         if missing:

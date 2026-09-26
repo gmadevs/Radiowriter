@@ -10,6 +10,9 @@ non se i due servizi sono su, che e' affare loro.
 
 from __future__ import annotations
 
+import csv
+import gzip
+import io
 import os
 import sys
 import tempfile
@@ -19,6 +22,7 @@ os.environ["RADIOPAEDIA_DB"] = _TMP_DB
 
 from radiowriter import db                     # noqa: E402
 from radiowriter import journals as jr         # noqa: E402
+from radiowriter import paths                  # noqa: E402
 from radiowriter import pubmed                 # noqa: E402
 from radiowriter import unpaywall as upw       # noqa: E402
 
@@ -382,6 +386,46 @@ is_("l'articolo ripristinato e' quello giusto",
     db.get_connection().execute(
         "SELECT title FROM articles WHERE pmid='7001'").fetchone()[0],
     "Un articolo da esportare.")
+
+# ---------------------------------------------------------------------------
+# il file che viaggia dentro il pacchetto
+# ---------------------------------------------------------------------------
+print("\n--- il file incluso nel pacchetto ---")
+
+bundled = paths.bundled_journal_csv()
+is_("il pacchetto porta un file delle metriche", bundled is not None, "True")
+is_("...compresso", bundled.suffix, ".gz")
+is_("...e con accanto il foglio che dice da dove viene",
+    bundled.with_suffix("").with_suffix(".about.txt").exists(), "True")
+
+rows = jr.read(bundled)
+is_("si legge come l'export originale", len(rows) > 25_000, "True")
+is_("le riviste hanno un ISSN", all(r["issns"] for r in rows[:500]), "True")
+is_("i quartili sono quelli previsti",
+    sorted({r["quartile"] for r in rows} - {None}), "['Q1', 'Q2', 'Q3', 'Q4']")
+# Il taglio dice di tenere solo le righe di tipo "journal": si verifica sul
+# campo, non sul titolo. SCImago classifica come `journal` anche certe serie di
+# atti IEEE che nel titolo dicono "Conference", quindi guardare il titolo non
+# direbbe niente su cosa il taglio ha fatto davvero.
+with io.TextIOWrapper(gzip.open(bundled, "rb"), encoding="utf-8-sig",
+                      newline="") as _fh:
+    _types = {(r.get("Type") or "").strip().lower()
+              for r in csv.DictReader(_fh, delimiter=";")}
+is_("il taglio ha tenuto solo le righe di tipo journal", sorted(_types),
+    "['journal']")
+
+# Il file dell'utente vince sempre. Al contrario, un aggiornamento del pacchetto
+# porterebbe l'anno nuovo e si sovrapporrebbe a quello che uno ha scaricato -
+# cioe' gliel'avrebbe cambiato sotto il naso senza dirglielo.
+mine, origin = paths.journal_csv_origin()
+is_("qualcosa da leggere c'e' sempre", mine is not None, "True")
+is_("...e si sa quale delle due regole ha scelto",
+    origin in (paths.FROM_USER, paths.FROM_BUNDLE), "True")
+is_("il file letto e' quello che dice l'origine",
+    mine == (paths.user_journal_csv() if origin == paths.FROM_USER else bundled),
+    "True")
+is_("journal_csv e journal_csv_origin dicono la stessa cosa",
+    paths.journal_csv(), mine)
 
 print(f"\n{checked} controlli, {failed} falliti")
 sys.exit(1 if failed else 0)

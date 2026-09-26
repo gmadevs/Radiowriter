@@ -23,6 +23,14 @@ una strategia di ricerca seria.
 I titoli si riconoscono attraverso `structure`, quindi valgono anche i modi in
 cui la gente li scrive negli articoli veri: `etiology` trova `Aetiology`,
 `CT scan` trova `CT`, `x-ray` trova `Plain radiograph`.
+
+UNA COSA SUI SOTTOTITOLI DI MODALITA'. `radiography[sh]` e
+`ultrasonography[sh]` non ci sono, e prima c'erano: il MeSH li ha fusi in
+`diagnostic imaging` e PubMed mappa i vecchi nomi su quello, quindi davano lo
+stesso insieme di ogni altro imaging invece di restringere alla loro modalita'.
+La spiegazione per esteso, coi numeri, e' in `modalities.py`, che e' dove le
+modalita' stanno adesso. `"diagnostic imaging"[sh]` resta dov'e' onesto -
+`Radiographic features` e `Role of imaging` parlano di imaging in generale.
 """
 
 from __future__ import annotations
@@ -126,7 +134,7 @@ STRATEGIES: dict[str, dict[str, list[str]]] = {
                      '"diagnostic performance"[tiab]'],
     },
     "Plain radiograph": {
-        "mesh": ['"Radiography"[Mesh]', 'radiography[sh]'],
+        "mesh": ['"Radiography"[Mesh]'],
         "keywords": ['radiograph*[tiab]', '"plain film*"[tiab]', '"x-ray*"[tiab]',
                      '"plain radiograph*"[tiab]'],
     },
@@ -154,8 +162,7 @@ STRATEGIES: dict[str, dict[str, list[str]]] = {
                      '"magnetic resonance"[tiab]'],
     },
     "Ultrasound": {
-        "mesh": ['"Ultrasonography"[Mesh]', 'ultrasonography[sh]',
-                 '"Ultrasonography, Doppler"[Mesh]'],
+        "mesh": ['"Ultrasonography"[Mesh]', '"Ultrasonography, Doppler"[Mesh]'],
         "keywords": ['ultraso*[tiab]', 'sonograph*[tiab]', 'echograph*[tiab]',
                      'doppler[tiab]', '"US"[ti]'],
     },

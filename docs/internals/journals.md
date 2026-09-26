@@ -4,6 +4,23 @@ Two catalogues have to be joined: PubMed's records and SCImago's ranking. They
 name journals differently — *Medicine* against *Medicine (United States)*,
 *European journal of radiology* against *European Journal of Radiology*.
 
+## Which file, and why that one
+
+There are two candidates and the rule is one line: **a `scimagojr*.csv` the user
+put there wins; otherwise the copy inside the package.** Even when the user's
+file is from an older year — a file someone put there on purpose is a decision,
+and an update should not overrule it silently. `paths.journal_csv_origin()`
+returns the reason along with the path, the same way `db_origin()` does, so the
+sidebar and `radiowriter --where` cannot end up telling different stories.
+
+The bundled copy is SCImago's export cut down by `scripts/trim_scimago.py`: the
+ten columns `journals.read()` reads, the rows whose `Type` is `journal`, gzipped.
+11.2 MB becomes 1.37 MB, and all 30,412 journals survive — the trim is lossless
+for everything the app looks at, which `check_journals.py` verifies by reading
+both and comparing. The column names are left exactly as SCImago writes them so
+that one reader handles both files; two formats would mean two code paths and
+nobody would ever exercise the second.
+
 ## By ISSN
 
 The ISSN is the same number in both. On a real archive of 2,455 articles:

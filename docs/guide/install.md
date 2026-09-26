@@ -68,18 +68,27 @@ You can add them later under ⚙️ **Settings** in the sidebar.
 
 ## Journal quartiles
 
-Quartiles and SJR need one file, and it is not bundled: SCImago's data is
-CC BY-NC and it is a new file every year.
+Nothing to do: a copy of the SCImago table for 2025 ships with the app. It is
+read at first start and your articles are matched to it by ISSN, and
+📊 **Journal metrics** in the sidebar says how many matched.
+
+### A newer year
 
 1. Go to [scimagojr.com/journalrank.php](https://www.scimagojr.com/journalrank.php)
 2. **Download data** — the link at the top right of the table
 3. Drop the CSV into the folder that `radiowriter --where` prints
 
-Any name starting with `scimagojr` works. The app loads it at the next start,
-matches your articles by ISSN, and tells you how many it matched under
-📊 **Journal metrics** in the sidebar.
+Any name starting with `scimagojr` wins over the bundled copy — even an older
+one, because a file you put there on purpose is a decision and the app does not
+overrule it. `radiowriter --where` says which of the two is in use.
 
-Next year, drop the new file in beside it: the most recent name wins.
+::: info Whose data this is
+The bundled file is SCImago's, under
+[CC BY-NC](https://creativecommons.org/licenses/by-nc/4.0/): cut down to the
+columns the app reads and to the rows that are journals, with the numbers
+untouched. `radiowriter/data/scimagojr-2025.about.txt` records the download date
+and the cut. The NonCommercial term applies to that file.
+:::
 
 ## Where things are kept
 

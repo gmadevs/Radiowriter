@@ -98,8 +98,27 @@ def short(path: Path) -> str:
         return str(path)
 
 
-def journal_csv() -> Path | None:
-    """Il file SCImago piu' recente, se c'e'.
+# Da dove viene il file delle metriche. Come per il database, la regola che ha
+# vinto si dice invece di lasciarla indovinare: un quartile calcolato su dati di
+# due anni fa e uno calcolato sul file di ieri si somigliano troppo.
+FROM_USER = "user-file"     # un `scimagojr*.csv` scaricato dall'utente
+FROM_BUNDLE = "bundled"     # quello che il pacchetto porta con se'
+
+
+def bundled_journal_csv() -> Path | None:
+    """Il file SCImago che viaggia dentro il pacchetto, se c'e'.
+
+    E' compresso e ridotto alle colonne che si leggono (lo fa
+    `scripts/trim_scimago.py`), e serve a una cosa sola: che i quartili si
+    vedano appena installata l'app, senza scaricare niente. Chi scarica il file
+    vero lo batte sempre - vedi `journal_csv_origin`."""
+    found = sorted((PACKAGE_DIR / "data").glob("scimagojr-*.csv.gz"),
+                   key=lambda p: p.name.lower(), reverse=True)
+    return found[0] if found else None
+
+
+def user_journal_csv() -> Path | None:
+    """Il `scimagojr*.csv` piu' recente fra quelli che ha messo l'utente.
 
     Si guarda prima nella cartella dei dati - li' lo mette chi installa l'app -
     e poi accanto al codice, per l'installazione storica. Si sceglie per nome
@@ -116,6 +135,24 @@ def journal_csv() -> Path | None:
     if not found:
         return None
     return sorted(found, key=lambda p: (p.name.lower(), str(p)), reverse=True)[0]
+
+
+def journal_csv_origin() -> tuple[Path | None, str]:
+    """(file delle metriche, quale delle due regole l'ha scelto).
+
+    Il file dell'utente vince sempre, anche se e' di un anno precedente a
+    quello del pacchetto: se qualcuno ha scaricato un export e l'ha messo li',
+    e' quello che vuole vedere - e un giorno il pacchetto sara' piu' vecchio di
+    lui, non il contrario."""
+    mine = user_journal_csv()
+    if mine is not None:
+        return mine, FROM_USER
+    return bundled_journal_csv(), FROM_BUNDLE
+
+
+def journal_csv() -> Path | None:
+    """Il file delle metriche da leggere, quale che sia."""
+    return journal_csv_origin()[0]
 
 
 def describe() -> str:

@@ -29,6 +29,7 @@ from radiowriter import draft_io
 from radiowriter import issg
 from radiowriter import journals as jr
 from radiowriter import lint
+from radiowriter import modalities as md
 from radiowriter import paths
 from radiowriter import pubmed
 from radiowriter import querybuilder as qb
@@ -115,9 +116,14 @@ def load_journal_metrics() -> dict:
     """Il file SCImago dentro il database, una volta sola per avvio.
 
     Si fa da se' al primo avvio invece di aspettare che qualcuno prema un
-    pulsante: il file e' nella cartella del progetto, e chi ce l'ha messo lo ha
-    messo li' perche' i quartili si vedano. Se non c'e' non e' un guasto -
-    l'app funziona come prima, semplicemente senza quartili."""
+    pulsante: da quando il file viaggia dentro il pacchetto, aspettare
+    vorrebbe dire mostrare un archivio senza quartili a chi non ha idea che ci
+    sia un pulsante da premere. Trentamila righe si leggono in un secondo, una
+    volta sola, e finiscono in una tabella del database.
+
+    Se non c'e' nessun file non e' un guasto: l'app funziona senza quartili -
+    ma vorrebbe dire che l'installazione e' incompleta, perche' uno ce n'e'
+    sempre."""
     status = db.journal_metrics_status()
     if status["journals"]:
         return {"loaded": False, **status}
@@ -589,23 +595,31 @@ with st.sidebar:
 
     with st.expander("📊 Journal metrics", expanded=False):
         st.caption(
-            "Quartiles and SJR come from the SCImago file in the project "
-            "folder. **This is not the Journal Impact Factor**: that one is "
-            "Clarivate's and lives in the JCR. SJR weighs citations by the "
-            "prestige of who makes them; *cites/doc (2y)* is the one computed "
-            "like an impact factor, but over Scopus."
+            "Quartiles and SJR come from SCImago. **This is not the Journal "
+            "Impact Factor**: that one is Clarivate's and lives in the JCR. SJR "
+            "weighs citations by the prestige of who makes them; *cites/doc "
+            "(2y)* is the one computed like an impact factor, but over Scopus."
         )
-        found_file = jr.find_file()
+        found_file, file_origin = paths.journal_csv_origin()
         if found_file is None:
             st.warning(
-                "No SCImago file found. Download the CSV from scimagojr.com "
-                "and drop it into the project folder — any name starting with "
-                "`scimagojr`.")
+                "No journal metrics file at all — not even the one that ships "
+                "with the app. The install looks incomplete.")
         else:
             status = db.journal_metrics_status()
             st.caption(f"`{found_file.name}` — **{status['journals']:,}** journals · "
                        f"**{status['matched']:,}** of {status['articles']:,} "
                        f"articles matched to one.")
+            if file_origin == paths.FROM_BUNDLE:
+                st.caption(
+                    "This is the copy that ships with the app. For a newer "
+                    "year, take *Download data* from "
+                    "[scimagojr.com](https://www.scimagojr.com/journalrank.php) "
+                    "and drop the CSV into the data folder — any name starting "
+                    "with `scimagojr` wins over this one.")
+            else:
+                st.caption("Your own download, which wins over the copy that "
+                           "ships with the app.")
             if st.button("↻ Reload the file and re-match", width="stretch"):
                 with st.status("Reading the SCImago file…", expanded=True) as box:
                     try:
@@ -1077,6 +1091,60 @@ def strategy_panel(blocks: list[dict]) -> None:
         st.rerun()
 
 
+def modality_panel(blocks: list[dict]) -> None:
+    """Le modalita' di imaging, scelte da un elenco invece che scritte a mano.
+
+    La modalita' e' uno dei tre concetti di una ricerca seria, ed e' quello che
+    si sbaglia piu' spesso: ogni tecnica ha tre o quattro nomi e nessuno li usa
+    tutti. Qui si scelgono e ci pensa `modalities` a scriverle in tutte le
+    forme, sigle e varianti britanniche comprese.
+
+    Vanno in UN blocco solo, in OR fra loro, per la stessa ragione delle
+    strategie: chiedere TC E ecografia nello stesso lavoro e' quasi sempre il
+    modo di non trovare niente. Chi le vuole tutte e due davvero aggiunge due
+    blocchi, che e' un gesto esplicito."""
+    st.caption(
+        "Each one is written out in every form the literature uses — the MeSH "
+        "descriptor, the spelled-out name, the abbreviation, the British "
+        "spelling. Pick several and they are joined by **OR**: any one of them "
+        "is enough."
+    )
+
+    stamp = st.session_state.get("mod_gen", 0)
+    picked = st.multiselect(
+        "Modalities", md.covered(), key=f"mod_picked_{stamp}",
+        format_func=lambda n: f"{md.group_of(n)} › {n}",
+        placeholder="Choose the imaging modalities…")
+
+    mode_key = st.radio(
+        "Terms", list(md.MODES), horizontal=True, key="mod_mode",
+        format_func=lambda k: md.MODES[k])
+
+    if picked:
+        with st.container(height=150, border=True):
+            for name in picked:
+                st.caption(f"**{name}** → `{md.fragment(name, mode_key)}`")
+
+    targets = ["A new block, joined with AND"] + [
+        f"Into {qb_block_name(n, b)}" for n, b in enumerate(blocks, 1)]
+    target = st.selectbox("Where do they go", targets,
+                          key=f"mod_target_{len(blocks)}_{stamp}")
+
+    if st.button(f"Add {len(picked)} modalit{'y' if len(picked) == 1 else 'ies'}",
+                 disabled=not picked, key="mod_add", type="primary"):
+        # `raw`: sono gia' in sintassi PubMed, e una per riga invece di una riga
+        # sola con tutto dentro - cosi' si vede quale modalita' e' quale e se ne
+        # puo' togliere una senza rifare il blocco
+        terms = [qb_new_term(md.fragment(name, mode_key), "raw") for name in picked]
+        if target == targets[0]:
+            blocks.append(qb_new_block(join="AND", terms=terms,
+                                       label="Imaging modality"))
+        else:
+            blocks[targets.index(target) - 1]["terms"].extend(terms)
+        st.session_state.mod_gen = stamp + 1
+        st.rerun()
+
+
 def search_builder() -> str:
     """Il compositore. Ritorna la stringa di ricerca che ne esce."""
     blocks = qb_state()
@@ -1166,6 +1234,9 @@ def search_builder() -> str:
 
     with st.expander("⌗ Terms from the Radiopaedia headings", expanded=False):
         strategy_panel(blocks)
+
+    with st.expander("🩻 Imaging modalities", expanded=False):
+        modality_panel(blocks)
 
     for msg in qb.problems(qb_model(blocks)):
         if not msg.startswith("No terms yet"):

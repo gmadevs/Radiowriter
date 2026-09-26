@@ -33,6 +33,7 @@ from streamlit.testing.v1 import AppTest    # noqa: E402
 APP = str(pathlib.Path(__file__).resolve().parent / "radiowriter" / "app.py")
 
 from radiowriter import db          # noqa: E402
+from radiowriter import modalities as _mod    # noqa: E402
 from radiowriter import draft_io    # noqa: E402
 from radiowriter import structure as sx  # noqa: E402
 
@@ -295,6 +296,47 @@ try:
     is_("la query finale tiene insieme i termini e la strategia",
         any('"Joubert syndrome"[tiab]' in c and '"Epidemiology"[Mesh]' in c
             for c in [x.value for x in at.code]), "True")
+
+    # le modalita' di imaging
+    mod_pick = next(m for m in at.multiselect if (m.key or "").startswith("mod_picked"))
+    # ATTENZIONE: `options` di un multiselect sotto AppTest sono le etichette
+    # GIA' passate per format_func, non i valori. `set_value` invece vuole i
+    # valori. Confrontare le etichette e' comunque il controllo che serve: e'
+    # quello che si legge nella tendina, e verifica che il gruppo si veda.
+    is_("l'elenco delle modalita' mostra la famiglia accanto al nome",
+        mod_pick.options,
+        [f"{_mod.group_of(n)} › {n}" for n in _mod.covered()])
+    is_("...e comincia dalla radiologia tradizionale",
+        mod_pick.options[0], "Plain radiography and fluoroscopy › Radiograph (plain film)")
+    is_("...e le modalita' sono tutte quelle del modulo",
+        len(mod_pick.options), len(_mod.MODALITIES))
+
+    at = mod_pick.set_value(["CT", "Doppler ultrasound"]).run()
+    is_("scegliere due modalita' non solleva", exceptions(at), "[]")
+    at = next(b for b in at.button if b.key == "mod_add").click().run()
+    is_("aggiungerle non solleva", exceptions(at), "[]")
+
+    added = [i.value for i in qb_texts(at) if i.value.startswith("(")]
+    is_("...e ognuna arriva come una riga sua, non tutte in una",
+        sum(1 for a in added if "Tomography, X-Ray Computed" in a
+            or "Ultrasonography, Doppler" in a), 2)
+
+    final = [x.value for x in at.code]
+    is_("la query finale contiene le modalita' scelte",
+        any('"Tomography, X-Ray Computed"[Mesh]' in c
+            and '"Ultrasonography, Doppler"[Mesh]' in c for c in final), "True")
+    is_("...e resta bilanciata",
+        all(c.count("(") == c.count(")") for c in final), "True")
+
+    # "MeSH only" deve togliere le keyword, non aggiungere un secondo blocco
+    at = next(r for r in at.radio if r.key == "mod_mode").set_value("MeSH only").run()
+    pick2 = next(m for m in at.multiselect if (m.key or "").startswith("mod_picked"))
+    at = pick2.set_value(["Elastography"]).run()
+    at = next(b for b in at.button if b.key == "mod_add").click().run()
+    only_mesh = [i.value for i in qb_texts(at)
+                 if "Elasticity Imaging" in i.value]
+    is_("'MeSH only' porta il descrittore e non le keyword",
+        len(only_mesh) == 1 and "elastograph*[tiab]" not in only_mesh[0], "True")
 finally:
     db.delete_draft(draft_id)
 
