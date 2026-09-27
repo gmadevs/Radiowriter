@@ -177,11 +177,19 @@ settings = st.session_state.settings
 # senza `value=` prende il proprio default (per un number_input, il minimo), e
 # se la voce in session_state arrivasse dopo sarebbe troppo tardi - la sidebar
 # mostrerebbe 10 record da scaricare invece di 200.
-for _key, _value in {**SEARCH_FILTER_PRESETS["reviews"], **SEARCH_PREFS,
-                      "sf_mode": "reviews"}.items():
-    st.session_state.setdefault(_key, _value)
-for _key in ABSTRACT_TOGGLES:
-    st.session_state.setdefault(_key, settings.get("abstracts_open") == "1")
+#
+# E vanno RISCRITTI a ogni giro, non solo messi la prima volta. Streamlit manda
+# al browser il valore di sessione di un widget solo se e' stato scritto nello
+# stesso giro in cui il widget nasce; scritto in un giro prima, lo usa lato
+# server ma il browser disegna il default. Succedeva dopo la schermata del primo
+# avvio, che si ferma prima dei widget: la ricerca partiva con dieci anni e il
+# riquadro ne mostrava zero. Riscriverli costa niente e tiene anche le liste del
+# metodo di pubblicazione non scelto, che Streamlit altrimenti butterebbe via
+# nel giro in cui non sono disegnate.
+_defaults = {**SEARCH_FILTER_PRESETS["reviews"], **SEARCH_PREFS, "sf_mode": "reviews",
+             **{k: settings.get("abstracts_open") == "1" for k in ABSTRACT_TOGGLES}}
+for _key, _value in _defaults.items():
+    st.session_state[_key] = st.session_state.get(_key, _value)
 
 
 # ---------------------------------------------------------------------------
@@ -1495,12 +1503,6 @@ with tab_search:
     # quando il pannello e' chiuso, perche' Streamlit butta via lo stato dei
     # widget che non disegna: il numero di anni tornerebbe al suo default senza
     # che nessuno l'abbia toccato. Sempre visibili, e compatti.
-    # La lista del metodo non disegnato va tenuta a mano: Streamlit butta via
-    # lo stato dei widget che in un giro non disegna, e chi passasse da ISSG a
-    # NLM e ritorno troverebbe la scelta di prima sparita.
-    for _key in ("sf_types", "sf_issg"):
-        st.session_state[_key] = st.session_state[_key]
-
     with st.container(border=True):
         st.segmented_control(
             "Filters", list(SEARCH_MODES), key="sf_mode",
