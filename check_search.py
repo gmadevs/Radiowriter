@@ -152,6 +152,18 @@ q = pubmed.build_query("abscess", type_labels=[], years=10, full_text=False,
 is_("gli ultimi N anni partono dalla data giusta",
     '"2016/09/02"[Date - Publication]' in q, "True")
 
+q = pubmed.build_query("abscess", type_labels=[], years=0, full_text=False,
+                       english=True, humans=True, today=TODAY)
+is_("humans toglie gli studi solo animali, in fondo e con NOT",
+    q, "(abscess) AND english[la] NOT (animals[mh] NOT humans[mh])")
+is_("...e le parentesi restano bilanciate", q.count("("), q.count(")"))
+
+is_("il fascio delle review non contiene trial ne' libri",
+    [t for t in pubmed.REVIEW_TYPE_LABELS
+     if t in ("Books and Documents", "Clinical Trial, Phase IV", "Multicenter Study")], [])
+is_("...e ogni tipo del fascio esiste nell'elenco",
+    all(t in pubmed.DEFAULT_TYPE_LABELS for t in pubmed.REVIEW_TYPE_LABELS), "True")
+
 
 # ---------------------------------------------------------------------------
 # esearch: cosa e' un errore e cosa no

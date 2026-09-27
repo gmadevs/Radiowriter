@@ -47,9 +47,25 @@ ARTICLE_TYPES: list[tuple[str, str]] = [
 
 DEFAULT_TYPE_LABELS = [label for label, _ in ARTICLE_TYPES]
 
+# Le review e le sintesi, cioe' quello che il fascio "Recent reviews" dice di
+# chiedere. Prima il fascio prendeva TUTTO l'elenco qui sopra, e con lui libri,
+# trial di fase IV e studi multicentrici: una ricerca di "review" che lasciava
+# passare un RCT purche' multicentrico.
+REVIEW_TYPE_LABELS = [
+    "Consensus Statement", "Evidence Synthesis", "Guideline", "Meta-Analysis",
+    "Network Meta-Analysis", "Practice Guideline", "Review", "Scoping Review",
+    "Systematic Review",
+]
+
 FULLTEXT_CLAUSE = "fft[Filter]"
 ENGLISH_CLAUSE = "english[la]"
-HUMANS_CLAUSE = '"humans"[MeSH Terms]'
+# Non `"humans"[MeSH Terms]`. Quello chiede che un indicizzatore NLM abbia gia'
+# scritto "Humans" sul record, e per i lavori degli ultimi mesi non l'ha ancora
+# fatto nessuno: sparivano proprio i piu' recenti, in una ricerca che si chiama
+# "recent". Questa forma toglie solo cio' che e' indicizzato come animale E non
+# come umano - un record non ancora indicizzato non e' ne' l'uno ne' l'altro, e
+# resta. E' l'hedge che usa la Cochrane.
+HUMANS_EXCLUDE = "(animals[mh] NOT humans[mh])"
 
 
 class PubMedError(RuntimeError):
@@ -128,8 +144,6 @@ def build_query(
         clauses.append(FULLTEXT_CLAUSE)
     if english:
         clauses.append(ENGLISH_CLAUSE)
-    if humans:
-        clauses.append(HUMANS_CLAUSE)
 
     if years and years > 0:
         ref = today or date.today()
@@ -141,7 +155,13 @@ def build_query(
             f'("{start:%Y/%m/%d}"[Date - Publication] : "3000"[Date - Publication])'
         )
 
-    return " AND ".join(clauses)
+    query = " AND ".join(clauses)
+    if humans:
+        # In fondo, e con NOT: PubMed legge gli operatori da sinistra a destra,
+        # quindi `A AND B NOT X` e' `(A AND B) NOT X`, che e' quello che si
+        # vuole. `AND NOT` invece non e' sintassi PubMed.
+        query += f" NOT {HUMANS_EXCLUDE}"
+    return query
 
 
 def esearch(

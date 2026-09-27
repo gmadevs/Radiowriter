@@ -35,9 +35,9 @@ buttons by key, so what is exercised is exactly the code that ships:
 ```python
 at = AppTest.from_file(APP, default_timeout=60)
 at.run()
-at = next(t for t in at.toggle if t.key == "sf_recent").set_value(False).run()
-is_("switching it off unlocks the filters",
-    next(n for n in at.number_input if n.key == "sf_years").disabled, "False")
+at = at.checkbox(key="sf_english").check().run()
+is_("changing a filter by hand moves the control to Custom",
+    next(b for b in at.get("button_group") if b.key == "sf_mode").value, "custom")
 ```
 
 Two real bugs were caught this way and could not have been caught otherwise: a

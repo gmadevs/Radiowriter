@@ -11,36 +11,48 @@ as you write it, **Blocks** builds the query a concept at a time. Blocks has
 They sit in a panel that is always open, because a filter you cannot see is a
 filter you forget.
 
-### ★ Recent reviews
+### Recent reviews, No filters, Custom
 
-A bundle, not a button. While it is **on**, these are the filters and the
-controls below show what it set:
+One control with three positions sits at the top of the panel.
 
-> Last 10 years · full text · English · humans · and the publication types
-> PubMed calls reviews and syntheses.
+- **★ Recent reviews** sets the last 10 years, full text, English, humans, and
+  the publication types NLM uses for reviews and syntheses: Review, Systematic
+  Review, Scoping Review, Meta-Analysis, Network Meta-Analysis, Evidence
+  Synthesis, Guideline, Practice Guideline, Consensus Statement.
+- **No filters** turns everything off, date limit included. Only the search
+  terms go to PubMed.
+- **Custom** is where it moves by itself as soon as you change a control by
+  hand. Put everything back as a preset had it and it returns to that preset.
 
-Switch it off and the controls unlock at those same values, so changing one
-thing does not mean rewriting the other five. **↺ Clear all** turns everything
-off, date limit included.
+The position is worked out from the values of the controls, so it cannot say
+one thing while the query does another. The line under the controls is written
+from the same values and says what the query will ask.
 
 ### Last N years
 
 **0 means no date limit at all.** Not fifty years, not a hundred: none.
 
-### Study design filters (ISSG)
+### Humans
 
-Published search filters from the InterTASC Information Specialists' Sub-Group.
-They catch a *kind* of publication by the words it uses, not a subject, and go
-in AND with your terms. Four are available: guidelines broad, guidelines
-standard, meta-analysis and systematic reviews.
+This filter leaves out what is indexed as an animal study and not as a human
+one: `NOT (animals[mh] NOT humans[mh])`. Asking for `humans[mh]` instead would
+also drop every paper NLM has not indexed yet, which means most of the last few
+months.
 
-::: warning Two filters for the same idea
-*Article types* and an ISSG filter both narrow to reviews, and they do it
-differently: article types use the publication type NLM assigned, ISSG uses the
-words the paper itself uses. Joined with AND, only what satisfies both
-survives — usually far fewer results than you meant. The app says so when you
-turn both on. Pick one approach.
-:::
+### Kind of publication
+
+Choose one way of asking for it, or none:
+
+- **Publication type (NLM)**: the labels an NLM indexer gave the record.
+- **Search filter (ISSG)**: published search filters from the InterTASC
+  Information Specialists' Sub-Group. They catch a kind of publication by the
+  words it uses, not a subject. Four are available: guidelines broad,
+  guidelines standard, meta-analysis and systematic reviews.
+
+You cannot use both at once. They would be joined with AND, and only what
+satisfies both would survive, which is usually far fewer results than you
+meant. Several choices inside one method are joined with OR. The choice you
+made in the other method is kept for when you switch back.
 
 ## In the sidebar
 

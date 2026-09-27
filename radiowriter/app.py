@@ -37,6 +37,7 @@ from radiowriter import radiopaedia as rp
 from radiowriter import semantic_scholar as s2
 from radiowriter import strategies as stg
 from radiowriter import structure as sx
+from radiowriter import theme
 from radiowriter import unpaywall as upw
 
 PAGE_SIZE_OPTIONS = [10, 20, 50, 100]
@@ -51,29 +52,41 @@ TODAY = date.today()
 MAX_SEARCH_RESULTS = 1000
 SEARCH_PAGE_SIZE_OPTIONS = [10, 25, 50, 100]
 
-# "Recent reviews" non e' un pulsante che riscrive i filtri e poi sparisce: e'
-# un interruttore che resta acceso o spento, e mentre e' acceso QUESTI sono i
-# filtri. Averlo come pulsante voleva dire non poter piu' sapere, guardando la
-# schermata, se la ricerca era ristretta alle review o no - i singoli controlli
-# dicevano il come, nessuno diceva il perche'.
-RECENT_REVIEWS_LABEL = "★ Recent reviews"
-RECENT_REVIEWS_WHAT = (
-    "Last 10 years · full text · English · humans · and the publication types "
-    "PubMed calls reviews and syntheses (Review, Systematic Review, "
-    "Meta-Analysis, Guideline, Consensus Statement…)."
-)
+# I filtri di ricerca hanno UN interruttore a tre posizioni, non un interruttore
+# piu' un pulsante "azzera". Con due comandi separati la schermata poteva dire
+# "Recent reviews: On" mentre "azzera" aveva gia' tolto tutto, e la query
+# partiva nuda sotto una scritta che diceva il contrario. Adesso la posizione e'
+# ricavata dai valori (`matching_mode`): se i filtri sono quelli del fascio dice
+# il fascio, se sono tutti spenti dice "No filters", altrimenti "Custom". Non
+# puo' piu' mentire, perche' non e' uno stato a parte.
+SEARCH_MODES = {
+    "reviews": "★ Recent reviews",
+    "open": "No filters",
+    "custom": "Custom",
+}
+
+# Il tipo di pubblicazione si chiede in UN modo solo. Le etichette NLM e i
+# filtri ISSG sono due modi di chiedere la stessa cosa, e messi insieme non
+# sommano: vanno in AND e restano solo i lavori che sono tutt'e due, molti meno
+# di quanto uno si aspetti. Prima c'era un avviso; adesso non si puo' e basta.
+TYPE_METHODS = {
+    "none": "Any",
+    "pt": "Publication type (NLM)",
+    "issg": "Search filter (ISSG)",
+}
 
 # Nel fascio ci sono solo i FILTRI, cioe' quello che cambia la domanda fatta a
 # PubMed. Quanti record scaricare, cosa saltare, se arricchire con le citazioni
 # e con l'open access sono preferenze dell'app: stanno nella sidebar e non le
-# tocca ne' il fascio ne' "azzera".
+# tocca ne' il fascio ne' "No filters".
 SEARCH_FILTER_PRESETS = {
     "reviews": {
         "sf_years": 10,
         "sf_fulltext": True,
         "sf_english": True,
         "sf_humans": True,
-        "sf_types": list(pubmed.DEFAULT_TYPE_LABELS),
+        "sf_type_by": "pt",
+        "sf_types": list(pubmed.REVIEW_TYPE_LABELS),
         "sf_issg": [],
     },
     # Tutto spento vuol dire tutto spento, compreso il limite di data: prima
@@ -84,6 +97,7 @@ SEARCH_FILTER_PRESETS = {
         "sf_fulltext": False,
         "sf_english": False,
         "sf_humans": False,
+        "sf_type_by": "none",
         "sf_types": [],
         "sf_issg": [],
     },
@@ -148,7 +162,8 @@ settings = st.session_state.settings
 # senza `value=` prende il proprio default (per un number_input, il minimo), e
 # se la voce in session_state arrivasse dopo sarebbe troppo tardi - la sidebar
 # mostrerebbe 10 record da scaricare invece di 200.
-for _key, _value in {**SEARCH_FILTER_PRESETS["reviews"], **SEARCH_PREFS}.items():
+for _key, _value in {**SEARCH_FILTER_PRESETS["reviews"], **SEARCH_PREFS,
+                      "sf_mode": "reviews"}.items():
     st.session_state.setdefault(_key, _value)
 
 
@@ -224,21 +239,74 @@ def on_list_rename(list_id: int, widget_key: str, previous: str, field: str) -> 
         st.toast(f"“{value}” is already the name of another list.")
 
 
-def apply_search_preset(name: str) -> None:
-    """Riscrive i filtri di ricerca con uno dei fasci. Va usata come callback:
-    i widget si ricreano dopo, e ripartono dai valori nuovi."""
-    st.session_state.update(SEARCH_FILTER_PRESETS[name])
+def effective_filters(state) -> dict:
+    """I filtri come arrivano davvero a PubMed.
+
+    La lista del metodo non scelto resta in sessione (chi torna indietro la
+    ritrova), ma non conta: qui sparisce. E' da questo dizionario che nascono
+    sia la query sia la posizione dell'interruttore, cosi' le due cose non
+    possono dire cose diverse."""
+    by = state.get("sf_type_by", "none")
+    types = list(state.get("sf_types") or []) if by == "pt" else []
+    return {
+        "years": int(state.get("sf_years") or 0),
+        "full_text": bool(state.get("sf_fulltext")),
+        "english": bool(state.get("sf_english")),
+        "humans": bool(state.get("sf_humans")),
+        "types": sorted(types),
+        "issg": sorted(state.get("sf_issg") or []) if by == "issg" else [],
+    }
 
 
-def on_recent_reviews() -> None:
-    """L'interruttore acceso rimette il suo fascio; spento non tocca niente.
+def matching_mode(state) -> str:
+    """Il fascio che i filtri di adesso riproducono, o "custom"."""
+    now = effective_filters(state)
+    for name, preset in SEARCH_FILTER_PRESETS.items():
+        if effective_filters(preset) == now:
+            return name
+    return "custom"
 
-    Spegnendolo i valori restano quelli che erano: e' il modo in cui uno lo usa
-    davvero - accende il fascio, poi lo spegne per cambiare una cosa sola. Se
-    spegnerlo azzerasse tutto, per togliere il vincolo della lingua bisognerebbe
-    riscrivere anche gli altri cinque."""
-    if st.session_state.get("sf_recent"):
-        st.session_state.update(SEARCH_FILTER_PRESETS["reviews"])
+
+def on_search_mode() -> None:
+    """Scegliere un fascio lo applica; "Custom" non tocca niente e lascia
+    solo cambiare a mano. Ricliccare la posizione scelta la deseleziona, e
+    allora si torna a quella che i valori dicono."""
+    mode = st.session_state.get("sf_mode")
+    if mode in SEARCH_FILTER_PRESETS:
+        st.session_state.update(SEARCH_FILTER_PRESETS[mode])
+    elif mode is None:
+        st.session_state.sf_mode = matching_mode(st.session_state)
+
+
+def on_filter_change() -> None:
+    """Toccato un filtro a mano, l'interruttore si rimette dove i valori
+    dicono: di solito "Custom", ma se uno rimette tutto com'era torna il
+    fascio."""
+    st.session_state.sf_mode = matching_mode(st.session_state)
+
+
+def describe_filters(f: dict) -> str:
+    """In parole quello che la query chiedera'. Scritto dai valori e non da
+    una frase fissa: la frase fissa era il modo in cui la schermata diceva
+    "ultimi dieci anni" mentre i filtri erano gia' spenti."""
+    bits = []
+    if f["years"]:
+        bits.append(f"since {TODAY.year - f['years']}")
+    if f["full_text"]:
+        bits.append("full text")
+    if f["english"]:
+        bits.append("English")
+    if f["humans"]:
+        bits.append("no animal-only studies")
+    if f["types"]:
+        shown = ", ".join(f["types"][:4]) + ("…" if len(f["types"]) > 4 else "")
+        bits.append(f"{len(f['types'])} publication types ({shown})")
+    if f["issg"]:
+        bits.append("ISSG: " + " or ".join(f["issg"]))
+    if not bits:
+        return "Nothing but your search terms goes to PubMed."
+    text = " · ".join(bits)
+    return text[0].upper() + text[1:] + "."
 
 
 def number(value) -> float | None:
@@ -354,17 +422,42 @@ except ValueError:
     title_rem = 1.35
 
 quartile_css = " ".join(
-    f".art-badges span.{q.lower()} {{ background: {bg}; color: {fg}; font-weight: 600; }}"
+    f".art-badges span.{q.lower()} {{ background: {bg}; color: {fg}; border-color: transparent; font-weight: 600; }}"
     for q, (fg, bg) in jr.QUARTILE_COLOURS.items()
 )
+
+T = theme.TOKENS
 
 st.markdown(
     f"""
     <style>
+      /* Il titolo come quello di Radiouploader: il nome, e accanto in grigio
+         cosa fa. Niente icona grande - e' un'app che si tiene aperta, non una
+         copertina. */
       .app-title {{
-        font-size: 1.5rem; font-weight: 700; letter-spacing: -.01em;
-        margin: 0 0 .5rem 0;
+        display: flex; align-items: baseline; gap: .6rem; flex-wrap: wrap;
+        font-size: 1.35rem; font-weight: 700; letter-spacing: -.01em;
+        margin: 0 0 .35rem 0;
       }}
+      .app-title .sub {{ font-size: .9rem; font-weight: 400; color: {T["muted"]}; }}
+      /* Le tre schede come i passi di Radiouploader: pillole numerate, quella
+         attiva su un fondo piu' chiaro. La lineetta colorata sotto la scheda di
+         Streamlit diceva la stessa cosa in un'altra lingua. */
+      div[role="tablist"] {{
+        gap: 6px; padding-bottom: .55rem;
+        border-bottom: 1px solid {T["border"]};
+      }}
+      div[data-testid="stTab"] {{
+        padding: .3rem .9rem; border-radius: 999px; color: {T["muted"]};
+        height: auto;
+      }}
+      /* la lineetta sotto la scheda attiva: e' il figlio senza testo */
+      div[data-testid="stTab"] > div:not([data-testid]) {{ display: none; }}
+      div[data-testid="stTab"]:hover {{ color: {T["text"]}; background: {T["panel"]}; }}
+      div[data-testid="stTab"][aria-selected="true"] {{
+        color: {T["text"]}; background: {T["panel-2"]};
+      }}
+      div[data-testid="stTab"] p {{ font-size: .95rem; }}
       .art-title {{
         font-size: {title_rem}rem;
         font-weight: 650;
@@ -376,21 +469,28 @@ st.markdown(
          i blocchi e dentro le schede, non il testo - quello resta leggibile. */
       div[data-testid="stVerticalBlock"] {{ gap: .55rem; }}
       div[data-testid="stExpander"] summary {{ padding: .3rem .6rem; }}
-      div[data-testid="stExpander"] details {{ border-radius: .4rem; }}
-      .art-meta {{ font-size: .85rem; opacity: .72; margin-bottom: .3rem; }}
+      div[data-testid="stExpander"] details {{
+        border-radius: 10px; border-color: {T["border"]}; background: {T["panel"]};
+      }}
+      div[data-testid="stLayoutWrapper"] > div[data-testid="stVerticalBlock"] {{
+        border-radius: 10px;
+      }}
+      .art-meta {{ font-size: .85rem; color: {T["muted"]}; margin-bottom: .3rem; }}
       .art-badges {{ font-size: .78rem; margin-bottom: .3rem;
                      display: flex; flex-wrap: wrap; gap: .3rem; }}
       .art-badges span {{
-        display: inline-block; padding: .05rem .45rem; margin: 0;
-        border-radius: .35rem; background: rgba(128,128,128,.16);
+        display: inline-block; padding: .05rem .5rem; margin: 0;
+        border-radius: 999px; background: {T["panel-2"]};
+        border: 1px solid {T["border"]}; color: {T["muted"]};
         white-space: nowrap;
       }}
       /* Il quartile e' l'unica cosa in questa riga che si legge di colpo:
          verde Q1, rosso Q4, come un semaforo. Gli altri badge restano grigi
          apposta - se fossero colorati anche loro non si vedrebbe piu' niente. */
       {quartile_css}
-      .art-badges span.oa {{ background: #e3f5ed; color: #0b8457; font-weight: 600; }}
-      .art-badges span.oa-closed {{ background: rgba(128,128,128,.18); opacity: .8; }}
+      .art-badges span.oa {{ background: rgba(91,201,140,.16); color: {T["ok"]};
+                             border-color: transparent; font-weight: 600; }}
+      .art-badges span.oa-closed {{ opacity: .8; }}
       /* titolo degli expander (abstract) leggermente piu' grande del default */
       div[data-testid="stExpander"] summary p {{ font-size: {max(0.95, title_rem - 0.3):.2f}rem; }}
     </style>
@@ -402,7 +502,8 @@ st.markdown(
 # si sta guardando. In un'app che si tiene aperta tutto il giorno il titolo
 # serve a sapere dove sei, non a fare da copertina.
 st.markdown(
-    '<div class="app-title">🔬 Radiowriter</div>',
+    '<div class="app-title">Radiowriter'
+    '<span class="sub">Literature and drafting for Radiopaedia articles</span></div>',
     unsafe_allow_html=True)
 
 
@@ -1150,8 +1251,9 @@ def search_builder() -> str:
     blocks = qb_state()
 
     st.caption(
-        "**One block per concept** — the disease, the modality, the kind of "
-        "study. Inside a block you write the same thing in every way the "
+        "**One block per concept** — the disease, the modality, the finding. "
+        "The kind of publication is not a block: it goes in the filters below, "
+        "so it is asked once. Inside a block you write the same thing in every way the "
         "literature writes it, and those lines are joined by **OR** (any one is "
         "enough). The blocks are joined by **AND** (all of them must hold). "
         "PubMed reads the operators left to right, so what you see below is "
@@ -1246,7 +1348,7 @@ def search_builder() -> str:
 
 
 tab_search, tab_screen, tab_write = st.tabs(
-    ["🔎 PubMed search", "📚 Screening", "✍️ Write"])
+    ["1  PubMed search", "2  Screening", "3  Write"])
 
 
 # ---------------------------------------------------------------------------
@@ -1281,84 +1383,76 @@ with tab_search:
     # quando il pannello e' chiuso, perche' Streamlit butta via lo stato dei
     # widget che non disegna: il numero di anni tornerebbe al suo default senza
     # che nessuno l'abbia toccato. Sempre visibili, e compatti.
-    st.session_state.setdefault("sf_recent", True)
+    # La lista del metodo non disegnato va tenuta a mano: Streamlit butta via
+    # lo stato dei widget che in un giro non disegna, e chi passasse da ISSG a
+    # NLM e ritorno troverebbe la scelta di prima sparita.
+    for _key in ("sf_types", "sf_issg"):
+        st.session_state[_key] = st.session_state[_key]
 
     with st.container(border=True):
-        tg, clr = st.columns([4, 1])
-        with tg:
-            st.toggle(
-                RECENT_REVIEWS_LABEL, key="sf_recent", on_change=on_recent_reviews,
-                help="A bundle, not a button: while it is on, these are the "
-                     "filters, and the controls below show what it set. Switch "
-                     "it off to change them by hand.")
-        clr.button(
-            "↺ Clear all", key="sf_clear", width="stretch",
-            on_click=apply_search_preset, args=("open",),
-            help="Every filter off, no date limit: only the search terms are left.")
+        st.segmented_control(
+            "Filters", list(SEARCH_MODES), key="sf_mode",
+            format_func=SEARCH_MODES.get, on_change=on_search_mode,
+            label_visibility="collapsed",
+            help="Recent reviews and No filters set every control below. Change "
+                 "any control by hand and this moves to Custom by itself.")
 
-        locked = bool(st.session_state.sf_recent)
-        st.caption(("**On** — " if locked else "**Off.** It would set: ")
-                   + RECENT_REVIEWS_WHAT
-                   + (" Switch it off to change any of them." if locked else ""))
+        fc1, fc2, fc3, fc4 = st.columns([1.1, 1, 1, 1], vertical_alignment="center")
+        # zero e' un valore legittimo e vuol dire "nessun limite di data".
+        # Prima il minimo era 1: non c'era modo di dire "tutta la
+        # letteratura", e cinquant'anni sembravano quello senza esserlo.
+        fc1.number_input(
+            "Last N years", 0, 100, step=1, key="sf_years",
+            on_change=on_filter_change, help="0 = no date limit at all.")
+        fc2.checkbox("Full text", key="sf_fulltext", on_change=on_filter_change,
+                     help="Only records that link to a full text.")
+        fc3.checkbox("English", key="sf_english", on_change=on_filter_change)
+        fc4.checkbox("Humans", key="sf_humans", on_change=on_filter_change,
+                     help="Leaves out what is indexed as an animal study and "
+                          "not as a human one. Papers too recent to be "
+                          "indexed yet are kept.")
 
-        fc1, fc2, fc3 = st.columns([1, 2, 2])
-        with fc1:
-            # zero e' un valore legittimo e vuol dire "nessun limite di data".
-            # Prima il minimo era 1: non c'era modo di dire "tutta la
-            # letteratura", e cinquant'anni sembravano quello senza esserlo.
-            years = st.number_input(
-                "Last N years", 0, 100, step=1, key="sf_years", disabled=locked,
-                help="0 = no date limit at all.")
-            st.caption("No date limit." if not years else f"Since {TODAY.year - int(years)}.")
-        with fc2:
-            type_labels = st.multiselect(
-                "Article types", pubmed.DEFAULT_TYPE_LABELS, key="sf_types",
-                disabled=locked,
+        type_by = st.radio(
+            "Kind of publication", list(TYPE_METHODS), key="sf_type_by",
+            format_func=TYPE_METHODS.get, horizontal=True,
+            on_change=on_filter_change,
+            help="One way or the other, not both. NLM publication types are "
+                 "the labels an indexer gave the record; ISSG filters catch a "
+                 "kind of publication by the words the paper uses. Combined "
+                 "they would be joined with AND and keep far fewer papers "
+                 "than either.")
+        if type_by == "pt":
+            st.multiselect(
+                "Publication types", pubmed.DEFAULT_TYPE_LABELS, key="sf_types",
+                on_change=on_filter_change, label_visibility="collapsed",
+                placeholder="Choose publication types — several are joined by OR",
                 help="PubMed's own publication types, as NLM assigned them.")
-        with fc3:
+        elif type_by == "issg":
             # I filtri ISSG non dicono DI COSA parla un lavoro, dicono CHE
             # GENERE di lavoro e': sono le stringhe con cui gli information
             # specialist intercettano linee guida e revisioni sistematiche.
-            issg_labels = st.multiselect(
+            issg_picked = st.multiselect(
                 "Study design filters (ISSG)", list(issg.LABELS.values()),
-                key="sf_issg",
+                key="sf_issg", on_change=on_filter_change,
+                label_visibility="collapsed",
+                placeholder="Choose ISSG filters — several are joined by OR",
                 help="Published search filters from the InterTASC Information "
                      "Specialists' Sub-Group. They catch a kind of publication "
-                     "by the words it uses, not by a subject. Choosing more "
-                     "than one asks for either of them.")
+                     "by the words it uses, not by a subject.")
+            for label in issg_picked:
+                st.caption(f"· **{label}** — {issg.FILTERS[issg.BY_LABEL[label]][2]}")
 
-        bc1, bc2, bc3 = st.columns(3)
-        f_fulltext = bc1.checkbox("Full text", key="sf_fulltext", disabled=locked)
-        f_english = bc2.checkbox("English", key="sf_english", disabled=locked)
-        f_humans = bc3.checkbox("Humans", key="sf_humans", disabled=locked)
+        filters_now = effective_filters(st.session_state)
+        st.caption(describe_filters(filters_now))
 
-        for label in issg_labels:
-            st.caption(f"· **{label}** — {issg.FILTERS[issg.BY_LABEL[label]][2]}")
-        issg_clause = issg.clause(issg_labels)
-        if issg_clause:
-            st.caption(f"The ISSG filter adds {len(issg_clause):,} characters "
-                       f"to the query.")
-        if issg_clause and (locked or type_labels):
-            # Sono due modi di chiedere la stessa cosa, e messi insieme non
-            # sommano: moltiplicano. `Review[pt]` prende quello che gli
-            # indicizzatori NLM hanno etichettato review; l'ISSG prende quello
-            # che si presenta come tale nel titolo, nell'abstract e nelle parole
-            # dell'autore. In AND restano solo i lavori che sono tutt'e due, e
-            # sono molti meno di quanto uno si aspetti.
-            st.warning(
-                "**Two filters for the same idea.** "
-                + (f"“{RECENT_REVIEWS_LABEL}”" if locked else "*Article types*")
-                + " restricts by the publication type NLM assigned; an ISSG "
-                "filter restricts by the words the paper uses. They are joined "
-                "with AND, so only what satisfies both survives — usually far "
-                "fewer results than you meant. Pick one approach.")
-
+    issg_clause = issg.clause(filters_now["issg"])
     query_preview = ""
     if terms.strip():
         try:
             query_preview = pubmed.build_query(
-                terms, type_labels=type_labels, years=int(years),
-                full_text=f_fulltext, english=f_english, humans=f_humans,
+                terms, type_labels=filters_now["types"],
+                years=filters_now["years"], full_text=filters_now["full_text"],
+                english=filters_now["english"], humans=filters_now["humans"],
                 filters=[issg_clause])
         except pubmed.PubMedError as exc:
             st.warning(str(exc))
@@ -2206,8 +2300,9 @@ def rich_copy_box(html_body: str, *, label: str, height: int, key: str) -> None:
                      margin-bottom: .5rem; }}
           .rc-btn {{ font: inherit; font-size: .85rem; padding: .35rem .9rem;
                      border-radius: .5rem; border: 1px solid rgba(128,128,128,.4);
-                     background: #fff; cursor: pointer; }}
-          .rc-btn:hover {{ border-color: #ff4b4b; color: #ff4b4b; }}
+                     background: {theme.TOKENS["panel-2"]}; color: {theme.TOKENS["text"]};
+                     cursor: pointer; }}
+          .rc-btn:hover {{ border-color: {theme.TOKENS["accent"]}; }}
           .rc-msg {{ font-size: .8rem; opacity: .75; }}
           .rc-body {{ border: 1px solid rgba(128,128,128,.3); border-radius: .5rem;
                       padding: .9rem 1.1rem; overflow: auto; background: #fff;
@@ -2654,7 +2749,7 @@ TOOLBAR_JS = r"""
       ".mdbar button{font:inherit;font-size:.8rem;line-height:1;min-width:2rem;" +
         "padding:.4rem .55rem;border-radius:.4rem;cursor:pointer;" +
         "border:1px solid rgba(128,128,128,.35);background:transparent;color:inherit}" +
-      ".mdbar button:hover{border-color:#ff4b4b;color:#ff4b4b}" +
+      ".mdbar button:hover{border-color:#4c9aff;color:#4c9aff}" +
       ".mdbar button.b{font-weight:700}.mdbar button.i{font-style:italic}" +
       ".mdbar .sep{width:1px;margin:.15rem .3rem;background:rgba(128,128,128,.3)}";
     doc.head.appendChild(css);
@@ -2746,7 +2841,7 @@ PREVIEW_CSS = """
   .mdprev p { margin: .5rem 0; line-height: 1.6; }
   .mdprev ul, .mdprev ol { margin: .5rem 0 .5rem 1.4rem; }
   .mdprev li { margin: .2rem 0; line-height: 1.55; }
-  .mdprev sup { color: #0b8457; font-weight: 600; padding-left: .1rem; }
+  .mdprev sup { color: #5bc98c; font-weight: 600; padding-left: .1rem; }
   .mdprev table { border-collapse: collapse; margin: .6rem 0; }
   .mdprev th, .mdprev td { border: 1px solid rgba(128,128,128,.35);
                            padding: .3rem .55rem; }

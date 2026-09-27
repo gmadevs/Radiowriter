@@ -68,6 +68,8 @@ def main(argv: list[str] | None = None) -> int:
 
     from streamlit.web import bootstrap
 
+    from radiowriter import theme
+
     flags = {
         "server.port": args.port,
         "server.headless": args.no_browser,
@@ -76,6 +78,7 @@ def main(argv: list[str] | None = None) -> int:
         # "Deploy" e "Report a bug" parla di Streamlit Cloud, che non c'entra.
         "client.toolbarMode": "minimal",
         "global.developmentMode": False,
+        **theme.OPTIONS,
     }
     db_file, origin = paths.db_origin()
     print(f"Radiowriter - http://localhost:{args.port}")

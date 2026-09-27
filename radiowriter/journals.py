@@ -43,12 +43,14 @@ from radiowriter import paths
 
 # I quartili, dal migliore al peggiore, con il colore del badge: verde per Q1,
 # rosso per Q4. Sono i colori del semaforo perche' e' cosi' che si leggono.
+# Il fondo e' lo stesso colore reso trasparente: l'app e' scura, e un pastello
+# pieno su fondo scuro accende il badge piu' del titolo che gli sta sopra.
 QUARTILES = ["Q1", "Q2", "Q3", "Q4"]
 QUARTILE_COLOURS = {
-    "Q1": ("#0b8457", "#e3f5ed"),   # (testo, sfondo)
-    "Q2": ("#7a8b1f", "#f1f6dd"),
-    "Q3": ("#b4690e", "#fdf0dd"),
-    "Q4": ("#c0392b", "#fdecea"),
+    "Q1": ("#5bc98c", "rgba(91,201,140,.16)"),   # (testo, sfondo)
+    "Q2": ("#b5cc5a", "rgba(181,204,90,.16)"),
+    "Q3": ("#e0a44a", "rgba(224,164,74,.16)"),
+    "Q4": ("#e06c6c", "rgba(224,108,108,.16)"),
 }
 
 CATEGORY_QUARTILE = re.compile(r"^(.*?)\s*\((Q[1-4])\)\s*$")

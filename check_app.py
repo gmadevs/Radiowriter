@@ -536,28 +536,56 @@ finally:
                       "unpaywall_email": ""})
 
 # ---------------------------------------------------------------------------
-# "Recent reviews" come interruttore, e i filtri sui risultati
+# L'interruttore dei filtri a tre posizioni, e i filtri sui risultati
 # ---------------------------------------------------------------------------
 
 at = AppTest.from_file(APP, default_timeout=60)
 at.run()
 
-toggle = next(t for t in at.toggle if t.key == "sf_recent")
-is_("il fascio parte acceso", toggle.value, "True")
-is_("...e con lui i filtri sono bloccati",
-    next(n for n in at.number_input if n.key == "sf_years").disabled, "True")
+
+def mode_of(app):
+    return next(b for b in app.get("button_group") if b.key == "sf_mode")
+
+
+def query_of(app):
+    return [c.value for c in app.code][-1]
+
+
+is_("il fascio parte acceso", mode_of(at).value, "reviews")
 is_("...sugli ultimi dieci anni", at.session_state["sf_years"], 10)
+is_("...e i controlli si possono toccare subito",
+    next(n for n in at.number_input if n.key == "sf_years").disabled, "False")
 
-at_off = toggle.set_value(False).run()
-is_("spegnendolo i filtri si sbloccano",
-    next(n for n in at_off.number_input if n.key == "sf_years").disabled, "False")
-is_("...senza azzerarli sotto le mani", at_off.session_state["sf_years"], 10)
-is_("...e senza sollevare", exceptions(at_off), "[]")
+at = at.text_input(key="search_terms").set_value("glioma").run()
+is_("il fascio chiede solo review e sintesi",
+    "Multicenter Study" in query_of(at) or "booksdocs" in query_of(at), "False")
+is_("...e humans non scarta i lavori non ancora indicizzati",
+    query_of(at).endswith("NOT (animals[mh] NOT humans[mh])"), "True")
 
-at_clear = next(b for b in at_off.button if b.key == "sf_clear").click().run()
-is_("azzerare toglie anche il limite di data",
-    at_clear.session_state["sf_years"], 0)
-is_("...e i tipi di articolo", at_clear.session_state["sf_types"], "[]")
+at = mode_of(at).set_value("open").run()
+is_("No filters lascia solo i termini", query_of(at), "(glioma)")
+is_("...e toglie anche il limite di data", at.session_state["sf_years"], 0)
+is_("...e la posizione dice No filters", mode_of(at).value, "open")
+
+at = at.checkbox(key="sf_english").check().run()
+is_("toccare un filtro a mano porta a Custom", mode_of(at).value, "custom")
+is_("...e la query e' quella che si vede", query_of(at), "(glioma) AND english[la]")
+
+at = at.checkbox(key="sf_english").uncheck().run()
+is_("rimettere tutto com'era riporta a No filters", mode_of(at).value, "open")
+
+at = mode_of(at).set_value("reviews").run()
+at = at.radio(key="sf_type_by").set_value("issg").run()
+issg_box = at.multiselect(key="sf_issg")
+at = issg_box.set_value([issg_box.options[0]]).run()
+is_("con l'ISSG le etichette NLM escono dalla query",
+    '"Review"[pt]' in query_of(at), "False")
+at = at.radio(key="sf_type_by").set_value("pt").run()
+is_("...e tornando a NLM l'ISSG esce", "Clinical protocols" in query_of(at), "False")
+is_("...ma la scelta ISSG resta per quando si torna",
+    at.session_state["sf_issg"], [issg_box.options[0]])
+is_("...e i valori sono di nuovo quelli del fascio", mode_of(at).value, "reviews")
+is_("...senza sollevare", exceptions(at), "[]")
 
 # zero anni = nessuna clausola di data nella query
 from radiowriter import pubmed as _pm             # noqa: E402
