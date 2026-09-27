@@ -1108,7 +1108,7 @@ def results_filters(records: list[dict], metric_of, status_by_pmid: dict,
             else:
                 f_oa = False
                 st.caption("Open access: not looked up for these records — "
-                           "tick *Check open access with Unpaywall* in Filters "
+                           "tick *Open access (Unpaywall)* in the sidebar "
                            "before searching.")
             f_cites = st.number_input(
                 "At least this many citations", 0, 10000, step=1,
