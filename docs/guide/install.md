@@ -2,7 +2,8 @@
 
 Radiowriter is a Python program. It starts a small server on your own computer
 and serves a page to your own browser — nothing is hosted anywhere, and no page
-of yours leaves the machine.
+of yours leaves the machine. The server listens only on this computer: another
+device on the same network cannot open it.
 
 ## Install
 

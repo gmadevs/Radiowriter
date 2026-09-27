@@ -72,6 +72,12 @@ def main(argv: list[str] | None = None) -> int:
 
     flags = {
         "server.port": args.port,
+        # Solo questo computer. Di suo Streamlit ascolta su tutte le
+        # interfacce e lo dice pure ("Network URL", "External URL"): chiunque
+        # sulla stessa Wi-Fi - e da fuori, se il router lascia passare la porta
+        # - poteva aprire l'archivio, le bozze e le impostazioni, senza
+        # password. Un programma personale non ha niente da offrire alla rete.
+        "server.address": "localhost",
         "server.headless": args.no_browser,
         "browser.gatherUsageStats": False,
         # "viewer" e non "minimal": il menu serve, perche' e' li' che si sceglie
