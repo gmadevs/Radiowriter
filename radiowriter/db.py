@@ -62,6 +62,9 @@ DEFAULT_SETTINGS = {
     "libkey_library_id": os.environ.get("LIBKEY_LIBRARY_ID", ""),
     "unpaywall_email": os.environ.get("UNPAYWALL_EMAIL", ""),
     "title_font_rem": "1.35",
+    "reading_font": "serif",
+    "reading_font_rem": "1.05",
+    "abstracts_open": "0",
     "page_size": "10",
 }
 

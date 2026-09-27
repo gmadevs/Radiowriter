@@ -20,6 +20,7 @@ _TMP_DB = os.path.join(tempfile.mkdtemp(prefix="radiopaedia-lists-"), "test.db")
 os.environ["RADIOPAEDIA_DB"] = _TMP_DB
 
 from radiowriter import db                      # noqa: E402
+from radiowriter import highlight as hl         # noqa: E402
 from radiowriter import issg                    # noqa: E402
 from radiowriter import modalities as mod       # noqa: E402
 from radiowriter import pubmed                  # noqa: E402
@@ -420,6 +421,30 @@ is_("una modalita' entra in un blocco senza essere ritaggata",
     built.endswith(mod.fragment("CT")), "True")
 is_("...e il blocco che la ospita resta bilanciato",
     built.count("(") == built.count(")"), "True")
+
+
+# ---------------------------------------------------------------------------
+# evidenziazione dei termini cercati
+# ---------------------------------------------------------------------------
+
+print("\n--- evidenziazione ---")
+
+is_("frasi e parole, senza tag di campo ne' operatori",
+    hl.terms_of('("brain abscess"[MeSH Terms] OR abscess[tiab]) AND MRI'),
+    ["brain abscess", "abscess", "MRI"])
+is_("quello che sta dopo NOT non si accende",
+    hl.terms_of("glioma NOT (child* OR pediatric) NOT review[pt]"), ["glioma"])
+is_("le parole di una lettera non contano", hl.terms_of("a OR b"), [])
+
+rx = hl.pattern(hl.terms_of('"contrast enhanced" abscess child*'))
+is_("plurale, trattino e asterisco",
+    hl.mark("Contrast-enhanced scans of abscesses in children", rx),
+    "<mark>Contrast-enhanced</mark> scans of <mark>abscesses</mark> in "
+    "<mark>children</mark>")
+is_("...solo a parola intera", hl.mark("preabscess", rx), "preabscess")
+is_("...e l'HTML resta escapato, anche accanto a un termine",
+    hl.mark("abscess <b> & co", rx), "<mark>abscess</mark> &lt;b&gt; &amp; co")
+is_("senza termini si escapa e basta", hl.mark("a < b", None), "a &lt; b")
 
 print(f"\n{checked} controlli, {failed} falliti")
 sys.exit(1 if failed else 0)

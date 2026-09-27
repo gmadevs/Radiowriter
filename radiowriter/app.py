@@ -15,6 +15,7 @@ from __future__ import annotations
 
 import html
 import math
+import re
 import sqlite3
 import time
 from datetime import date
@@ -26,6 +27,7 @@ import streamlit as st
 from radiowriter import backup
 from radiowriter import db
 from radiowriter import draft_io
+from radiowriter import highlight
 from radiowriter import issg
 from radiowriter import journals as jr
 from radiowriter import lint
@@ -103,6 +105,9 @@ SEARCH_FILTER_PRESETS = {
     },
 }
 
+# L'interruttore "Abstracts open", disegnato in tutt'e due le schede.
+ABSTRACT_TOGGLES = ("abs_open_search", "abs_open_screen")
+
 # Le preferenze, col loro valore di partenza.
 SEARCH_PREFS = {
     "sf_max_results": 200,
@@ -111,7 +116,17 @@ SEARCH_PREFS = {
     "sf_oa": False,
 }
 
-st.set_page_config(page_title="Radiowriter", layout="wide", page_icon="🔬")
+st.set_page_config(
+    page_title="Radiowriter", layout="wide", page_icon="🔬",
+    # Il menu resta perche' e' li' che si sceglie il tema; le voci che
+    # rimandano all'assistenza di Streamlit non riguardano chi usa l'app.
+    menu_items={
+        "Get help": None,
+        "Report a bug": "https://github.com/gmadevs/Radiowriter/issues",
+        "About": "**Radiowriter** — find the literature for a Radiopaedia "
+                 "article, screen it, and write the article against it. "
+                 "Unofficial, not affiliated with Radiopaedia.org.",
+    })
 
 db.init_db()
 
@@ -165,6 +180,8 @@ settings = st.session_state.settings
 for _key, _value in {**SEARCH_FILTER_PRESETS["reviews"], **SEARCH_PREFS,
                       "sf_mode": "reviews"}.items():
     st.session_state.setdefault(_key, _value)
+for _key in ABSTRACT_TOGGLES:
+    st.session_state.setdefault(_key, settings.get("abstracts_open") == "1")
 
 
 # ---------------------------------------------------------------------------
@@ -309,6 +326,17 @@ def describe_filters(f: dict) -> str:
     return text[0].upper() + text[1:] + "."
 
 
+def on_abstracts_open(key: str) -> None:
+    """Abstract aperti o chiusi: un'abitudine di lettura, quindi una scelta
+    sola che vale per le due schede e resta al riavvio. I due interruttori sono
+    lo stesso interruttore disegnato in due posti."""
+    value = bool(st.session_state[key])
+    for other in ABSTRACT_TOGGLES:
+        st.session_state[other] = value
+    db.save_settings({"abstracts_open": "1" if value else "0"})
+    st.session_state.settings = db.get_settings()
+
+
 def number(value) -> float | None:
     """Un numero da una cella, o None. Le colonne che arrivano da una LEFT JOIN
     senza corrispondenza tornano come NaN, non come None, e NaN e' un float che
@@ -403,6 +431,40 @@ def clean(value) -> str:
     return "" if text.lower() in ("nan", "none", "<na>") else text
 
 
+# Un'etichetta di sezione dentro un abstract scritto tutto di seguito: parole
+# maiuscole e due punti subito dopo la fine di una frase. I record scaricati
+# adesso le hanno gia' su paragrafi separati; quelli importati da un `.nbib`
+# arrivano in un blocco solo, "...criteria. RESULTS: 56 incisors...".
+INLINE_LABEL = re.compile(r"(?<=[.!?])\s+(?=[A-Z][A-Z0-9 ,/&()-]{2,48}:\s)")
+LEADING_LABEL = re.compile(r"^([A-Z][A-Za-z0-9 ,/&()'-]{1,48}):\s+(.+)$", re.S)
+
+
+def abstract_html(text, rx=None) -> str:
+    """L'abstract come HTML da leggere: un paragrafo per sezione, l'etichetta
+    sopra, tutto il resto escapato, e i termini di `rx` evidenziati.
+
+    Prima passava da `st.write`, cioe' dal Markdown di Streamlit, che un
+    abstract lo interpreta: `$1 M ... $780,000` diventava una formula LaTeX e
+    `T2* ... L*/a*/b*` un corsivo a caso. Un abstract e' testo, non sintassi."""
+    text = clean(text)
+    if not text or text == "No abstract available.":
+        return '<div class="abstract"><p class="none">No abstract available.</p></div>'
+    paragraphs = []
+    for block in text.split("\n\n"):
+        paragraphs.extend(p for p in INLINE_LABEL.split(block.strip()) if p)
+    out = []
+    for para in paragraphs:
+        m = LEADING_LABEL.match(para)
+        # "Label: testo" solo se l'etichetta e' corta: una frase che contiene
+        # due punti non e' un'intestazione
+        if m and len(m.group(1).split()) <= 5:
+            out.append(f'<p><span class="lbl">{html.escape(m.group(1))}</span>'
+                       f'{highlight.mark(m.group(2), rx)}</p>')
+        else:
+            out.append(f"<p>{highlight.mark(para, rx)}</p>")
+    return '<div class="abstract">' + "".join(out) + "</div>"
+
+
 def fmt_int(value) -> str:
     if value is None or (isinstance(value, float) and math.isnan(value)):
         return "–"
@@ -416,81 +478,116 @@ def fmt_int(value) -> str:
 # stile
 # ---------------------------------------------------------------------------
 
-try:
-    title_rem = float(settings.get("title_font_rem") or 1.35)
-except ValueError:
-    title_rem = 1.35
+def setting_float(key: str, default: float) -> float:
+    try:
+        return float(settings.get(key) or default)
+    except ValueError:
+        return default
+
+
+title_rem = setting_float("title_font_rem", 1.35)
+reading_rem = setting_float("reading_font_rem", 1.05)
+reading_font = theme.READING_FONTS.get(settings.get("reading_font") or "serif",
+                                       theme.READING_FONTS["serif"])
 
 quartile_css = " ".join(
-    f".art-badges span.{q.lower()} {{ background: {bg}; color: {fg}; border-color: transparent; font-weight: 600; }}"
-    for q, (fg, bg) in jr.QUARTILE_COLOURS.items()
+    f".art-badges span.{q.lower()} {{ {theme.tinted(base)} "
+    f"border-color: transparent; font-weight: 600; }}"
+    for q, base in theme.QUARTILE_BASE.items()
 )
 
-T = theme.TOKENS
-
+# Tutto il CSS e' scritto per andare bene su tutt'e due i temi senza
+# sapere quale c'e': grigi fatti di trasparenza (`rgba(128,128,128,...)`) e
+# testo secondario fatto di opacita', che su un fondo chiaro scuriscono e su uno
+# scuro schiariscono da soli.
 st.markdown(
     f"""
     <style>
-      /* Il titolo come quello di Radiouploader: il nome, e accanto in grigio
-         cosa fa. Niente icona grande - e' un'app che si tiene aperta, non una
-         copertina. */
+      /* Il titolo come quello di Radiouploader: il nome, e accanto cosa fa. */
       .app-title {{
         display: flex; align-items: baseline; gap: .6rem; flex-wrap: wrap;
         font-size: 1.35rem; font-weight: 700; letter-spacing: -.01em;
         margin: 0 0 .35rem 0;
       }}
-      .app-title .sub {{ font-size: .9rem; font-weight: 400; color: {T["muted"]}; }}
+      .app-title .sub {{ font-size: .9rem; font-weight: 400; opacity: .7; }}
       /* Le tre schede come i passi di Radiouploader: pillole numerate, quella
-         attiva su un fondo piu' chiaro. La lineetta colorata sotto la scheda di
-         Streamlit diceva la stessa cosa in un'altra lingua. */
+         attiva su un fondo piu' marcato. La lineetta colorata sotto la scheda
+         di Streamlit diceva la stessa cosa in un'altra lingua. */
       div[role="tablist"] {{
         gap: 6px; padding-bottom: .55rem;
-        border-bottom: 1px solid {T["border"]};
+        border-bottom: 1px solid rgba(128,128,128,.22);
       }}
       div[data-testid="stTab"] {{
-        padding: .3rem .9rem; border-radius: 999px; color: {T["muted"]};
-        height: auto;
+        padding: .3rem .9rem; border-radius: 999px; height: auto; opacity: .75;
       }}
       /* la lineetta sotto la scheda attiva: e' il figlio senza testo */
       div[data-testid="stTab"] > div:not([data-testid]) {{ display: none; }}
-      div[data-testid="stTab"]:hover {{ color: {T["text"]}; background: {T["panel"]}; }}
+      div[data-testid="stTab"]:hover {{ opacity: 1; background: rgba(128,128,128,.10); }}
       div[data-testid="stTab"][aria-selected="true"] {{
-        color: {T["text"]}; background: {T["panel-2"]};
+        opacity: 1; background: rgba(128,128,128,.18);
       }}
       div[data-testid="stTab"] p {{ font-size: .95rem; }}
       .art-title {{
         font-size: {title_rem}rem;
         font-weight: 650;
-        line-height: 1.28;
-        margin: 0 0 .25rem 0;
+        line-height: 1.3;
+        letter-spacing: -.005em;
+        margin: 0 0 .3rem 0;
+        max-width: 60rem;
+        text-wrap: pretty;
       }}
       /* Denso apposta: si sfogliano centinaia di record, e ogni riga di aria
          in piu' e' un articolo in meno per schermata. Si stringe lo spazio fra
          i blocchi e dentro le schede, non il testo - quello resta leggibile. */
       div[data-testid="stVerticalBlock"] {{ gap: .55rem; }}
       div[data-testid="stExpander"] summary {{ padding: .3rem .6rem; }}
-      div[data-testid="stExpander"] details {{
-        border-radius: 10px; border-color: {T["border"]}; background: {T["panel"]};
-      }}
+      div[data-testid="stExpander"] details {{ border-radius: 10px; }}
       div[data-testid="stLayoutWrapper"] > div[data-testid="stVerticalBlock"] {{
         border-radius: 10px;
       }}
-      .art-meta {{ font-size: .85rem; color: {T["muted"]}; margin-bottom: .3rem; }}
-      .art-badges {{ font-size: .78rem; margin-bottom: .3rem;
+      .art-meta {{ font-size: .86rem; opacity: .72; margin-bottom: .35rem;
+                   line-height: 1.45; max-width: 60rem; }}
+      .art-badges {{ font-size: .78rem; margin-bottom: .35rem;
                      display: flex; flex-wrap: wrap; gap: .3rem; }}
       .art-badges span {{
         display: inline-block; padding: .05rem .5rem; margin: 0;
-        border-radius: 999px; background: {T["panel-2"]};
-        border: 1px solid {T["border"]}; color: {T["muted"]};
+        border-radius: 999px; background: rgba(128,128,128,.12);
+        border: 1px solid rgba(128,128,128,.22);
         white-space: nowrap;
       }}
       /* Il quartile e' l'unica cosa in questa riga che si legge di colpo:
          verde Q1, rosso Q4, come un semaforo. Gli altri badge restano grigi
          apposta - se fossero colorati anche loro non si vedrebbe piu' niente. */
       {quartile_css}
-      .art-badges span.oa {{ background: rgba(91,201,140,.16); color: {T["ok"]};
+      .art-badges span.oa {{ {theme.tinted(theme.QUARTILE_BASE["Q1"])}
                              border-color: transparent; font-weight: 600; }}
-      .art-badges span.oa-closed {{ opacity: .8; }}
+      .art-badges span.oa-closed {{ opacity: .75; }}
+      /* L'abstract e' il testo che si legge davvero, e per questo ha regole sue.
+         Una riga lunga al massimo una settantina di caratteri: oltre, l'occhio
+         che torna a capo perde la riga dopo - e nella pagina larga di
+         Streamlit una riga arrivava a duecento. Interlinea larga, carattere di
+         lettura, e ogni sezione (BACKGROUND, METHODS...) un paragrafo suo con
+         l'etichetta sopra, invece di un blocco unico da scandire a occhio. */
+      .abstract {{
+        font-family: {reading_font};
+        font-size: {reading_rem}rem; line-height: 1.65;
+        max-width: 70ch; text-wrap: pretty;
+        font-variant-numeric: lining-nums;
+      }}
+      .abstract p {{ margin: 0 0 .8em 0; }}
+      .abstract p:last-child {{ margin-bottom: .2em; }}
+      .abstract .lbl {{
+        display: block; font-family: {theme.UI_FONT};
+        font-size: .7rem; font-weight: 700; letter-spacing: .07em;
+        text-transform: uppercase; opacity: .6; margin-bottom: .1em;
+      }}
+      .abstract .none {{ opacity: .6; font-style: italic; }}
+      /* I termini cercati. Un giallo evidenziatore trasparente, cosi' sul
+         chiaro e sullo scuro il testo sotto resta il suo e resta leggibile. */
+      .abstract mark, .art-title mark {{
+        background: color-mix(in srgb, #f2c230 38%, transparent);
+        color: inherit; border-radius: 3px; padding: 0 .08em;
+      }}
       /* titolo degli expander (abstract) leggermente piu' grande del default */
       div[data-testid="stExpander"] summary p {{ font-size: {max(0.95, title_rem - 0.3):.2f}rem; }}
     </style>
@@ -661,6 +758,19 @@ with st.sidebar:
                      "NCBI email above is used.")
             font_rem = st.slider(
                 "Title size (rem)", 1.0, 2.2, title_rem, 0.05)
+            # Il carattere degli abstract si sceglie a parte perche' e' la
+            # sola cosa che si legge per paragrafi: il resto si scorre.
+            read_font = st.radio(
+                "Abstract typeface", list(theme.READING_FONTS),
+                index=list(theme.READING_FONTS).index(
+                    settings.get("reading_font") if settings.get("reading_font")
+                    in theme.READING_FONTS else "serif"),
+                format_func={"serif": "Serif (for long reading)",
+                             "sans": "Sans, like the rest"}.get,
+                horizontal=True)
+            read_rem = st.slider(
+                "Abstract size (rem)", 0.9, 1.4, reading_rem, 0.05)
+            st.caption("Light or dark: menu ⋮ at the top right → Settings.")
             if st.form_submit_button("Save settings", width="stretch"):
                 values = {
                     "ncbi_email": ncbi_email.strip(),
@@ -669,6 +779,8 @@ with st.sidebar:
                     "libkey_library_id": libkey_id.strip(),
                     "unpaywall_email": upw_email.strip(),
                     "title_font_rem": f"{font_rem:.2f}",
+                    "reading_font": read_font,
+                    "reading_font_rem": f"{read_rem:.2f}",
                 }
                 db.save_settings(values)
                 st.session_state.settings = db.get_settings()
@@ -1549,6 +1661,9 @@ with tab_search:
 
                 search_id = db.log_search(terms.strip(), query_preview, total, len(records))
                 st.session_state.search_results = records
+                # i termini della ricerca FATTA, non di quella che si sta
+                # scrivendo: sono loro che si evidenziano nei risultati
+                st.session_state.search_terms_used = terms.strip()
                 st.session_state.search_id = search_id
                 st.session_state.search_total = total
                 st.session_state.search_excluded = n_excluded
@@ -1649,7 +1764,8 @@ with tab_search:
             })
         table = pd.DataFrame(rows)
 
-        b1, b2, b3, b4, b5 = st.columns([1, 1, 1, 1.4, 1.6])
+        b1, b2, b3, b4, b5, b6 = st.columns([1, 1, 1, 1.4, 1.6, 1.5],
+                                            vertical_alignment="center")
         if b1.button("Select all"):
             st.session_state.search_selection = {r["PMID"]: True for r in rows}
             st.session_state.search_gen = gen + 1
@@ -1672,6 +1788,14 @@ with tab_search:
                 key="search_per_page", label_visibility="collapsed",
                 format_func=lambda n: f"{n} per page",
                 disabled=view == "Table")
+        b6.toggle("Abstracts open", key="abs_open_search",
+                  on_change=on_abstracts_open, args=("abs_open_search",),
+                  disabled=view == "Table",
+                  help="Show every abstract already open, to read down the "
+                       "page without a click per record. The same choice "
+                       "applies to Screening, and is remembered.")
+        search_rx = highlight.pattern(highlight.terms_of(
+            st.session_state.get("search_terms_used", "")))
 
         if view == "Table":
             edited = st.data_editor(
@@ -1741,7 +1865,7 @@ with tab_search:
                                 "screened": "✅ "}[state]
                         st.markdown(
                             f'<div class="art-title">{mark}'
-                            f'{html.escape(clean(rec.get("title")) or "No title available")}</div>',
+                            f'{highlight.mark(clean(rec.get("title")) or "No title available", search_rx)}</div>',
                             unsafe_allow_html=True,
                         )
                         meta_bits = [b for b in [
@@ -1794,8 +1918,8 @@ with tab_search:
                                     on_change=on_pick, args=(pmid, pick_key))
                         st.caption(state)
 
-                    with st.expander("Abstract", expanded=False):
-                        st.write(clean(rec.get("abstract")) or "No abstract available.")
+                    with st.expander("Abstract", expanded=st.session_state.abs_open_search):
+                        st.html(abstract_html(rec.get("abstract"), search_rx))
 
             if n_pages > 1:
                 st.divider()
@@ -2004,12 +2128,21 @@ with tab_screen:
              "the journals the file does not list at all — Cureus, medRxiv, "
              "most case-report journals.")
 
-    order_label = st.radio(
+    sort_cell, open_cell = st.columns([5, 1.3], vertical_alignment="bottom")
+    order_label = sort_cell.radio(
         "Sort by:",
         ["Recently added", "Influential citations", "Total citations",
          "Citations per year", "Year", "Journal SJR"],
         horizontal=True,
     )
+    open_cell.toggle("Abstracts open", key="abs_open_screen",
+                    on_change=on_abstracts_open, args=("abs_open_screen",),
+                    help="Show every abstract already open. The same choice "
+                         "applies to the search results, and is remembered.")
+    # Nell'archivio si evidenzia quello che si cerca nella casella qui sopra.
+    # Un PMID non e' un termine: cercarne uno non accende niente.
+    screen_rx = (None if search_query.strip().isdigit() else
+                 highlight.pattern(highlight.terms_of(search_query)))
     ORDER_SQL = {
         "Recently added": "a.created_at DESC",
         "Influential citations": "a.influential_citations DESC NULLS LAST, a.created_at DESC",
@@ -2167,7 +2300,7 @@ with tab_screen:
                 mark = ("★ " if is_flagged else "") + ("✅ " if is_read else "📖 ")
                 st.markdown(
                     f'<div class="art-title">{mark}'
-                    f'{html.escape(clean(row["title"]) or "No title available")}</div>',
+                    f'{highlight.mark(clean(row["title"]) or "No title available", screen_rx)}</div>',
                     unsafe_allow_html=True,
                 )
                 # Il nome della rivista: quello di SCImago se l'aggancio c'e',
@@ -2259,8 +2392,8 @@ with tab_screen:
                                 on_change=on_list_toggle,
                                 args=(pmid, lst["id"], key_list))
 
-            with st.expander("Abstract", expanded=False):
-                st.write(clean(row["abstract"]) or "No abstract available.")
+            with st.expander("Abstract", expanded=st.session_state.abs_open_screen):
+                st.html(abstract_html(row["abstract"], screen_rx))
 
     if n_pages > 1:
         st.divider()
@@ -2300,9 +2433,8 @@ def rich_copy_box(html_body: str, *, label: str, height: int, key: str) -> None:
                      margin-bottom: .5rem; }}
           .rc-btn {{ font: inherit; font-size: .85rem; padding: .35rem .9rem;
                      border-radius: .5rem; border: 1px solid rgba(128,128,128,.4);
-                     background: {theme.TOKENS["panel-2"]}; color: {theme.TOKENS["text"]};
-                     cursor: pointer; }}
-          .rc-btn:hover {{ border-color: {theme.TOKENS["accent"]}; }}
+                     background: transparent; color: inherit; cursor: pointer; }}
+          .rc-btn:hover {{ border-color: {theme.PRIMARY}; }}
           .rc-msg {{ font-size: .8rem; opacity: .75; }}
           .rc-body {{ border: 1px solid rgba(128,128,128,.3); border-radius: .5rem;
                       padding: .9rem 1.1rem; overflow: auto; background: #fff;
@@ -2749,7 +2881,7 @@ TOOLBAR_JS = r"""
       ".mdbar button{font:inherit;font-size:.8rem;line-height:1;min-width:2rem;" +
         "padding:.4rem .55rem;border-radius:.4rem;cursor:pointer;" +
         "border:1px solid rgba(128,128,128,.35);background:transparent;color:inherit}" +
-      ".mdbar button:hover{border-color:#4c9aff;color:#4c9aff}" +
+      ".mdbar button:hover{border-color:#2563eb}" +
       ".mdbar button.b{font-weight:700}.mdbar button.i{font-style:italic}" +
       ".mdbar .sep{width:1px;margin:.15rem .3rem;background:rgba(128,128,128,.3)}";
     doc.head.appendChild(css);
@@ -2841,7 +2973,7 @@ PREVIEW_CSS = """
   .mdprev p { margin: .5rem 0; line-height: 1.6; }
   .mdprev ul, .mdprev ol { margin: .5rem 0 .5rem 1.4rem; }
   .mdprev li { margin: .2rem 0; line-height: 1.55; }
-  .mdprev sup { color: #5bc98c; font-weight: 600; padding-left: .1rem; }
+  .mdprev sup { opacity: .75; font-weight: 600; padding-left: .1rem; }
   .mdprev table { border-collapse: collapse; margin: .6rem 0; }
   .mdprev th, .mdprev td { border: 1px solid rgba(128,128,128,.35);
                            padding: .3rem .55rem; }

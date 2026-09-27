@@ -601,13 +601,39 @@ at.session_state["search_results"] = [
     {"pmid": "8801", "title": "Uno", "abstract": "parla di bambini",
      "journal": "Radiology", "year": "2020", "pub_types": "Review",
      "citation_count": 40, "oa_status": "gold", "oa_fetched_at": "2026-01-01"},
-    {"pmid": "8802", "title": "Due", "abstract": "parla di adulti",
+    {"pmid": "8802", "title": "Due",
+     "abstract": "Costava $1 M, poi $780,000. RESULTS: T2* e L*/a*/b* <b>.",
      "journal": "Radiology", "year": "2010", "pub_types": "Case Reports",
      "citation_count": 2, "oa_status": "closed", "oa_fetched_at": "2026-01-01"},
 ]
 at.session_state["search_total"] = 2
+at.session_state["search_terms_used"] = "bambini"
 at.run()
 is_("con dei risultati in sessione l'app non solleva", exceptions(at), "[]")
+is_("i termini della ricerca fatta si evidenziano nell'abstract",
+    any("parla di <mark>bambini</mark>" in h.proto.body for h in at.get("html")),
+    "True")
+
+at_open = at.toggle(key="abs_open_search").set_value(True).run()
+is_("aprire gli abstract nei risultati li apre anche nello Screening",
+    at_open.toggle(key="abs_open_screen").value, "True")
+is_("...e la scelta resta al riavvio", db.get_settings()["abstracts_open"], "1")
+is_("...con gli abstract aperti davvero",
+    all(e.proto.expanded for e in at_open.expander if e.label == "Abstract"), "True")
+at_open.toggle(key="abs_open_screen").set_value(False).run()
+is_("chiuderli dall'altra scheda vale per tutt'e due",
+    db.get_settings()["abstracts_open"], "0")
+
+# L'abstract e' testo, non Markdown: `$...$` non deve diventare una formula ne'
+# `*...*` un corsivo, e l'HTML scritto dentro si vede com'e'.
+shown_html = " ".join(h.proto.body for h in at.get("html")
+                      if "class=\"abstract\"" in h.proto.body)
+is_("l'abstract arriva intero, dollari compresi",
+    "Costava $1 M, poi $780,000." in shown_html, "True")
+is_("...gli asterischi restano asterischi", "T2* e L*/a*/b*" in shown_html, "True")
+is_("...l'HTML dentro l'abstract e' escapato", "&lt;b&gt;" in shown_html, "True")
+is_("...e un'etichetta in mezzo al testo apre una sezione",
+    '<span class="lbl">RESULTS</span>' in shown_html, "True")
 
 types = next(m for m in at.multiselect if (m.key or "").startswith("rf_types_"))
 is_("le faccette contano i tipi che ci sono davvero",

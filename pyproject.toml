@@ -26,7 +26,11 @@ classifiers = [
 ]
 
 dependencies = [
-  "streamlit>=1.40",
+  # Non 1.40: `st.html(unsafe_allow_javascript=...)`, che tiene in vita la barra
+  # del markdown e il pulsante di copia, c'e' dalla 1.52, e `width=` sui
+  # pulsanti dalla 1.48. Con una versione piu' vecchia gia' installata pip non
+  # aggiorna niente, e l'app si ferma alla prima schermata. Provato su 1.52.
+  "streamlit>=1.52",
   "pandas>=2.0",
   "requests>=2.31",
   "markdown-it-py>=3.0",

@@ -22,6 +22,35 @@ that exemption a list would empty itself exactly while you were working
 through it.
 :::
 
+## Reading
+
+Abstracts are set for reading rather than scanning: a serif typeface, lines
+of about seventy characters, and one paragraph per section with its label
+(BACKGROUND, METHODS, RESULTS…) above it. Abstracts imported from a `.nbib`,
+which arrive as a single block, are split at their labels too.
+
+**Abstracts open** shows every abstract on the page already open, so you can
+read down the page without a click per record. It is one choice for both tabs:
+switch it in the search results or in Screening and the other follows, and it
+is remembered the next time the app starts.
+
+**The words you searched for are highlighted** in titles and abstracts. In the
+search results they come from the search you ran; in Screening, from the
+*Search title, abstract or PMID* box. Field tags and operators are ignored, and
+whatever follows a `NOT` is not highlighted. A regular English plural counts
+(*abscess* lights *abscesses*), a trailing `*` means anything that starts that
+way, and inside a quoted phrase a space also matches a hyphen. It is a reading
+aid, not a record of why PubMed returned a paper: PubMed expands terms through
+MeSH and automatic term mapping, so a paper can have been found for a word
+that is not lit.
+
+Under ⚙️ **Settings** you can switch abstracts to the same sans-serif as the
+rest of the app and change their size, next to the size of the titles.
+
+**Light or dark** is chosen from the ⋮ menu at the top right. *System* follows
+your operating system. Both themes are built for long reading: the dark one is
+not pure black, and the light one is an off-white rather than pure white.
+
 ## Narrowing
 
 | | |

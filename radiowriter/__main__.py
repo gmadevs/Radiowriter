@@ -74,9 +74,10 @@ def main(argv: list[str] | None = None) -> int:
         "server.port": args.port,
         "server.headless": args.no_browser,
         "browser.gatherUsageStats": False,
-        # L'app e' un programma sul computer di chi la usa: il menu con
-        # "Deploy" e "Report a bug" parla di Streamlit Cloud, che non c'entra.
-        "client.toolbarMode": "minimal",
+        # "viewer" e non "minimal": il menu serve, perche' e' li' che si sceglie
+        # fra tema chiaro e scuro. Il resto che parlava di Streamlit Cloud
+        # ("Deploy", "Report a bug") lo toglie `set_page_config` nell'app.
+        "client.toolbarMode": "viewer",
         "global.developmentMode": False,
         **theme.OPTIONS,
     }
