@@ -56,7 +56,10 @@ SORT_OPTIONS = {
     "Journal SJR": "_sjr",
 }
 TODAY = date.today()
-MAX_SEARCH_RESULTS = 1000
+# Quanti record scaricare: 0 vuol dire tutti quelli che PubMed restituisce,
+# cioe' fino al suo tetto di 9.999. Prima il default era 200 e il massimo
+# 1000, e una ricerca ampia si fermava a meta' senza che uno lo decidesse.
+MAX_RESULTS_OPTIONS = [0, 100, 200, 500, 1000, 2000, 5000]
 SEARCH_PAGE_SIZE_OPTIONS = [10, 25, 50, 100]
 
 # I filtri di ricerca hanno UN interruttore a tre posizioni, non un interruttore
@@ -115,7 +118,7 @@ ABSTRACT_TOGGLES = ("abs_open_search", "abs_open_screen")
 
 # Le preferenze, col loro valore di partenza.
 SEARCH_PREFS = {
-    "sf_max_results": 200,
+    "sf_max_results": 0,
     "sf_exclude": db.EXCLUDE_MODES["db"],
     "sf_s2": True,
     "sf_oa": False,
@@ -181,7 +184,7 @@ settings = st.session_state.settings
 # I valori di partenza vanno messi PRIMA che qualunque widget nasca: un widget
 # senza `value=` prende il proprio default (per un number_input, il minimo), e
 # se la voce in session_state arrivasse dopo sarebbe troppo tardi - la sidebar
-# mostrerebbe 10 record da scaricare invece di 200.
+# mostrerebbe un filtro di zero anni invece di dieci.
 #
 # E vanno RISCRITTI a ogni giro, non solo messi la prima volta. Streamlit manda
 # al browser il valore di sessione di un widget solo se e' stato scritto nello
@@ -874,11 +877,13 @@ with st.sidebar:
     # filtri, dove costringevano a scorrere ogni volta oltre roba che non si
     # tocca mai. Sono qui, sempre visibili, e la scheda di ricerca resta breve.
     st.markdown("**⚙ Search behaviour**")
-    max_results = st.number_input(
-        "Max records to download", 10, MAX_SEARCH_RESULTS, step=10,
-        key="sf_max_results",
+    max_results = st.selectbox(
+        "Records to download", MAX_RESULTS_OPTIONS, key="sf_max_results",
+        format_func=lambda n: (f"All (PubMed's limit is {pubmed.ESEARCH_CAP:,})"
+                               if n == 0 else f"First {n:,}"),
         help="PubMed is queried in full regardless: this only caps how many "
-             "records are downloaded in detail.")
+             "records are downloaded in detail. A few thousand take a few "
+             "minutes, more with citations and open access switched on.")
     exclude_label = st.selectbox(
         "Skip what is already known", list(db.EXCLUDE_MODES.values()),
         key="sf_exclude",
@@ -1670,7 +1675,8 @@ with tab_search:
                 already = db.known_pmids(exclude_mode)
                 unmatched: list[str] = []
                 total, pmids, n_excluded = pubmed.esearch(
-                    query_preview, session, params, max_results=int(max_results),
+                    query_preview, session, params,
+                    max_results=int(max_results) or pubmed.ESEARCH_CAP,
                     exclude=already,
                     progress=lambda n, exc, seen, tot: status.write(
                         f"PMIDs examined {seen}/{tot} — {n} new, {exc} already known and skipped"),
@@ -1687,6 +1693,11 @@ with tab_search:
                     f"Skipped **{n_excluded}** already in the database, "
                     f"downloading **{len(pmids)}**."
                 )
+                if total > pubmed.ESEARCH_CAP:
+                    status.write(
+                        f"⚠️ PubMed hands out at most {pubmed.ESEARCH_CAP:,} "
+                        "records per search, the most recent first. To get the "
+                        "older ones, narrow the search — by years, for example.")
                 records = pubmed.efetch(
                     pmids, session, params,
                     progress=lambda n, t: status.write(f"Details downloaded: {n}/{t}"))

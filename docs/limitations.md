@@ -4,14 +4,16 @@ Written down because finding them yourself, halfway through a search, is worse.
 
 ## The searching
 
-**200 records by default, not everything PubMed found.** The count says how many
-matched; the app downloads the first slice of them, most recent first. Raise
-*Max records to download* in the sidebar if you need more, but a search that
-returns four thousand results is usually a search worth narrowing instead.
+**At most 9,999 records per search.** That is PubMed's own limit: esearch does
+not hand out more, however it is paged. The app downloads everything up to
+there, most recent first, and says so when a search goes over. *Records to
+download* in the sidebar can set a lower cap. A search that returns thousands
+of results is usually worth narrowing anyway, and downloading them takes
+minutes, more with citations and open access switched on.
 
 **The filters on the results do not go back to PubMed.** They narrow what was
-already downloaded. If a paper was outside the first 200, no filter here will
-find it.
+already downloaded. If a paper was not downloaded, no filter here will find
+it.
 
 **Blocks are two levels, not a syntax tree.** Wordings inside a block, blocks
 between themselves. `(A OR B) AND (C OR (D AND E))` cannot be drawn — write it

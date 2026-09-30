@@ -164,6 +164,12 @@ def build_query(
     return query
 
 
+# esearch non restituisce piu' di 9.999 PMID per ricerca, per quanto si
+# pagini: oltre, retstart viene rifiutato. Per averne di piu' bisogna spezzare
+# la ricerca (per anni, per esempio), che e' comunque la cosa sensata da fare.
+ESEARCH_CAP = 9999
+
+
 def esearch(
     query: str,
     session: requests.Session,
@@ -194,6 +200,7 @@ def esearch(
     e quello continua a sollevare.
     """
     exclude = exclude or set()
+    max_results = min(max_results or ESEARCH_CAP, ESEARCH_CAP)
     kept: list[str] = []
     seen: set[str] = set()
     excluded = 0
@@ -206,7 +213,7 @@ def esearch(
             params={
                 "db": "pubmed",
                 "term": query,
-                "retmax": batch_size,
+                "retmax": min(batch_size, ESEARCH_CAP - retstart),
                 "retstart": retstart,
                 "retmode": "json",
                 "sort": "date",
@@ -240,7 +247,8 @@ def esearch(
             progress(len(kept), excluded, len(seen), total)
 
         retstart += batch_size
-        if not chunk or len(kept) >= max_results or retstart >= total:
+        if (not chunk or len(kept) >= max_results or retstart >= total
+                or retstart >= ESEARCH_CAP):
             break
         time.sleep(params.get("_pause", PAUSE_NO_KEY))
 

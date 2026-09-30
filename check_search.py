@@ -226,6 +226,33 @@ is_("i PMID gia' noti si scartano prima di scaricarli", pmids, "['1', '3']")
 is_("...e si contano", excluded, 1)
 
 
+class PagedSession:
+    """Una PubMed con 25.000 risultati che, come quella vera, rifiuta di
+    andare oltre il 9.999esimo."""
+
+    def __init__(self):
+        self.calls = []
+
+    def get(self, url, params=None, timeout=None):
+        start, size = params["retstart"], params["retmax"]
+        self.calls.append((start, size))
+        if start + size > pubmed.ESEARCH_CAP:
+            raise AssertionError(f"retstart {start} + retmax {size} oltre il tetto")
+        ids = [str(i) for i in range(start, min(start + size, 25000))]
+        return FakeResponse({"esearchresult": {"count": "25000", "idlist": ids}})
+
+
+paged = PagedSession()
+total, pmids, excluded = pubmed.esearch("tutto", paged, {"_pause": 0}, max_results=0)
+is_("senza limite si prende tutto quello che PubMed da'", len(pmids), pubmed.ESEARCH_CAP)
+is_("...senza mai chiedere oltre il suo tetto", paged.calls[-1][0] + paged.calls[-1][1],
+    pubmed.ESEARCH_CAP)
+is_("...e il totale resta quello vero", total, 25000)
+total, pmids, excluded = pubmed.esearch("tutto", PagedSession(), {"_pause": 0},
+                                        max_results=700)
+is_("un limite scelto vale ancora", len(pmids), 700)
+
+
 # ---------------------------------------------------------------------------
 # le strategie dai titoli
 # ---------------------------------------------------------------------------
