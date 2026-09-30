@@ -167,13 +167,6 @@ def pdf_folder(chosen: str = "") -> Path:
     return folder
 
 
-def downloads_folder(chosen: str = "") -> Path:
-    """Dove il browser mette i PDF scaricati via LibKey. Si guarda li' per
-    agganciarli all'articolo giusto; di solito e' ~/Downloads su tutt'e tre
-    i sistemi."""
-    return Path(chosen).expanduser() if (chosen or "").strip() else Path.home() / "Downloads"
-
-
 def radiopaedia_index() -> Path | None:
     """L'elenco degli articoli Radiopaedia esportato dalla loro ricerca.
 

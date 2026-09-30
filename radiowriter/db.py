@@ -74,10 +74,8 @@ DEFAULT_SETTINGS = {
     "reading_font_rem": "1.05",
     "abstracts_open": "0",
     "page_size": "10",
-    # vuote = le cartelle di default, vedi `paths.pdf_folder` e
-    # `paths.downloads_folder`
+    # vuota = la cartella di default, vedi `paths.pdf_folder`
     "pdf_folder": "",
-    "downloads_folder": "",
     # "lr" affiancate, "tb" sopra e sotto: la disposizione della finestra di studio
     "study_layout": "lr",
 }
@@ -290,7 +288,7 @@ def init_db() -> None:
         # Un PDF per articolo. Nel database c'e' solo il nome del file, non il
         # percorso: la cartella si puo' spostare (un disco nuovo, una cartella
         # sincronizzata) e basta dirlo nelle impostazioni. L'impronta sha256
-        # serve a riconoscere un file gia' preso, anche se in Download ne
+        # serve a riconoscere un file gia' preso, anche se ne
         # ricompare una copia con un altro nome.
         c.execute("""
             CREATE TABLE IF NOT EXISTS pdfs (
@@ -1489,6 +1487,32 @@ def highlights_for(pmid: str) -> list[dict]:
         item["done"] = bool(item["done"])
         out.append(item)
     return out
+
+
+def highlight_key(highlight_id: int) -> str | None:
+    conn = get_connection()
+    try:
+        row = conn.execute("SELECT hkey FROM pdf_highlights WHERE id = ?",
+                           (int(highlight_id),)).fetchone()
+    finally:
+        conn.close()
+    return row[0] if row else None
+
+
+def refresh_pdf_hash(pmid: str, sha256: str, size: int) -> None:
+    """Dopo aver scritto un'evidenziazione nel PDF il file e' un altro: la sua
+    impronta va aggiornata, o il PDF non si riconoscerebbe piu' come gia' in
+    libreria."""
+    def _write():
+        conn = get_connection()
+        try:
+            conn.execute("UPDATE pdfs SET sha256 = ?, size = ? WHERE pmid = ?",
+                         (sha256, size, str(pmid)))
+            conn.commit()
+        finally:
+            conn.close()
+
+    db_retry(_write)
 
 
 def set_highlight_done(highlight_id: int, done: bool) -> None:

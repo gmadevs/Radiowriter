@@ -264,13 +264,6 @@ is_("l'URL della loro ricerca",
     study.search_url("cerebral abscess"),
     "https://radiopaedia.org/search?scope=articles&q=cerebral+abscess")
 
-old = Path(_TMP) / "PDFs" / "old.pdf"
-make_pdf(old, "x")
-os.utime(old, (time.time() - 90 * 86400,) * 2)
-fresh_one = make_pdf(Path(_TMP) / "PDFs" / "new.pdf", "y")
-is_("in Download si guardano solo i PDF recenti",
-    [p.name for p in library.recent_pdfs(Path(_TMP) / "PDFs")
-     if p.name in ("old.pdf", "new.pdf")], ["new.pdf"])
 
 # ---------------------------------------------------------------------------
 # le evidenziazioni
@@ -367,6 +360,41 @@ api.set_done(state["highlights"][1]["id"], True)
 is_("la spunta dal lettore arriva nel database",
     db.highlight_counts(["40000001"]), {"40000001": (3, 2)})
 is_("il lettore viaggia col pacchetto", (study.WEB / "viewer.html").is_file(), True)
+
+# evidenziare dal lettore: va dentro il PDF, e da li' nella lista
+before_sha = db.pdfs_for(["40000001"])["40000001"]["sha256"]
+# la riga di "Most are unilateral" non e' evidenziata: la si prende dal testo
+with fitz.open(path) as _d:
+    _p = _d[0]
+    _r = _p.search_for("Most are unilateral")[0]
+    sel = [[_r.x0 / _p.rect.width, _r.y0 / _p.rect.height,
+            _r.x1 / _p.rect.width, _r.y1 / _p.rect.height]]
+state = api.add_highlight(1, sel, "#7fdc7f")
+added = [h for h in state["highlights"] if h["color"] == "#7fdc7f"]
+is_("l'evidenziazione fatta nel lettore e' nella lista", [h["text"] for h in added],
+    ["Most are unilateral"])
+is_("...e' scritta nel PDF", any(h["text"] == "Most are unilateral"
+                                 for h in hl.extract(path)), True)
+is_("...e l'impronta del file e' aggiornata",
+    db.pdfs_for(["40000001"])["40000001"]["sha256"] != before_sha, True)
+is_("le spunte di prima restano", db.highlight_counts(["40000001"])["40000001"][1], 2)
+
+line2 = next(h for h in state["highlights"] if h["page"] == 2)["rects"][0]
+state = api.add_highlight(2, [line2], "#ff8fb3", "underline")
+is_("anche sottolineato, su una pagina ruotata",
+    any(h["kind"] == "underline" and h["color"] == "#ff8fb3" for h in state["highlights"]),
+    True)
+
+state = api.set_note(added[0]["id"], "for the differential")
+is_("la nota si scrive nel PDF",
+    [h["note"] for h in hl.extract(path) if h["text"] == "Most are unilateral"],
+    ["for the differential"])
+note_id = next(h["id"] for h in state["highlights"] if h["text"] == "Most are unilateral")
+state = api.remove_highlight(note_id)
+is_("e si toglie", any(h["text"] == "Most are unilateral" for h in state["highlights"]),
+    False)
+is_("...anche dal PDF", any(h["text"] == "Most are unilateral" for h in hl.extract(path)),
+    False)
 
 db.forget_pdf("40000001")
 is_("togliere il PDF toglie le sue evidenziazioni", db.highlights_for("40000001"), [])

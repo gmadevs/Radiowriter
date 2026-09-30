@@ -1,16 +1,15 @@
 """La libreria dei PDF: un file per articolo, col nome della sua citazione.
 
-Tre strade per cui un PDF entra in libreria:
+Due strade per cui un PDF entra in libreria:
 
   - open access: il link di Unpaywall (o di Semantic Scholar) si scarica da
     qui, senza passare dal browser, quando porta davvero a un PDF;
-  - Download: quello che arriva da LibKey passa per il login della biblioteca,
-    che sta nel browser e non nell'app. Lo scarica chi legge, come ha sempre
-    fatto, e qui lo si riconosce dal DOI o dal PMID scritti nel testo e lo si
-    porta in libreria;
-  - a mano: un file trascinato sulla scheda dell'articolo.
+  - trascinato nella scheda Library: quello che arriva da LibKey passa per il
+    login della biblioteca, che sta nel browser e non nell'app. Lo scarica chi
+    legge, e qui lo si riconosce dal DOI, dal PMID o dal titolo - in archivio
+    o su PubMed - e lo si porta in libreria.
 
-In tutt'e tre i casi il file prende il nome della citazione,
+In tutt'e due i casi il file prende il nome della citazione,
 `Autore Anno - Rivista - Titolo [PMID n].pdf`, cosi' che la cartella si legga
 anche fuori dall'app, dal Finder o da un'altra macchina. Il PMID tra
 parentesi quadre rende il nome unico e permette di ritrovare l'articolo anche
@@ -36,10 +35,6 @@ TIMEOUT = 60
 # Oltre questa soglia un "PDF" e' quasi sempre un supplemento con i video, non
 # l'articolo: meglio fermarsi che riempire il disco senza dirlo.
 MAX_BYTES = 150 * 1024 * 1024
-# Quanto indietro si guarda nella cartella Download. Un PDF di tre mesi fa non
-# e' quello appena scaricato da LibKey, e guardarli tutti ogni volta vorrebbe
-# dire aprire centinaia di file a ogni giro dell'app.
-RECENT_DAYS = 30
 
 # Alcuni editori rispondono 403 a un client che non si presenta come browser.
 # Non e' un modo di aggirare niente: il link e' open access, e lo stesso file
@@ -163,6 +158,15 @@ def sha256_of(path: Path) -> str:
     return h.hexdigest()
 
 
+def _readable(path) -> None:
+    """Un file temporaneo nasce leggibile solo dal proprietario (0600); un PDF
+    in libreria deve potersi aprire come qualunque altro documento."""
+    try:
+        os.chmod(path, 0o644)
+    except OSError:
+        pass
+
+
 def store(src: Path, folder: Path, name: str, *, move: bool) -> tuple[str, str, int]:
     """Porta `src` in `folder` col nome `name`. Ritorna (nome, sha256, byte).
 
@@ -180,6 +184,7 @@ def store(src: Path, folder: Path, name: str, *, move: bool) -> tuple[str, str, 
     os.close(fd)
     try:
         shutil.copyfile(src, tmp)
+        _readable(tmp)
         os.replace(tmp, dest)
     finally:
         if os.path.exists(tmp):
@@ -197,6 +202,7 @@ def store_bytes(data: bytes, folder: Path, name: str) -> tuple[str, str, int]:
     try:
         with os.fdopen(fd, "wb") as fh:
             fh.write(data)
+        _readable(tmp)
         os.replace(tmp, folder / name)
     finally:
         if os.path.exists(tmp):
@@ -220,8 +226,8 @@ def download(url: str, session: requests.Session | None = None) -> bytes:
         if resp.status_code >= 400:
             raise LibraryError(
                 f"The publisher answered {resp.status_code}. Open the link in "
-                "the browser and download the PDF there; it will be picked up "
-                "from Downloads.")
+                "the browser, download the PDF there, and drop it into the "
+                "Library tab.")
         chunks, total, checked = [], 0, False
         for chunk in resp.iter_content(1 << 16):
             chunks.append(chunk)
@@ -233,8 +239,8 @@ def download(url: str, session: requests.Session | None = None) -> bytes:
                 if not is_pdf(b"".join(chunks)):
                     raise LibraryError(
                         "The free link leads to a web page, not to a PDF. Open "
-                        "it, download the PDF from there, and it will be "
-                        "picked up from Downloads.")
+                        "it, download the PDF from there, and drop it into the "
+                        "Library tab.")
             if total > MAX_BYTES:
                 raise LibraryError("The file is larger than 150 MB; not saved.")
     data = b"".join(chunks)
@@ -363,19 +369,6 @@ def match_title(page_text: str, titles: dict[str, str]) -> str | None:
     hits = [pmid for pmid, title in titles.items()
             if len(t := _norm(title)) >= 30 and t in page_text]
     return hits[0] if len(hits) == 1 else None
-
-
-def recent_pdfs(folder: Path, days: int = RECENT_DAYS) -> list[Path]:
-    """I PDF della cartella Download degli ultimi `days` giorni, i piu'
-    nuovi prima. Non si scende nelle sottocartelle."""
-    cutoff = time.time() - days * 86400
-    try:
-        found = [p for p in folder.iterdir()
-                 if p.is_file() and p.suffix.lower() == ".pdf"
-                 and p.stat().st_mtime >= cutoff]
-    except OSError:
-        return []
-    return sorted(found, key=lambda p: p.stat().st_mtime, reverse=True)
 
 
 # ---------------------------------------------------------------------------

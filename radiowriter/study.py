@@ -105,14 +105,15 @@ def available() -> str:
     return ""
 
 
-def launch(page: str, pdf: Path | None = None, layout: str = "lr",
+def launch(page: str | None, pdf: Path | None = None, layout: str = "lr",
            pmid: str | None = None) -> subprocess.Popen:
     """Apre la finestra di studio in un processo a parte e torna subito.
 
     Col PMID, a destra si apre il lettore con le evidenziazioni; senza, il
-    PDF cosi' com'e'."""
-    cmd = [sys.executable, "-m", "radiowriter.study", "--page", page,
-           "--layout", layout]
+    PDF cosi' com'e'. Senza pagina si apre solo il lettore, grande: e' il
+    "Read" della scheda Library."""
+    cmd = [sys.executable, "-m", "radiowriter.study", "--layout", layout]
+    cmd += ["--page", page] if page else ["--no-page"]
     if pdf is not None:
         cmd += ["--pdf", str(pdf)]
     if pmid:
@@ -183,6 +184,42 @@ class ReaderApi:
     def reread(self) -> dict:
         return self._state(force=True)
 
+    def _written(self) -> dict:
+        """Dopo una scrittura nel PDF: impronta nuova, lista riletta."""
+        from radiowriter import db
+        from radiowriter import library
+
+        try:
+            db.refresh_pdf_hash(self._pmid, library.sha256_of(self._pdf),
+                                self._pdf.stat().st_size)
+        except OSError:
+            pass
+        return self._state(force=True)
+
+    def add_highlight(self, page: int, rects: list, color: str, kind: str = "highlight") -> dict:
+        from radiowriter import highlights as hl
+
+        hl.add(self._pdf, int(page), rects, color, kind)
+        return self._written()
+
+    def remove_highlight(self, highlight_id: int) -> dict:
+        from radiowriter import db
+        from radiowriter import highlights as hl
+
+        key = db.highlight_key(int(highlight_id))
+        if key:
+            hl.remove(self._pdf, key)
+        return self._written()
+
+    def set_note(self, highlight_id: int, note: str) -> dict:
+        from radiowriter import db
+        from radiowriter import highlights as hl
+
+        key = db.highlight_key(int(highlight_id))
+        if key:
+            hl.set_note(self._pdf, key, (note or "").strip())
+        return self._written()
+
     def set_done(self, highlight_id: int, done: bool) -> bool:
         from radiowriter import db
 
@@ -221,6 +258,8 @@ def _geometry(layout: str) -> tuple[tuple[int, int, int, int], tuple[int, int, i
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="radiowriter.study")
     parser.add_argument("--page", default=HOME_URL, help="Radiopaedia URL to open")
+    parser.add_argument("--no-page", action="store_true",
+                        help="only the PDF reader, without Radiopaedia")
     parser.add_argument("--pdf", help="PDF to open next to it")
     parser.add_argument("--pmid", help="its article, to read and tick its highlights")
     parser.add_argument("--layout", choices=("lr", "tb"), default="lr",
@@ -230,9 +269,14 @@ def main(argv: list[str] | None = None) -> int:
     import webview
 
     left, right = _geometry(args.layout)
-    webview.create_window(
-        "Radiopaedia", args.page, x=left[0], y=left[1],
-        width=left[2], height=left[3], text_select=True)
+    if args.no_page and args.pdf:
+        # il lettore da solo prende il posto di tutt'e due
+        right = (left[0], left[1], left[2] + right[2] if args.layout == "lr" else left[2],
+                 left[3] if args.layout == "lr" else left[3] + right[3])
+    else:
+        webview.create_window(
+            "Radiopaedia", args.page, x=left[0], y=left[1],
+            width=left[2], height=left[3], text_select=True)
     storage = paths.home() / "study-browser"
     storage.mkdir(parents=True, exist_ok=True)
     if args.pdf:
