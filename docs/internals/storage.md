@@ -53,3 +53,14 @@ wins, so next year's file is installed by dropping it in.
 
 It is not bundled: SCImago's data is CC BY-NC, it is eleven megabytes, and it
 is a new file every year.
+
+## Other things in the data folder
+
+| | |
+|---|---|
+| `PDFs/` | the PDF library, unless another folder is set in ⚙️ Settings |
+| `study-browser/` | the study window's browser profile (your Radiopaedia login), and the viewer page |
+| `radiopaedia-articles-*.csv` | the Radiopaedia article list, if you put one there |
+
+The database stores only the names of the PDFs, not their full paths, so the
+library folder can move.

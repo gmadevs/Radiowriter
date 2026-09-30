@@ -33,6 +33,7 @@ export default defineConfig({
           { text: 'Build a query in blocks', link: '/guide/blocks' },
           { text: 'Screen what comes back', link: '/guide/screen' },
           { text: 'Journal quartiles and open access', link: '/guide/journals' },
+          { text: 'PDFs and the study window', link: '/guide/library' },
           { text: 'Write the article', link: '/guide/write' },
           { text: 'Backup and moving computer', link: '/guide/backup' }
         ]

@@ -49,6 +49,30 @@ what their server would say about images, tags or links.
 **Citations are resolved through radiopaedia.work/cite**, which is not ours. If
 it is down, citations stay unresolved — the draft is unaffected.
 
+## PDFs and the study window
+
+**PDFs through LibKey are downloaded by you.** They go through your library's
+login, which is in your browser. The app picks them up from Downloads, but it
+cannot fetch them itself.
+
+**A PDF is recognised by the text in it.** A scanned PDF with no text layer
+has no readable DOI, PMID or title, and has to be attached by PMID.
+
+**One PDF per article.** A supplement or a second version replaces the first
+file.
+
+**Highlights have to be saved in the PDF.** Programs that keep highlights in
+their own database, rather than as annotations in the file, are invisible here.
+
+**The study window needs the network for its PDF reader**, which is loaded from
+jsdelivr. Radiopaedia needs it anyway.
+
+**On Linux the study window needs GTK or Qt**, which pip does not install. The
+app says so instead of opening it.
+
+**The Radiopaedia article list is only as recent as your export.** Articles
+written after it can still be found through their search, inside the window.
+
 ## The app itself
 
 **One person at a time.** It serves a page to your own browser on localhost.

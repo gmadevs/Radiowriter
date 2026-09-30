@@ -23,7 +23,8 @@ of article, the citations resolved for you, their own linter run over your
 draft, and the formatted HTML their editor expects.
 
 Runs on macOS, Linux and Windows. Nothing leaves your computer except the
-searches themselves.
+searches themselves and the lookups listed in
+[The services it calls](docs/internals/services.md).
 
 > Unofficial. Not affiliated with or endorsed by Radiopaedia.org.
 
@@ -126,13 +127,20 @@ library has it, through Unpaywall if there is a legal free copy. Reading lists
 you make, rename and delete; an article can be in several at once, and an
 article in a list is never purged.
 
+**Keep the PDFs.** One PDF per article, named `Author Year - Journal - Title
+[PMID].pdf`. Free copies are downloaded directly. The ones you download through
+LibKey are picked up from your Downloads folder and matched to their article by
+DOI. The passages you highlight in Preview or Acrobat are read back as a list
+to tick off.
+
 **Write.** A Markdown editor that knows the twenty-three section structures
 Radiopaedia recommends and can insert the ones your kind of article should
 have. Cite with `[@27859258]` — the identifier itself — and the numbering is
 worked out at export from the order of first appearance. Radiopaedia's own
 linter rules run over the draft. Two buttons copy the article and the
 reference list as rich text, so headings, bold and the `<sup>` markers survive
-the paste into their editor.
+the paste into their editor. The study window opens the Radiopaedia page you
+are editing next to a PDF and its highlights.
 
 ## Where your data lives
 
@@ -169,6 +177,7 @@ python3 check_rules.py       # the Radiopaedia linter rules
 python3 check_structure.py   # the article structures
 python3 check_search.py      # query building, ISSG filters, strategies, lists
 python3 check_journals.py    # SCImago, journal matching, Unpaywall, backups
+python3 check_library.py     # PDF library, highlights, the Radiopaedia list
 python3 check_app.py         # the interface, driven without a browser
 ```
 
@@ -185,6 +194,7 @@ changes — once a year, in January.
 | [Install and first run](docs/guide/install.md) | Getting it going, and the SCImago file |
 | [Search PubMed](docs/guide/search.md) · [in blocks](docs/guide/blocks.md) | The filters, and building a query concept by concept |
 | [Screen](docs/guide/screen.md) · [journals](docs/guide/journals.md) | Reading lists, quartiles, open access |
+| [PDFs and the study window](docs/guide/library.md) | The PDF library, highlights, Radiopaedia next to a PDF |
 | [Write](docs/guide/write.md) | Structures, citations, the linter |
 | [Backup](docs/guide/backup.md) | Moving to another computer |
 | [How it works](docs/internals/architecture.md) | Architecture, storage, the services it calls |

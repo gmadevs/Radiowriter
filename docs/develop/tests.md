@@ -6,13 +6,20 @@ anything failed. No pytest, no fixtures, no configuration.
 ```bash
 python3 check_rules.py       # 147 — the Radiopaedia linter rules
 python3 check_structure.py   #  24 — the article structures
-python3 check_search.py      #  85 — query building, ISSG, strategies, lists
-python3 check_journals.py    #  74 — SCImago, matching, Unpaywall, backups
-python3 check_app.py         #  89 — the interface, driven without a browser
+python3 check_search.py      # 121 — query building, ISSG, strategies, lists
+python3 check_journals.py    #  85 — SCImago, matching, Unpaywall, backups
+python3 check_library.py     #  59 — PDF library, highlights, the Radiopaedia list
+python3 check_app.py         # 123 — the interface, driven without a browser
 ```
 
-419 checks. None of them needs the network, and none touches a real archive:
+559 checks. None of them needs the network, and none touches a real archive:
 each script points `RADIOPAEDIA_DB` at a throwaway file before importing `db`.
+`check_library.py` and `check_app.py` also point `RADIOWRITER_HOME` at a
+throwaway folder, because the PDF library is created there.
+
+`check_library.py` builds its PDFs with PyMuPDF, highlights included, and
+tests the study window's `ReaderApi` directly. It does not open any windows.
+`web/viewer.html` has no automated test; check it by hand when it changes.
 
 ## The one that needs the network
 
@@ -49,6 +56,6 @@ Note that `st.caption` output is in `at.caption`, not `at.markdown`.
 ## What CI runs
 
 `.github/workflows/test.yml`, on macOS, Linux and Windows against Python 3.11
-and 3.13. It runs the five scripts, then starts the installed command and asks
+and 3.13. It runs the six scripts, then starts the installed command and asks
 `/_stcore/health` — because nothing else exercises the entry point, and the
 entry point is what breaks only once it is installed.

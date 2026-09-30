@@ -92,3 +92,9 @@ matter.
 **Free full text** appears once Unpaywall has been asked — the button above the
 list does a page at a time, or tick *Open access (Unpaywall)* in the sidebar
 before searching so new records arrive with it already known.
+
+**⤓ Save free PDF**, in the card's right-hand column, downloads the free copy
+into the PDF library. Once an article has a PDF, the card shows a 📄 PDF badge
+and an **📄 Open PDF** button. A PDF downloaded through LibKey is picked up
+from your Downloads folder by the Library tab. See
+[PDFs and the study window](./library).

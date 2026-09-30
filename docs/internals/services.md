@@ -1,6 +1,6 @@
 # The services it calls
 
-Four, and nothing else leaves the machine.
+Four services receive something from you:
 
 | | What is sent | What comes back |
 |---|---|---|
@@ -8,6 +8,15 @@ Four, and nothing else leaves the machine.
 | [Unpaywall](https://unpaywall.org/products/api) | a DOI, your email | whether a free copy exists, and where |
 | [Semantic Scholar](https://api.semanticscholar.org/) | PMIDs, your API key if set | citation counts |
 | [radiopaedia.work/cite](https://radiopaedia.work) | an identifier you cited | the formatted citation |
+
+Three more requests send nothing of yours:
+
+- **⤓ Save free PDF** downloads the file from the open-access link that
+  Unpaywall or Semantic Scholar returned.
+- The study window loads [PDF.js](https://www.jsdelivr.com/package/npm/pdfjs-dist)
+  (version 4.10.38) from jsdelivr. Your PDF is not sent anywhere: PDF.js reads
+  it from a small server on your own computer.
+- The left-hand study window is radiopaedia.org itself, with your login.
 
 ## The email is not authentication
 
