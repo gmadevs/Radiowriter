@@ -39,6 +39,14 @@ dependencies = [
   # restano identici ai loro, quindi data/lint-rules.json resta un copia-incolla
   # anche quando cambiano le regole a monte.
   "regex>=2023.0",
+  # La libreria dei PDF: leggere il DOI dentro un PDF scaricato per agganciarlo
+  # all'articolo, e poi le evidenziazioni. AGPL come questo progetto, e l'unica
+  # che estrae il testo sotto un'evidenziazione in modo affidabile.
+  "pymupdf>=1.24",
+  # La finestra di studio: Radiopaedia vera, col suo login, accanto al PDF.
+  # Un iframe non basta (un sito con login non si lascia incorniciare). Su
+  # Linux vuole anche GTK o Qt, che pip non installa: li' l'app lo dice.
+  "pywebview>=5.0",
 ]
 
 [project.urls]
@@ -53,4 +61,4 @@ radiowriter = "radiowriter.__main__:main"
 packages = ["radiowriter"]
 
 [tool.setuptools.package-data]
-radiowriter = ["data/*.json", "data/*.txt", "data/*.csv.gz"]
+radiowriter = ["data/*.json", "data/*.txt", "data/*.csv.gz", "web/*.html"]

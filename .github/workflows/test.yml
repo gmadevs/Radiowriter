@@ -46,6 +46,9 @@ jobs:
       - name: Journals, open access, backups
         run: python check_journals.py
 
+      - name: The PDF library and the Radiopaedia article list
+        run: python check_library.py
+
       - name: The interface
         run: python check_app.py
 

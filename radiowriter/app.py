@@ -15,10 +15,12 @@ from __future__ import annotations
 
 import html
 import math
+import os
 import re
 import sqlite3
 import time
 from datetime import date
+from pathlib import Path
 
 import pandas as pd
 import requests
@@ -28,8 +30,10 @@ from radiowriter import backup
 from radiowriter import db
 from radiowriter import draft_io
 from radiowriter import highlight
+from radiowriter import highlights as hl
 from radiowriter import issg
 from radiowriter import journals as jr
+from radiowriter import library
 from radiowriter import lint
 from radiowriter import modalities as md
 from radiowriter import paths
@@ -39,6 +43,7 @@ from radiowriter import radiopaedia as rp
 from radiowriter import semantic_scholar as s2
 from radiowriter import strategies as stg
 from radiowriter import structure as sx
+from radiowriter import study
 from radiowriter import theme
 from radiowriter import unpaywall as upw
 
@@ -218,6 +223,52 @@ def http_session() -> requests.Session:
     return st.session_state.http
 
 
+def lib_folder() -> Path:
+    """La cartella dei PDF, quella scelta nelle impostazioni o quella di default."""
+    return paths.pdf_folder(settings.get("pdf_folder") or "")
+
+
+def attach_pdf(pmid: str, *, path: Path | None = None, data: bytes | None = None,
+               source: str, move: bool = False) -> str | None:
+    """Mette un PDF in libreria col nome della citazione. Ritorna l'errore da
+    mostrare, o None se e' andata.
+
+    Se l'articolo aveva gia' un PDF con un altro nome, il vecchio file si
+    toglie: un articolo ha un PDF solo, e due copie nella cartella direbbero il
+    contrario."""
+    rec = db.article_row(pmid)
+    if rec is None:
+        return f"PMID {pmid} is not in the archive."
+    folder = lib_folder()
+    name = library.filename_for(rec)
+    old = db.pdfs_for([pmid]).get(str(pmid))
+    try:
+        if data is not None:
+            name, digest, size = library.store_bytes(data, folder, name)
+        else:
+            name, digest, size = library.store(path, folder, name, move=move)
+    except (library.LibraryError, OSError) as exc:
+        return str(exc)
+    if old and old["filename"] != name:
+        (folder / old["filename"]).unlink(missing_ok=True)
+    db.save_pdf(pmid, name, digest, size, source)
+    return None
+
+
+@st.cache_data(show_spinner=False, max_entries=500)
+def identify_pdf(path: str, mtime: float, size: int) -> dict:
+    """DOI, PMID e impronta di un PDF in Download. La chiave comprende data e
+    dimensione: un file riscaricato con lo stesso nome si rilegge."""
+    found = library.identify(Path(path))
+    found["sha256"] = library.sha256_of(Path(path))
+    return found
+
+
+@st.cache_data(show_spinner=False)
+def radiopaedia_index(path: str, mtime: float) -> list[dict]:
+    return study.read_index(Path(path))
+
+
 def on_toggle(pmid: str, field: str, widget_key: str) -> None:
     """Callback della checkbox: salva subito il nuovo valore nel DB."""
     value = st.session_state[widget_key]
@@ -228,6 +279,16 @@ def on_toggle(pmid: str, field: str, widget_key: str) -> None:
         # essendo stata salvata: si riporta la checkbox allo stato reale.
         st.session_state[widget_key] = not value
         st.error(f"Could not save the change for PMID {pmid}: {e}")
+
+
+def on_highlight_toggle(highlight_id: int, widget_key: str) -> None:
+    """La spunta di un'evidenziazione, dalla scheda Library. E' la stessa
+    della finestra di studio: quella la rilegge da sola entro pochi secondi."""
+    try:
+        db.set_highlight_done(highlight_id, st.session_state[widget_key])
+    except sqlite3.Error as e:
+        st.session_state[widget_key] = not st.session_state[widget_key]
+        st.error(f"Could not save the tick: {e}")
 
 
 def on_pick(pmid: str, widget_key: str) -> None:
@@ -728,7 +789,8 @@ with st.sidebar:
     st.markdown(
         f"**🗄 Archive** · {_counts['articles']:,} articles"
         + (f" · {_counts['lists']} list(s)" if _counts["lists"] else "")
-        + (f" · {_counts['drafts']} draft(s)" if _counts["drafts"] else ""))
+        + (f" · {_counts['drafts']} draft(s)" if _counts["drafts"] else "")
+        + (f" · {_counts['pdfs']} PDF(s)" if _counts["pdfs"] else ""))
     st.caption(f"`{paths.short(_db_file)}`")
     # Il caso normale non si commenta; gli altri due si', in una riga sola. La
     # ragione per esteso sta nelle docs: qui serve solo che nessuno debba
@@ -764,6 +826,17 @@ with st.sidebar:
                 help="Unpaywall asks for an email in every request — it is not "
                      "a key and there is nothing to register. Left empty, the "
                      "NCBI email above is used.")
+            pdf_dir = st.text_input(
+                "PDF library folder", value=settings.get("pdf_folder", ""),
+                placeholder=paths.short(paths.home(create=False) / "PDFs"),
+                help="Where the PDFs are kept, named after their citation. "
+                     "Empty = the data folder. An existing folder can be moved: "
+                     "only the file names are in the database.")
+            dl_dir = st.text_input(
+                "Downloads folder to watch", value=settings.get("downloads_folder", ""),
+                placeholder=paths.short(paths.downloads_folder()),
+                help="PDFs downloaded through LibKey land here; the Library tab "
+                     "recognises them by DOI or PMID and moves them in.")
             font_rem = st.slider(
                 "Title size (rem)", 1.0, 2.2, title_rem, 0.05)
             # Il carattere degli abstract si sceglie a parte perche' e' la
@@ -786,6 +859,8 @@ with st.sidebar:
                     "s2_api_key": s2_key.strip(),
                     "libkey_library_id": libkey_id.strip(),
                     "unpaywall_email": upw_email.strip(),
+                    "pdf_folder": pdf_dir.strip(),
+                    "downloads_folder": dl_dir.strip(),
                     "title_font_rem": f"{font_rem:.2f}",
                     "reading_font": read_font,
                     "reading_font_rem": f"{read_rem:.2f}",
@@ -1467,8 +1542,8 @@ def search_builder() -> str:
     return qb.compose(qb_model(blocks))
 
 
-tab_search, tab_screen, tab_write = st.tabs(
-    ["1  PubMed search", "2  Screening", "3  Write"])
+tab_search, tab_screen, tab_library, tab_write = st.tabs(
+    ["1  PubMed search", "2  Screening", "3  Library", "4  Write"])
 
 
 # ---------------------------------------------------------------------------
@@ -2287,6 +2362,7 @@ with tab_screen:
     # chiederlo scheda per scheda sarebbe una query per articolo, e la pagina
     # ne mostra fino a cento.
     membership = db.lists_for([str(p) for p in df["pmid"]])
+    pdf_rows = db.pdfs_for([str(p) for p in df["pmid"]])
 
     for _, row in df.iterrows():
         pmid = str(row["pmid"])
@@ -2334,6 +2410,8 @@ with tab_screen:
                     badges.append(cites)
                 for _, list_name in in_lists:
                     badges.append("🗂 " + html.escape(list_name))
+                if pmid in pdf_rows:
+                    badges.append("📄 PDF")
                 if badges:
                     st.markdown(
                         '<div class="art-badges">'
@@ -2394,6 +2472,36 @@ with tab_screen:
                                 on_change=on_list_toggle,
                                 args=(pmid, lst["id"], key_list))
 
+                # Il PDF: aprirlo se c'e', scaricarlo se e' libero. Quelli via
+                # LibKey si scaricano dal browser e li raccoglie la scheda
+                # Library, dalla cartella Download.
+                pdf = pdf_rows.get(pmid)
+                if pdf is not None:
+                    pdf_path = lib_folder() / pdf["filename"]
+                    if pdf_path.exists():
+                        if st.button("📄 Open PDF", key=f"pdfopen_{pmid}",
+                                     width="stretch", help=pdf["filename"]):
+                            library.open_file(pdf_path)
+                    else:
+                        st.caption("📄 PDF not in the folder any more.")
+                else:
+                    free_url = clean(row["oa_url"]) or clean(row["oa_pdf_url"])
+                    if free_url and st.button(
+                            "⤓ Save free PDF", key=f"pdfget_{pmid}", width="stretch",
+                            help="Downloads the open-access PDF into the library, "
+                                 "named after the citation."):
+                        with st.spinner("Downloading…"):
+                            try:
+                                got = library.download(free_url, http_session())
+                            except library.LibraryError as exc:
+                                problem = str(exc)
+                            else:
+                                problem = attach_pdf(pmid, data=got, source="open access")
+                        if problem:
+                            st.error(problem)
+                        else:
+                            st.rerun()
+
             with st.expander("Abstract", expanded=st.session_state.abs_open_screen):
                 st.html(abstract_html(row["abstract"], screen_rx))
 
@@ -2403,7 +2511,216 @@ with tab_screen:
 
 
 # ---------------------------------------------------------------------------
-# TAB 3 - scrittura di un articolo Radiopaedia
+# TAB 3 - la libreria dei PDF
+# ---------------------------------------------------------------------------
+
+def downloads_inbox() -> None:
+    """I PDF appena scaricati, riconosciuti e pronti da portare in libreria.
+
+    Si guarda la cartella Download a ogni giro, ma ogni file si apre una volta
+    sola (`identify_pdf` e' in cache per percorso, data e dimensione). Quelli
+    gia' in libreria - stessa impronta - non si mostrano: sono una copia."""
+    folder = paths.downloads_folder(settings.get("downloads_folder") or "")
+    ignored = st.session_state.setdefault("pdf_ignored", set())
+    found = []
+    for path in library.recent_pdfs(folder):
+        try:
+            stat = path.stat()
+        except OSError:
+            continue
+        if str(path) in ignored:
+            continue
+        info = identify_pdf(str(path), stat.st_mtime, stat.st_size)
+        if db.pdf_by_sha(info["sha256"]) is not None:
+            continue
+        found.append((path, info))
+
+    st.markdown(f"**⤓ From Downloads** · `{paths.short(folder)}`, "
+                f"last {library.RECENT_DAYS} days")
+    if not folder.is_dir():
+        st.caption("That folder does not exist. Set the right one under "
+                   "⚙️ Settings in the sidebar.")
+        return
+    if not found:
+        st.caption("Nothing new. Download a PDF through LibKey or the "
+                   "publisher's site and it shows up here, recognised by its DOI.")
+        return
+
+    # Dal testo del PDF all'articolo: DOI prima, PMID poi, titolo per ultimo.
+    ids = db.articles_by_ids([d for _, i in found for d in i["dois"]],
+                             [p for _, i in found for p in i["pmids"]])
+    titles = None
+    rows = []
+    for path, info in found:
+        pmid, how = None, ""
+        for doi in info["dois"]:
+            if doi in ids:
+                pmid, how = ids[doi], f"DOI {doi}"
+                break
+        if pmid is None:
+            for p in info["pmids"]:
+                if p in ids:
+                    pmid, how = ids[p], f"PMID {p}"
+                    break
+        if pmid is None and info["text"]:
+            if titles is None:
+                conn = db.get_connection()
+                try:
+                    titles = {r["pmid"]: r["title"] or "" for r in
+                              conn.execute("SELECT pmid, title FROM articles")}
+                finally:
+                    conn.close()
+            pmid = library.match_title(info["text"], titles)
+            how = "title on the first page" if pmid else ""
+        rows.append((path, info, pmid, how))
+
+    recognised = [(p, pm) for p, _, pm, _ in rows if pm]
+    if len(recognised) > 1 and st.button(
+            f"Move all {len(recognised)} recognised PDFs into the library",
+            type="primary", key="inbox_all"):
+        problems = [f"{p.name}: {e}" for p, pm in recognised
+                    if (e := attach_pdf(pm, path=p, source="downloads", move=True))]
+        for msg in problems:
+            st.error(msg)
+        if not problems:
+            st.rerun()
+
+    for i, (path, info, pmid, how) in enumerate(rows):
+        with st.container(border=True):
+            left, right = st.columns([4, 1.3])
+            with left:
+                st.markdown(f"`{path.name}`")
+                if pmid:
+                    rec = db.article_row(pmid)
+                    st.caption(f"→ **{clean(rec['title'])}** (PMID {pmid}) — "
+                               f"matched by {how}.")
+                    st.caption(f"Will be saved as `{library.filename_for(rec)}`")
+                else:
+                    seen = ", ".join(info["dois"][:2]) or "no DOI in the text"
+                    st.caption(f"Not recognised ({seen}). Type the PMID of the "
+                               "article it belongs to — it has to be in the archive.")
+                    pmid = st.text_input("PMID", key=f"inbox_pmid_{i}_{path.name}",
+                                         label_visibility="collapsed",
+                                         placeholder="PMID").strip() or None
+            with right:
+                if st.button("Move into library", key=f"inbox_go_{i}_{path.name}",
+                             width="stretch", disabled=not pmid,
+                             type="primary" if pmid else "secondary"):
+                    problem = attach_pdf(pmid, path=path, source="downloads", move=True)
+                    if problem:
+                        st.error(problem)
+                    else:
+                        st.rerun()
+                if st.button("Ignore", key=f"inbox_skip_{i}_{path.name}",
+                             width="stretch",
+                             help="Hide it until the app restarts. The file "
+                                  "stays where it is."):
+                    ignored.add(str(path))
+                    st.rerun()
+
+
+with tab_library:
+    st.subheader("📄 PDF library")
+    folder = lib_folder()
+    top_l, top_r = st.columns([4, 1])
+    top_l.caption(
+        f"`{paths.short(folder)}` — one PDF per article, named "
+        "*Author Year - Journal - Title [PMID]*. Articles with a PDF are never "
+        "purged at startup, even when marked read.")
+    if top_r.button("Show folder", width="stretch", key="lib_reveal"):
+        library.reveal(folder)
+
+    downloads_inbox()
+
+    st.divider()
+    f_text, f_list, f_draft = st.columns([2, 1, 1])
+    lib_q = f_text.text_input("Find", placeholder="title, author, PMID…",
+                              key="lib_q", label_visibility="collapsed")
+    lib_lists = {"Any list": None, **{r["name"]: r["id"] for r in db.list_lists()}}
+    lib_list = lib_lists[f_list.selectbox("List", list(lib_lists), key="lib_list",
+                                          label_visibility="collapsed")]
+    lib_drafts = {"Any draft": None, **{f"Cited in: {r['title']}": r["id"]
+                                        for r in db.list_drafts()}}
+    lib_draft = lib_drafts[f_draft.selectbox("Draft", list(lib_drafts), key="lib_draft",
+                                             label_visibility="collapsed")]
+    shelf = db.library_rows(lib_q, lib_list, lib_draft)
+    st.caption(f"**{len(shelf)}** PDF(s)")
+
+    for row in shelf:
+        pmid = row["pmid"]
+        path = folder / row["filename"]
+        with st.container(border=True):
+            left, right = st.columns([4, 1.3])
+            with left:
+                st.markdown(f"**{html.escape(clean(row['title']) or row['filename'])}**")
+                exists = path.exists()
+                st.caption(f"`{row['filename']}`"
+                           + ("" if exists else " — **missing from the folder**")
+                           + f" · {row['source'] or ''} · {str(row['added_at'])[:10]}")
+                # Le evidenziazioni si rileggono solo se il file e' cambiato
+                # dall'ultima volta: di solito costa una `stat`, non l'apertura
+                # del PDF.
+                if exists:
+                    hl.sync(pmid, path)
+                marks = db.highlights_for(pmid)
+                if marks:
+                    n_done = sum(m["done"] for m in marks)
+                    with st.expander(f"🖍 {len(marks)} highlight(s) · {n_done} done"):
+                        for m in marks:
+                            key_hl = f"hl_{m['id']}_{int(m['done'])}"
+                            text = m["text"] or m["note"] or "(no text)"
+                            st.checkbox(
+                                f"p. {m['page']} — {text}", value=m["done"],
+                                key=key_hl, on_change=on_highlight_toggle,
+                                args=(m["id"], key_hl))
+                if row["title"] is not None:
+                    wanted = library.filename_for(row)
+                    if wanted != row["filename"] and exists and st.button(
+                            "Rename to the citation", key=f"lib_ren_{pmid}"):
+                        try:
+                            os.replace(path, folder / wanted)
+                        except OSError as exc:
+                            st.error(str(exc))
+                        else:
+                            db.rename_pdf(pmid, wanted)
+                            st.rerun()
+            with right:
+                if exists and st.button("📄 Open", key=f"lib_open_{pmid}", width="stretch"):
+                    library.open_file(path)
+                if exists and st.button("Show in folder", key=f"lib_show_{pmid}",
+                                        width="stretch"):
+                    library.reveal(path)
+                if st.session_state.get("lib_confirm") == pmid:
+                    if st.button("Yes, delete the file", key=f"lib_del_yes_{pmid}",
+                                 type="primary", width="stretch"):
+                        path.unlink(missing_ok=True)
+                        db.forget_pdf(pmid)
+                        st.session_state.lib_confirm = None
+                        st.rerun()
+                    if st.button("Cancel", key=f"lib_del_no_{pmid}", width="stretch"):
+                        st.session_state.lib_confirm = None
+                        st.rerun()
+                elif st.button("🗑 Remove", key=f"lib_del_{pmid}", width="stretch"):
+                    st.session_state.lib_confirm = pmid
+                    st.rerun()
+
+    with st.expander("📎 Attach a PDF by hand", expanded=False):
+        st.caption("For a file that is not in Downloads, or that was not "
+                   "recognised. It is copied into the library and renamed.")
+        hand = st.file_uploader("PDF", type=["pdf"], key="lib_upload",
+                                label_visibility="collapsed")
+        hand_pmid = st.text_input("PMID of the article", key="lib_upload_pmid").strip()
+        if st.button("Attach", key="lib_upload_go", disabled=not (hand and hand_pmid)):
+            problem = attach_pdf(hand_pmid, data=hand.getvalue(), source="by hand")
+            if problem:
+                st.error(problem)
+            else:
+                st.success("Attached.")
+                st.rerun()
+
+
+# ---------------------------------------------------------------------------
+# TAB 4 - scrittura di un articolo Radiopaedia
 # ---------------------------------------------------------------------------
 
 def rich_copy_box(html_body: str, *, label: str, height: int, key: str) -> None:
@@ -3010,6 +3327,91 @@ def preview_box(article_html: str, reference_lines: list[str]) -> None:
     )
 
 
+def study_panel(draft) -> None:
+    """La pagina Radiopaedia e il PDF da aprire nella finestra di studio."""
+    missing = study.available()
+    if missing:
+        st.warning(missing)
+        return
+
+    did = draft["id"]
+    saved = clean(draft["radiopaedia_url"])
+    how = st.segmented_control(
+        "Radiopaedia page", ["From the article list", "Radiopaedia search", "URL"],
+        default="From the article list", key=f"study_how_{did}")
+    page = saved or study.HOME_URL
+    if how == "From the article list":
+        index_file = paths.radiopaedia_index()
+        if index_file is None:
+            st.caption(
+                "No article list in the data folder. Export it from the "
+                "Radiopaedia search (*Download CSV*) and drop it into "
+                f"`{paths.short(paths.home(create=False))}` as "
+                "`radiopaedia-articles-<date>.csv` — or use the other two options.")
+        else:
+            index = radiopaedia_index(str(index_file), index_file.stat().st_mtime)
+            text = st.text_input(
+                "Find an article", value=draft["title"] if draft["title"] !=
+                "Untitled article" else "", key=f"study_find_{did}",
+                help=f"{len(index):,} articles, from `{index_file.name}`.")
+            hits = study.find(index, text)
+            if hits:
+                options = {h["url"]: h for h in hits}
+                start = list(options).index(saved) if saved in options else 0
+                page = st.selectbox(
+                    "Article", list(options), index=start, key=f"study_pick_{did}",
+                    format_func=lambda u: (f"{options[u]['title']}  ·  "
+                                           f"{options[u]['systems']}"),
+                    label_visibility="collapsed")
+            elif text.strip():
+                st.caption("Nothing in the list. Try the Radiopaedia search — "
+                           "the list is only as recent as its export.")
+    elif how == "Radiopaedia search":
+        text = st.text_input("Search Radiopaedia for", value=draft["title"],
+                             key=f"study_q_{did}")
+        page = study.search_url(text) if text.strip() else study.HOME_URL
+        st.caption("The window opens on their search results; pick the article there.")
+    else:
+        page = st.text_input("Radiopaedia URL", value=saved,
+                             key=f"study_url_{did}",
+                             placeholder="https://radiopaedia.org/articles/…").strip()
+
+    # I PDF citati nella bozza per primi, poi il resto della libreria.
+    cited = db.library_rows(draft_id=did)
+    others = [r for r in db.library_rows() if r["pmid"] not in {c["pmid"] for c in cited}]
+    pdfs = {"": "No PDF — Radiopaedia only"}
+    for r in cited:
+        pdfs[r["pmid"]] = "★ " + r["filename"]
+    for r in others:
+        pdfs[r["pmid"]] = r["filename"]
+    pick = st.selectbox("PDF next to it", list(pdfs), format_func=pdfs.get,
+                        key=f"study_pdf_{did}",
+                        help="★ = cited in this draft. PDFs come from the Library tab.")
+    layout = st.radio(
+        "Layout", ["lr", "tb"], horizontal=True, key=f"study_layout_{did}",
+        index=0 if settings.get("study_layout", "lr") != "tb" else 1,
+        format_func={"lr": "◫ Side by side", "tb": "⬒ One above the other"}.get)
+
+    if st.button("🪟 Open study window", type="primary", key=f"study_go_{did}",
+                 disabled=not page.startswith("https://radiopaedia.org")):
+        if page.startswith("https://radiopaedia.org/articles/") and page != saved:
+            db.set_draft_page(did, page)
+        if layout != settings.get("study_layout"):
+            db.save_settings({"study_layout": layout})
+            st.session_state.settings = db.get_settings()
+        pdf_path = None
+        if pick:
+            row = db.pdfs_for([pick]).get(pick)
+            pdf_path = lib_folder() / row["filename"] if row else None
+        study.launch(page, pdf_path, layout, pmid=pick or None)
+        st.toast("Study window opening — it is a separate window, look behind "
+                 "the browser if it does not come to the front.")
+    st.caption("Radiopaedia opens in a real browser window with its own login, "
+               "kept between sessions. Sign in once there to edit. With a PDF, "
+               "the other window lists its highlights to tick off — highlight in "
+               "Preview and save, and they show up there by themselves.")
+
+
 with tab_write:
     drafts = db.list_drafts()
 
@@ -3087,6 +3489,10 @@ with tab_write:
     draft = db.get_draft(draft_id) if draft_id else None
 
     if draft:
+        with st.expander("🪟 Study window — the Radiopaedia page next to a PDF",
+                         expanded=False):
+            study_panel(draft)
+
         # ------------------------------------------------------------------
         # editor + pannello laterale
         # ------------------------------------------------------------------

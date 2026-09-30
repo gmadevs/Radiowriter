@@ -1,0 +1,448 @@
+<!doctype html>
+<!--
+  Il pannello destro della finestra di studio: il PDF con PDF.js, e le sue
+  evidenziazioni da spuntare. Lo apre `study.py` dentro pywebview; i dati
+  (evidenziazioni, spunte) arrivano da Python attraverso `window.pywebview.api`,
+  che legge e scrive lo stesso database dell'app.
+
+  Due viste:
+    Highlights  un riquadro per evidenziazione, da spuntare quando e' fatta
+    PDF         il documento, con le evidenziazioni contornate e una barra in
+                basso per scorrerle una a una
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Radiowriter reader</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/pdfjs-dist@4.10.38/web/pdf_viewer.css">
+<style>
+  :root {
+    --bg: #15181c; --panel: #1b1f24; --widget: #242a31; --border: #2f363e;
+    --text: #dce2e8; --muted: #9aa5b1; --accent: #2563eb; --accent-soft: #7ab4ff;
+    --green: #58c48a; --page-bg: #0f1215;
+    --ui: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    --read: Charter, 'Bitstream Charter', 'Sitka Text', Cambria, Georgia, serif;
+  }
+  @media (prefers-color-scheme: light) {
+    :root {
+      --bg: #fcfbf9; --panel: #f4f2ee; --widget: #efede9; --border: #dedad3;
+      --text: #1d2127; --muted: #5d6671; --accent-soft: #1d4ed8; --green: #1f8a52;
+      --page-bg: #e7e4de;
+    }
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; background: var(--bg); color: var(--text);
+               font: 14px/1.45 var(--ui); }
+  body { display: flex; flex-direction: column; overflow: hidden; }
+
+  header { display: flex; align-items: center; gap: 8px; padding: 8px 12px;
+           background: var(--panel); border-bottom: 1px solid var(--border);
+           flex-wrap: wrap; }
+  .seg { display: inline-flex; border: 1px solid var(--border); border-radius: 8px;
+         overflow: hidden; }
+  .seg button { border: 0; border-radius: 0; background: transparent; }
+  .seg button.on { background: var(--accent); color: #fff; }
+  button { font: inherit; color: var(--text); background: var(--widget);
+           border: 1px solid var(--border); border-radius: 8px; padding: 4px 10px;
+           cursor: pointer; }
+  button:hover { border-color: var(--accent-soft); }
+  button.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+  button:disabled { opacity: .45; cursor: default; }
+  label.check { display: inline-flex; align-items: center; gap: 6px; cursor: pointer;
+                user-select: none; }
+  .spacer { flex: 1; }
+  .progress { color: var(--muted); font-variant-numeric: tabular-nums; }
+  .bar { height: 3px; background: var(--border); }
+  .bar > div { height: 100%; background: var(--green); width: 0; transition: width .2s; }
+
+  main { flex: 1; min-height: 0; position: relative; }
+  .view { position: absolute; inset: 0; overflow: auto; }
+  .hidden { display: none !important; }
+
+  /* --- le schede --- */
+  #cards { padding: 12px; display: flex; flex-direction: column; gap: 10px;
+           max-width: 780px; margin: 0 auto; }
+  .card { display: flex; gap: 10px; background: var(--panel);
+          border: 1px solid var(--border); border-radius: 10px; padding: 10px 12px;
+          border-left-width: 5px; }
+  .card.done { opacity: .55; }
+  .card.current { outline: 2px solid var(--accent-soft); outline-offset: 1px; }
+  .card .body { flex: 1; min-width: 0; }
+  .card .meta { color: var(--muted); font-size: 12px; margin-bottom: 4px; }
+  .card .text { font: 16px/1.5 var(--read); overflow-wrap: anywhere; }
+  .card.done .text { text-decoration: line-through; text-decoration-color: var(--muted); }
+  .card .note { margin-top: 6px; font-style: italic; color: var(--muted); }
+  .card .actions { display: flex; gap: 6px; margin-top: 8px; }
+  .card .actions button { font-size: 12px; padding: 2px 8px; }
+  .card input[type=checkbox] { width: 18px; height: 18px; margin-top: 3px;
+                               accent-color: var(--green); cursor: pointer; }
+  .empty { color: var(--muted); padding: 32px 16px; text-align: center;
+           max-width: 520px; margin: 0 auto; }
+
+  /* --- il PDF --- */
+  #pdfview { background: var(--page-bg); }
+  #pages { padding: 12px 0 90px; display: flex; flex-direction: column;
+           align-items: center; gap: 12px; }
+  .page { position: relative; background: #fff; box-shadow: 0 1px 4px rgba(0,0,0,.35); }
+  .page canvas { display: block; }
+  .hl { position: absolute; pointer-events: auto; cursor: pointer;
+        border-radius: 2px; mix-blend-mode: multiply; }
+  .hl.done { outline: 2px solid var(--green); background: transparent !important;
+             mix-blend-mode: normal; }
+  .hl.done::after { content: "✓"; position: absolute; right: -16px; top: 50%;
+                    transform: translateY(-50%); color: var(--green); font: 700 13px var(--ui); }
+  .hl.current { outline: 3px solid var(--accent); outline-offset: 2px;
+                animation: pulse 1.2s ease-out 1; }
+  @keyframes pulse { 0% { outline-offset: 10px; } 100% { outline-offset: 2px; } }
+
+  #walk { position: absolute; left: 12px; right: 12px; bottom: 12px;
+          display: flex; align-items: center; gap: 8px; padding: 8px 10px;
+          background: var(--panel); border: 1px solid var(--border); border-radius: 10px;
+          box-shadow: 0 4px 16px rgba(0,0,0,.35); }
+  #walk .text { flex: 1; min-width: 0; font: 14px/1.35 var(--read);
+                display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
+                overflow: hidden; }
+  #walk .where { color: var(--muted); font-size: 12px; white-space: nowrap; }
+  .toast { position: fixed; left: 50%; top: 56px; transform: translateX(-50%);
+           background: var(--widget); border: 1px solid var(--border); border-radius: 8px;
+           padding: 6px 12px; opacity: 0; transition: opacity .2s; pointer-events: none; }
+  .toast.show { opacity: 1; }
+  kbd { font: 11px var(--ui); border: 1px solid var(--border); border-radius: 4px;
+        padding: 0 4px; color: var(--muted); }
+</style>
+</head>
+<body>
+<header>
+  <div class="seg" role="tablist">
+    <button id="tab-cards" class="on" title="H">Highlights</button>
+    <button id="tab-pdf" title="P">PDF</button>
+  </div>
+  <span class="progress" id="progress">…</span>
+  <label class="check"><input type="checkbox" id="hide-done"> Hide done</label>
+  <span class="spacer"></span>
+  <span id="zoom" class="hidden">
+    <button id="zoom-out" title="Zoom out">−</button>
+    <button id="zoom-fit" title="Fit width">Fit</button>
+    <button id="zoom-in" title="Zoom in">+</button>
+  </span>
+  <button id="reread" title="Read the highlights from the file again">↻</button>
+  <button id="external" title="Open the PDF in the system viewer, to highlight">Open to highlight</button>
+</header>
+<div class="bar"><div id="bar"></div></div>
+
+<main>
+  <section class="view" id="cardsview"><div id="cards"></div></section>
+  <section class="view hidden" id="pdfview"><div id="pages"></div></section>
+  <div id="walk" class="hidden">
+    <button id="prev" title="Previous (K or ←)">◀</button>
+    <span class="where" id="where"></span>
+    <span class="text" id="walk-text"></span>
+    <label class="check"><input type="checkbox" id="walk-done"> Done</label>
+    <button id="done-next" class="primary" title="Done, then the next one (Enter)">Done ▸</button>
+    <button id="next" title="Next (J or →)">▶</button>
+  </div>
+</main>
+<div class="toast" id="toast"></div>
+
+<script type="module">
+import * as pdfjsLib from "https://cdn.jsdelivr.net/npm/pdfjs-dist@4.10.38/build/pdf.min.mjs";
+pdfjsLib.GlobalWorkerOptions.workerSrc =
+  "https://cdn.jsdelivr.net/npm/pdfjs-dist@4.10.38/build/pdf.worker.min.mjs";
+
+const $ = (id) => document.getElementById(id);
+const S = {
+  highlights: [], mtime: null, current: -1, view: "cards",
+  hideDone: false, doc: null, pages: [], scale: null, fit: true,
+};
+
+// ------------------------------------------------------------------ dati
+
+function api() { return window.pywebview && window.pywebview.api; }
+
+function toast(msg) {
+  const t = $("toast");
+  t.textContent = msg; t.classList.add("show");
+  clearTimeout(toast._t); toast._t = setTimeout(() => t.classList.remove("show"), 1600);
+}
+
+async function load(state) {
+  const changedFile = state.mtime !== S.mtime;
+  const sameList = S.highlights.length === state.highlights.length &&
+    S.highlights.every((h, i) => h.id === state.highlights[i].id && h.done === state.highlights[i].done);
+  const keepId = S.current >= 0 ? S.highlights[S.current]?.id : null;
+  S.highlights = state.highlights;
+  S.mtime = state.mtime;
+  document.title = state.title;
+  const again = S.highlights.findIndex((h) => h.id === keepId);
+  S.current = again >= 0 ? again : (S.current >= 0 ? Math.min(S.current, S.highlights.length - 1) : -1);
+  if (changedFile) await openPdf();
+  if (changedFile || !sameList) { renderCards(); drawOverlays(); }
+  renderProgress(); renderWalk();
+}
+
+async function refresh(force = false) {
+  const a = api(); if (!a) return;
+  const state = force ? await a.reread() : await a.state();
+  await load(state);
+  if (force) toast(`${S.highlights.length} highlight(s) read from the file`);
+}
+
+async function setDone(i, done) {
+  const h = S.highlights[i]; if (!h || h.done === done) return;
+  h.done = done;
+  await api().set_done(h.id, done);
+  renderCards(); drawOverlays(); renderProgress(); renderWalk();
+}
+
+// ------------------------------------------------------------------ viste
+
+function showView(v) {
+  S.view = v;
+  $("tab-cards").classList.toggle("on", v === "cards");
+  $("tab-pdf").classList.toggle("on", v === "pdf");
+  $("cardsview").classList.toggle("hidden", v !== "cards");
+  $("pdfview").classList.toggle("hidden", v !== "pdf");
+  $("zoom").classList.toggle("hidden", v !== "pdf");
+  renderWalk();
+  if (v === "pdf") { if (S.fit) fitWidth(); else renderVisiblePages(); }
+}
+
+function renderProgress() {
+  const n = S.highlights.length, done = S.highlights.filter((h) => h.done).length;
+  $("progress").textContent = n ? `${done} / ${n} done` : "no highlights";
+  $("bar").style.width = n ? `${(100 * done) / n}%` : "0";
+}
+
+function esc(s) {
+  return (s || "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+}
+
+function renderCards() {
+  const box = $("cards");
+  if (!S.highlights.length) {
+    box.innerHTML = `<div class="empty"><p><b>No highlights in this PDF yet.</b></p>
+      <p>Press <b>Open to highlight</b>, mark the sentences that matter
+      (in Preview: <kbd>⌃⌘H</kbd>), and save. They show up here by themselves
+      within a few seconds, one box each, to tick off as you use them.</p></div>`;
+    return;
+  }
+  const rows = S.highlights.map((h, i) => ({ h, i })).filter(({ h, i }) => !(S.hideDone && h.done) || i === S.current);
+  if (!rows.length) {
+    box.innerHTML = `<div class="empty"><p><b>All done.</b> Untick “Hide done” to see them again.</p></div>`;
+    return;
+  }
+  box.innerHTML = rows.map(({ h, i }) => `
+    <div class="card ${h.done ? "done" : ""} ${i === S.current ? "current" : ""}"
+         data-i="${i}" style="border-left-color:${h.color}">
+      <input type="checkbox" ${h.done ? "checked" : ""} data-act="done" title="Done">
+      <div class="body">
+        <div class="meta">p. ${h.page} · ${h.kind}</div>
+        <div class="text">${esc(h.text) || "<i>(no text under it)</i>"}</div>
+        ${h.note ? `<div class="note">${esc(h.note)}</div>` : ""}
+        <div class="actions">
+          <button data-act="show">Show in PDF</button>
+          <button data-act="copy">Copy</button>
+        </div>
+      </div>
+    </div>`).join("");
+}
+
+$("cards").addEventListener("click", async (e) => {
+  const card = e.target.closest(".card"); if (!card) return;
+  const i = +card.dataset.i, act = e.target.dataset.act;
+  if (act === "done") { await setDone(i, e.target.checked); }
+  else if (act === "show") { S.current = i; showView("pdf"); goTo(i); }
+  else if (act === "copy") {
+    await api().copy(S.highlights[i].text);
+    toast("Copied");
+  }
+});
+
+// ------------------------------------------------------------------ PDF
+
+async function openPdf() {
+  // la data del file nell'URL: un PDF risalvato da Anteprima si ricarica
+  // davvero invece di uscire dalla cache
+  const url = `open.pdf?v=${encodeURIComponent(S.mtime)}`;
+  const top = $("pdfview").scrollTop;
+  S.doc = await pdfjsLib.getDocument(url).promise;
+  S.pages = [];
+  const box = $("pages"); box.innerHTML = "";
+  for (let n = 1; n <= S.doc.numPages; n++) {
+    const page = await S.doc.getPage(n);
+    const el = document.createElement("div");
+    el.className = "page"; el.dataset.n = n;
+    box.appendChild(el);
+    S.pages.push({ n, page, el, rendered: null });
+  }
+  if (S.fit || !S.scale) fitWidth(); else layoutPages();
+  $("pdfview").scrollTop = top;
+}
+
+function fitWidth() {
+  if (!S.pages.length) return;
+  const avail = $("pdfview").clientWidth - 24;
+  if (avail <= 0) return;
+  const w = S.pages[0].page.getViewport({ scale: 1 }).width;
+  S.scale = avail / w; S.fit = true;
+  layoutPages();
+}
+
+function zoom(f) { S.scale = Math.max(0.4, Math.min(4, S.scale * f)); S.fit = false; layoutPages(); }
+
+function layoutPages() {
+  for (const p of S.pages) {
+    const vp = p.page.getViewport({ scale: S.scale });
+    p.el.style.width = `${vp.width}px`; p.el.style.height = `${vp.height}px`;
+    p.rendered = null;
+  }
+  drawOverlays();
+  renderVisiblePages();
+}
+
+async function renderPage(p) {
+  if (p.rendered === S.scale) return;
+  p.rendered = S.scale;
+  const vp = p.page.getViewport({ scale: S.scale });
+  const ratio = window.devicePixelRatio || 1;
+  const canvas = document.createElement("canvas");
+  canvas.width = Math.floor(vp.width * ratio); canvas.height = Math.floor(vp.height * ratio);
+  canvas.style.width = `${vp.width}px`; canvas.style.height = `${vp.height}px`;
+  const ctx = canvas.getContext("2d");
+  await p.page.render({ canvasContext: ctx, viewport: vp,
+                        transform: ratio !== 1 ? [ratio, 0, 0, ratio, 0, 0] : null }).promise;
+  if (p.rendered !== S.scale) return;  // nel frattempo e' cambiato lo zoom
+  p.el.querySelectorAll("canvas, .textLayer").forEach((x) => x.remove());
+  p.el.prepend(canvas);
+  // lo strato di testo, per selezionare e copiare una frase dal PDF
+  const layer = document.createElement("div");
+  layer.className = "textLayer";
+  layer.style.setProperty("--scale-factor", vp.scale);
+  p.el.appendChild(layer);
+  try {
+    const tl = new pdfjsLib.TextLayer({ textContentSource: p.page.streamTextContent(),
+                                        container: layer, viewport: vp });
+    await tl.render();
+  } catch (_) { /* senza testo si legge lo stesso */ }
+  p.el.querySelectorAll(".hl").forEach((x) => p.el.appendChild(x));  // sopra il testo
+}
+
+function renderVisiblePages() {
+  const view = $("pdfview");
+  if (view.classList.contains("hidden")) return;
+  const top = view.scrollTop - 800, bottom = view.scrollTop + view.clientHeight + 800;
+  for (const p of S.pages) {
+    const y = p.el.offsetTop, h = p.el.offsetHeight;
+    if (y + h >= top && y <= bottom) renderPage(p);
+  }
+}
+$("pdfview").addEventListener("scroll", () => requestAnimationFrame(renderVisiblePages));
+window.addEventListener("resize", () => { if (S.fit) fitWidth(); });
+
+function drawOverlays() {
+  document.querySelectorAll(".hl").forEach((x) => x.remove());
+  S.highlights.forEach((h, i) => {
+    const p = S.pages[h.page - 1]; if (!p) return;
+    const W = parseFloat(p.el.style.width), H = parseFloat(p.el.style.height);
+    for (const [x0, y0, x1, y1] of h.rects) {
+      const d = document.createElement("div");
+      d.className = `hl ${h.done ? "done" : ""} ${i === S.current ? "current" : ""}`;
+      d.dataset.i = i;
+      Object.assign(d.style, { left: `${x0 * W - 2}px`, top: `${y0 * H - 2}px`,
+                               width: `${(x1 - x0) * W + 4}px`, height: `${(y1 - y0) * H + 4}px` });
+      d.title = h.done ? "Done — click to select" : "Click to select";
+      p.el.appendChild(d);
+    }
+  });
+}
+
+$("pages").addEventListener("click", (e) => {
+  const d = e.target.closest(".hl"); if (!d) return;
+  S.current = +d.dataset.i; drawOverlays(); renderWalk(); renderCards();
+});
+
+function goTo(i) {
+  const h = S.highlights[i]; if (!h) return;
+  S.current = i;
+  drawOverlays(); renderWalk(); renderCards();
+  const p = S.pages[h.page - 1]; if (!p) return;
+  const H = parseFloat(p.el.style.height);
+  const y = p.el.offsetTop + Math.min(...h.rects.map((r) => r[1])) * H;
+  $("pdfview").scrollTo({ top: Math.max(0, y - 140), behavior: "smooth" });
+}
+
+// ------------------------------------------------------------------ scorrere
+
+function step(dir) {
+  const n = S.highlights.length; if (!n) return;
+  let i = S.current;
+  for (let k = 0; k < n; k++) {
+    i = i < 0 ? (dir > 0 ? 0 : n - 1) : i + dir;
+    if (i < 0 || i >= n) return toast(dir > 0 ? "That was the last one" : "That was the first one");
+    if (!(S.hideDone && S.highlights[i].done)) break;
+  }
+  select(i);
+}
+
+function select(i) {
+  if (S.view === "pdf") return goTo(i);
+  S.current = i; renderCards(); renderWalk();
+  document.querySelector(`.card[data-i="${i}"]`)?.scrollIntoView({ block: "center", behavior: "smooth" });
+}
+
+async function doneAndNext() {
+  if (S.current < 0) return step(1);
+  await setDone(S.current, true);
+  // la prossima ancora da fare, non semplicemente la successiva
+  const n = S.highlights.length;
+  for (let i = S.current + 1; i < n; i++) if (!S.highlights[i].done) return select(i);
+  const first = S.highlights.findIndex((h) => !h.done);
+  if (first >= 0) { toast("Back to the first one still open"); select(first); }
+  else toast("All done ✓");
+}
+
+function renderWalk() {
+  const show = S.view === "pdf" && S.highlights.length > 0;
+  $("walk").classList.toggle("hidden", !show);
+  if (!show) return;
+  const h = S.highlights[S.current];
+  $("where").textContent = h ? `${S.current + 1}/${S.highlights.length} · p. ${h.page}` : `${S.highlights.length} highlights`;
+  $("walk-text").textContent = h ? (h.text || h.note) : "Press ▶ or J to go to the first highlight.";
+  $("walk-done").checked = !!(h && h.done);
+  $("walk-done").disabled = !h;
+}
+
+$("prev").onclick = () => step(-1);
+$("next").onclick = () => step(1);
+$("done-next").onclick = doneAndNext;
+$("walk-done").onchange = (e) => setDone(S.current, e.target.checked);
+$("tab-cards").onclick = () => showView("cards");
+$("tab-pdf").onclick = () => showView("pdf");
+$("hide-done").onchange = (e) => { S.hideDone = e.target.checked; renderCards(); };
+$("zoom-in").onclick = () => zoom(1.2);
+$("zoom-out").onclick = () => zoom(1 / 1.2);
+$("zoom-fit").onclick = fitWidth;
+$("reread").onclick = () => refresh(true);
+$("external").onclick = () => api().open_external();
+
+document.addEventListener("keydown", (e) => {
+  if (e.metaKey || e.ctrlKey || e.altKey || e.target.matches("input[type=text], textarea")) return;
+  const k = e.key.toLowerCase();
+  if (k === "j" || k === "arrowright") { e.preventDefault(); step(1); }
+  else if (k === "k" || k === "arrowleft") { e.preventDefault(); step(-1); }
+  else if (k === "x" || k === " ") { if (S.current >= 0) { e.preventDefault(); setDone(S.current, !S.highlights[S.current].done); } }
+  else if (k === "enter") { e.preventDefault(); doneAndNext(); }
+  else if (k === "h") showView("cards");
+  else if (k === "p") showView("pdf");
+});
+
+// Le evidenziazioni si rileggono da sole: si evidenzia in Anteprima, si salva,
+// e qui compaiono. Lo stesso per le spunte messe dalla scheda Library.
+window.addEventListener("pywebviewready", async () => {
+  await refresh();
+  setInterval(() => { if (!document.hidden) refresh(); }, 4000);
+});
+</script>
+</body>
+</html>

@@ -155,6 +155,42 @@ def journal_csv() -> Path | None:
     return journal_csv_origin()[0]
 
 
+def pdf_folder(chosen: str = "") -> Path:
+    """La cartella della libreria dei PDF.
+
+    Sta nella cartella dei dati, non accanto al database: chi lancia l'app dal
+    progetto ha il database dentro un repository git, e cento PDF di riviste
+    non devono finire a un `git add .` di distanza. Si puo' scegliere un'altra
+    cartella nelle impostazioni - un disco esterno, una cartella sincronizzata."""
+    folder = Path(chosen).expanduser() if (chosen or "").strip() else home() / "PDFs"
+    folder.mkdir(parents=True, exist_ok=True)
+    return folder
+
+
+def downloads_folder(chosen: str = "") -> Path:
+    """Dove il browser mette i PDF scaricati via LibKey. Si guarda li' per
+    agganciarli all'articolo giusto; di solito e' ~/Downloads su tutt'e tre
+    i sistemi."""
+    return Path(chosen).expanduser() if (chosen or "").strip() else Path.home() / "Downloads"
+
+
+def radiopaedia_index() -> Path | None:
+    """L'elenco degli articoli Radiopaedia esportato dalla loro ricerca.
+
+    E' un file dell'utente e sta nella cartella dei dati, non nel pacchetto:
+    e' un export del loro indice, e ridistribuirlo non e' affar nostro. Vale
+    il `radiopaedia-articles-*.csv` (anche .gz) piu' recente per nome; se non
+    c'e', il `search.csv` cosi' come lo scarica la loro ricerca."""
+    folder = home(create=False)
+    try:
+        found = [p for p in folder.glob("radiopaedia-articles*.csv*") if p.is_file()]
+        if not found and (folder / "search.csv").is_file():
+            found = [folder / "search.csv"]
+    except OSError:
+        return None
+    return sorted(found, key=lambda p: p.name.lower(), reverse=True)[0] if found else None
+
+
 def describe() -> str:
     """Una riga da mostrare nella UI: dove stanno le cose."""
     return str(db_path().parent)

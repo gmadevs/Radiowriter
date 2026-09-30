@@ -26,6 +26,8 @@ import tempfile
 # da perdere; sull'archivio vero ci sarebbe.
 _TMP_DB = os.path.join(tempfile.mkdtemp(prefix="radiopaedia-test-"), "test.db")
 os.environ["RADIOPAEDIA_DB"] = _TMP_DB
+# e la cartella dei dati, dove l'app crea la libreria dei PDF
+os.environ["RADIOWRITER_HOME"] = os.path.dirname(_TMP_DB)
 
 from streamlit.testing.v1 import AppTest    # noqa: E402
 
@@ -530,7 +532,7 @@ try:
         "io@ospedale.it")
     is_("...e vale anche per Unpaywall",
         db.get_settings().get("unpaywall_email"), "io@ospedale.it")
-    is_("...e adesso l'app si apre davvero", len(at3.tabs), 3)
+    is_("...e adesso l'app si apre davvero", len(at3.tabs), 4)
 finally:
     db.save_settings({"ncbi_email": saved_email or "prova@esempio.it",
                       "unpaywall_email": ""})

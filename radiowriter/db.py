@@ -53,6 +53,14 @@ EXTRA_ARTICLE_COLUMNS = {
 # non sulla scheda aperta: da' la struttura dei titoli e va ritrovata domani.
 EXTRA_DRAFT_COLUMNS = {
     "profile": "TEXT",
+    # la pagina Radiopaedia su cui si lavora, per la finestra di studio: si
+    # sceglie una volta e si ritrova, come il tipo di articolo
+    "radiopaedia_url": "TEXT",
+}
+
+# La libreria dei PDF: quando si sono lette l'ultima volta le evidenziazioni.
+EXTRA_PDF_COLUMNS = {
+    "highlights_mtime": "REAL",
 }
 
 DEFAULT_SETTINGS = {
@@ -66,6 +74,12 @@ DEFAULT_SETTINGS = {
     "reading_font_rem": "1.05",
     "abstracts_open": "0",
     "page_size": "10",
+    # vuote = le cartelle di default, vedi `paths.pdf_folder` e
+    # `paths.downloads_folder`
+    "pdf_folder": "",
+    "downloads_folder": "",
+    # "lr" affiancate, "tb" sopra e sotto: la disposizione della finestra di studio
+    "study_layout": "lr",
 }
 
 
@@ -272,10 +286,54 @@ def init_db() -> None:
             )
         """)
 
+        # --- libreria dei PDF ----------------------------------------------
+        # Un PDF per articolo. Nel database c'e' solo il nome del file, non il
+        # percorso: la cartella si puo' spostare (un disco nuovo, una cartella
+        # sincronizzata) e basta dirlo nelle impostazioni. L'impronta sha256
+        # serve a riconoscere un file gia' preso, anche se in Download ne
+        # ricompare una copia con un altro nome.
+        c.execute("""
+            CREATE TABLE IF NOT EXISTS pdfs (
+                pmid TEXT PRIMARY KEY,
+                filename TEXT NOT NULL,
+                sha256 TEXT,
+                size INTEGER,
+                source TEXT,
+                added_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        """)
+        c.execute("CREATE INDEX IF NOT EXISTS idx_pdfs_sha ON pdfs(sha256)")
+        # Le evidenziazioni di un PDF, lette dal file. Il testo e la posizione
+        # sono del PDF e si riscrivono a ogni rilettura; `done` e' nostro e
+        # resta, agganciato alla chiave (pagina + posizione) - vedi
+        # `highlights.sync`.
+        c.execute("""
+            CREATE TABLE IF NOT EXISTS pdf_highlights (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                pmid TEXT NOT NULL,
+                hkey TEXT NOT NULL,
+                page INTEGER,
+                ord INTEGER,
+                kind TEXT,
+                color TEXT,
+                text TEXT,
+                note TEXT,
+                rects TEXT,
+                done INTEGER DEFAULT 0,
+                done_at TIMESTAMP,
+                UNIQUE (pmid, hkey)
+            )
+        """)
+
         existing = {r["name"] for r in c.execute("PRAGMA table_info(articles)")}
         for col, coltype in EXTRA_ARTICLE_COLUMNS.items():
             if col not in existing:
                 c.execute(f"ALTER TABLE articles ADD COLUMN {col} {coltype}")
+
+        in_pdfs = {r["name"] for r in c.execute("PRAGMA table_info(pdfs)")}
+        for col, coltype in EXTRA_PDF_COLUMNS.items():
+            if col not in in_pdfs:
+                c.execute(f"ALTER TABLE pdfs ADD COLUMN {col} {coltype}")
 
         in_drafts = {r["name"] for r in c.execute("PRAGMA table_info(drafts)")}
         for col, coltype in EXTRA_DRAFT_COLUMNS.items():
@@ -360,14 +418,16 @@ def cleanup_read_articles() -> int:
             # una decisione di tenerlo, e spuntarlo come letto e' il modo
             # normale di finire di leggerlo: senza questa eccezione la lista
             # si svuoterebbe da sola proprio mentre la si usa.
+            # Lo stesso per chi ha un PDF in libreria: cancellare l'articolo
+            # lascerebbe il file senza nome ne' citazione, e un PDF salvato e'
+            # una decisione di tenerlo quanto una lista.
+            keep = ("  AND pmid NOT IN (SELECT pmid FROM list_items)"
+                    "  AND pmid NOT IN (SELECT pmid FROM pdfs)")
             c.execute(
                 "INSERT OR IGNORE INTO screened_pmids (pmid) "
-                "SELECT pmid FROM articles WHERE is_read = 1 "
-                "  AND pmid NOT IN (SELECT pmid FROM list_items)"
+                "SELECT pmid FROM articles WHERE is_read = 1" + keep
             )
-            c.execute(
-                "DELETE FROM articles WHERE is_read = 1 "
-                "  AND pmid NOT IN (SELECT pmid FROM list_items)")
+            c.execute("DELETE FROM articles WHERE is_read = 1" + keep)
             removed = c.rowcount
             conn.commit()
             return removed
@@ -579,9 +639,10 @@ def archive_summary() -> dict:
             "articles": conn.execute("SELECT COUNT(*) FROM articles").fetchone()[0],
             "lists": conn.execute("SELECT COUNT(*) FROM lists").fetchone()[0],
             "drafts": conn.execute("SELECT COUNT(*) FROM drafts").fetchone()[0],
+            "pdfs": conn.execute("SELECT COUNT(*) FROM pdfs").fetchone()[0],
         }
     except sqlite3.Error:
-        return {"articles": 0, "lists": 0, "drafts": 0}
+        return {"articles": 0, "lists": 0, "drafts": 0, "pdfs": 0}
     finally:
         conn.close()
 
@@ -1191,3 +1252,255 @@ def store_citation(rec: dict) -> None:
             conn.close()
 
     db_retry(_run)
+
+
+# ---------------------------------------------------------------------------
+# libreria dei PDF
+# ---------------------------------------------------------------------------
+
+def pdfs_for(pmids: list[str]) -> dict[str, sqlite3.Row]:
+    """PMID -> la sua riga in `pdfs`, per gli articoli di una pagina."""
+    pmids = [str(p) for p in pmids if p]
+    if not pmids:
+        return {}
+    conn = get_connection()
+    try:
+        rows = conn.execute(
+            f"SELECT * FROM pdfs WHERE pmid IN ({', '.join('?' * len(pmids))})",
+            pmids).fetchall()
+    finally:
+        conn.close()
+    return {r["pmid"]: r for r in rows}
+
+
+def pdf_by_sha(sha256: str) -> sqlite3.Row | None:
+    conn = get_connection()
+    try:
+        return conn.execute("SELECT * FROM pdfs WHERE sha256 = ?", (sha256,)).fetchone()
+    finally:
+        conn.close()
+
+
+def save_pdf(pmid: str, filename: str, sha256: str, size: int, source: str) -> None:
+    """Registra (o sostituisce) il PDF di un articolo."""
+    def _write():
+        conn = get_connection()
+        try:
+            conn.execute(
+                "INSERT INTO pdfs (pmid, filename, sha256, size, source, added_at) "
+                "VALUES (?, ?, ?, ?, ?, CURRENT_TIMESTAMP) "
+                "ON CONFLICT(pmid) DO UPDATE SET filename = excluded.filename, "
+                "sha256 = excluded.sha256, size = excluded.size, "
+                "source = excluded.source, added_at = excluded.added_at",
+                (str(pmid), filename, sha256, size, source))
+            conn.commit()
+        finally:
+            conn.close()
+
+    db_retry(_write)
+
+
+def rename_pdf(pmid: str, filename: str) -> None:
+    def _write():
+        conn = get_connection()
+        try:
+            conn.execute("UPDATE pdfs SET filename = ? WHERE pmid = ?",
+                         (filename, str(pmid)))
+            conn.commit()
+        finally:
+            conn.close()
+
+    db_retry(_write)
+
+
+def forget_pdf(pmid: str) -> None:
+    """Toglie il PDF dalla libreria nel database. Il file lo tratta `library`."""
+    def _write():
+        conn = get_connection()
+        try:
+            conn.execute("DELETE FROM pdfs WHERE pmid = ?", (str(pmid),))
+            conn.execute("DELETE FROM pdf_highlights WHERE pmid = ?", (str(pmid),))
+            conn.commit()
+        finally:
+            conn.close()
+
+    db_retry(_write)
+
+
+def library_rows(text: str = "", list_id: int | None = None,
+                 draft_id: int | None = None) -> list[sqlite3.Row]:
+    """I PDF della libreria con i dati dell'articolo, i piu' recenti prima.
+
+    `draft_id` tiene quelli citati nella bozza, per PMID o per DOI: la
+    bibliografia di una bozza si scrive con l'uno o con l'altro."""
+    where, params = [], []
+    if text.strip():
+        q = f"%{text.strip()}%"
+        where.append("(a.title LIKE ? OR a.authors LIKE ? OR p.filename LIKE ? "
+                     "OR a.pmid LIKE ?)")
+        params.extend([q, q, q, q])
+    if list_id is not None:
+        where.append("p.pmid IN (SELECT pmid FROM list_items WHERE list_id = ?)")
+        params.append(list_id)
+    if draft_id is not None:
+        where.append("(p.pmid IN (SELECT identifier FROM draft_refs WHERE draft_id = ?) "
+                     "OR lower(a.doi) IN (SELECT lower(identifier) FROM draft_refs "
+                     "WHERE draft_id = ?))")
+        params.extend([draft_id, draft_id])
+    sql = ("SELECT p.*, a.title, a.authors, a.year, a.doi, a.journal_title, "
+           "a.raw_text FROM pdfs p LEFT JOIN articles a ON a.pmid = p.pmid")
+    if where:
+        sql += " WHERE " + " AND ".join(where)
+    sql += " ORDER BY p.added_at DESC"
+    conn = get_connection()
+    try:
+        return conn.execute(sql, params).fetchall()
+    finally:
+        conn.close()
+
+
+def articles_by_ids(dois: list[str], pmids: list[str]) -> dict[str, str]:
+    """DOI o PMID -> PMID in archivio, per riconoscere un PDF dal suo testo.
+
+    Le chiavi dei DOI sono minuscole: il DOI non distingue le maiuscole, e
+    nei PDF si trova scritto in tutt'e due i modi."""
+    out: dict[str, str] = {}
+    conn = get_connection()
+    try:
+        for doi in {d.lower() for d in dois if d}:
+            row = conn.execute("SELECT pmid FROM articles WHERE lower(doi) = ?",
+                               (doi,)).fetchone()
+            if row:
+                out[doi] = row["pmid"]
+        for pmid in {p for p in pmids if p}:
+            row = conn.execute("SELECT pmid FROM articles WHERE pmid = ?",
+                               (pmid,)).fetchone()
+            if row:
+                out[pmid] = row["pmid"]
+    finally:
+        conn.close()
+    return out
+
+
+def article_row(pmid: str) -> sqlite3.Row | None:
+    conn = get_connection()
+    try:
+        return conn.execute("SELECT * FROM articles WHERE pmid = ?",
+                            (str(pmid),)).fetchone()
+    finally:
+        conn.close()
+
+
+def set_draft_page(draft_id: int, url: str) -> None:
+    def _write():
+        conn = get_connection()
+        try:
+            conn.execute("UPDATE drafts SET radiopaedia_url = ? WHERE id = ?",
+                         (url, draft_id))
+            conn.commit()
+        finally:
+            conn.close()
+
+    db_retry(_write)
+
+
+# ---------------------------------------------------------------------------
+# evidenziazioni
+# ---------------------------------------------------------------------------
+
+def highlights_mtime(pmid: str) -> float | None:
+    conn = get_connection()
+    try:
+        row = conn.execute("SELECT highlights_mtime FROM pdfs WHERE pmid = ?",
+                           (str(pmid),)).fetchone()
+    finally:
+        conn.close()
+    return row[0] if row else None
+
+
+def sync_highlights(pmid: str, items: list[dict], mtime: float) -> None:
+    """Riscrive le evidenziazioni lette dal file tenendo le spunte.
+
+    Quelle con la stessa chiave si aggiornano (il testo, la nota, l'ordine) e
+    `done` resta com'era; quelle che nel file non ci sono piu' si tolgono."""
+    import json
+
+    def _write():
+        conn = get_connection()
+        try:
+            keys = [h["hkey"] for h in items]
+            for h in items:
+                conn.execute(
+                    "INSERT INTO pdf_highlights "
+                    "(pmid, hkey, page, ord, kind, color, text, note, rects) "
+                    "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?) "
+                    "ON CONFLICT(pmid, hkey) DO UPDATE SET page = excluded.page, "
+                    "ord = excluded.ord, kind = excluded.kind, color = excluded.color, "
+                    "text = excluded.text, note = excluded.note, rects = excluded.rects",
+                    (str(pmid), h["hkey"], h["page"], h["ord"], h["kind"], h["color"],
+                     h["text"], h["note"], json.dumps(h["rects"])))
+            if keys:
+                conn.execute(
+                    f"DELETE FROM pdf_highlights WHERE pmid = ? AND hkey NOT IN "
+                    f"({', '.join('?' * len(keys))})", [str(pmid), *keys])
+            else:
+                conn.execute("DELETE FROM pdf_highlights WHERE pmid = ?", (str(pmid),))
+            conn.execute("UPDATE pdfs SET highlights_mtime = ? WHERE pmid = ?",
+                         (mtime, str(pmid)))
+            conn.commit()
+        finally:
+            conn.close()
+
+    db_retry(_write)
+
+
+def highlights_for(pmid: str) -> list[dict]:
+    """Le evidenziazioni di un PDF in ordine di lettura, con `rects` gia'
+    decodificato: pronte per il lettore e per la scheda Library."""
+    import json
+
+    conn = get_connection()
+    try:
+        rows = conn.execute(
+            "SELECT id, page, ord, kind, color, text, note, rects, done "
+            "FROM pdf_highlights WHERE pmid = ? ORDER BY ord", (str(pmid),)).fetchall()
+    finally:
+        conn.close()
+    out = []
+    for r in rows:
+        item = dict(r)
+        item["rects"] = json.loads(item["rects"] or "[]")
+        item["done"] = bool(item["done"])
+        out.append(item)
+    return out
+
+
+def set_highlight_done(highlight_id: int, done: bool) -> None:
+    def _write():
+        conn = get_connection()
+        try:
+            conn.execute(
+                "UPDATE pdf_highlights SET done = ?, "
+                "done_at = CASE WHEN ? THEN CURRENT_TIMESTAMP END WHERE id = ?",
+                (int(done), int(done), int(highlight_id)))
+            conn.commit()
+        finally:
+            conn.close()
+
+    db_retry(_write)
+
+
+def highlight_counts(pmids: list[str]) -> dict[str, tuple[int, int]]:
+    """PMID -> (evidenziazioni, di cui fatte)."""
+    pmids = [str(p) for p in pmids if p]
+    if not pmids:
+        return {}
+    conn = get_connection()
+    try:
+        rows = conn.execute(
+            "SELECT pmid, COUNT(*), SUM(done) FROM pdf_highlights "
+            f"WHERE pmid IN ({', '.join('?' * len(pmids))}) GROUP BY pmid",
+            pmids).fetchall()
+    finally:
+        conn.close()
+    return {r[0]: (r[1], r[2] or 0) for r in rows}
