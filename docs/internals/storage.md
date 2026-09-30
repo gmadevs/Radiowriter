@@ -60,6 +60,7 @@ is a new file every year.
 |---|---|
 | `PDFs/` | the PDF library, unless another folder is set in ⚙️ Settings |
 | `study-browser/` | the study window's browser profile (your Radiopaedia login), and the viewer page |
+| `incoming/` | PDFs dropped into the Library tab, until they are added |
 | `radiopaedia-articles-*.csv` | the Radiopaedia article list, if you put one there |
 
 The database stores only the names of the PDFs, not their full paths, so the

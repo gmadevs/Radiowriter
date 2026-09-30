@@ -17,8 +17,8 @@ radiowriter/
   journals.py     reading the SCImago CSV
   semantic_scholar.py  citation counts
   unpaywall.py    is there a legal free copy, and where
-  library.py      the PDF library: file names, Downloads, open-access downloads
-  highlights.py   reading the highlights out of a PDF, keeping the ticks
+  library.py      the PDF library: file names, recognising a PDF, open-access downloads
+  highlights.py   highlights in and out of a PDF, keeping the ticks
   study.py        the study window (pywebview), and the Radiopaedia article list
   web/viewer.html the PDF reader inside the study window (PDF.js)
   structure.py    the twenty-three article structures
@@ -85,7 +85,10 @@ process that thread belongs to Streamlit. So **Open study window** starts
 The right-hand window loads `web/viewer.html`, which renders the PDF with
 [PDF.js](https://mozilla.github.io/pdf.js/). It gets its data through
 pywebview's JavaScript bridge (`ReaderApi` in `study.py`), and the bridge
-reads and writes the same SQLite file as the app. That is why a tick made in
+reads and writes the same SQLite file as the app. A highlight made in the
+reader is written into the PDF with PyMuPDF (an incremental save, which appends
+to the file rather than rewriting it) and then read back like any other, so
+there is one path by which a highlight gets into the list. That is why a tick made in
 one place shows up in the other: the viewer asks for the state every four
 seconds, and `highlights.sync` re-reads the PDF only if its modification time
 has changed.

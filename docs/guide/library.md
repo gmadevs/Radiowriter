@@ -1,13 +1,13 @@
 # PDFs and the study window
 
 The **3 Library** tab keeps one PDF per article, named after its citation. The
-study window puts a Radiopaedia page next to one of those PDFs and lists the
-passages you highlighted in it, so you can tick each one off once it is in
-your article.
+app's reader shows a PDF, lets you highlight it, and lists the highlights so
+you can tick each one off once it is in your article. The study window puts
+that reader next to the Radiopaedia page you are editing.
 
 ## Getting a PDF into the library
 
-There are three ways, and in each case the file is renamed:
+There are two ways, and in each case the file is renamed:
 
 ```
 Author Year - Journal - Title [PMID 12345678].pdf
@@ -23,13 +23,14 @@ Screening tab shows **⤓ Save free PDF**. The app downloads it directly. Many
 free links lead to the publisher's web page instead of the file; the app says
 so, and you download the PDF from that page yourself.
 
-**From Downloads.** LibKey goes through your library's login, which is in your
-browser, so these PDFs you download yourself as usual. The Library tab looks
-at your Downloads folder (the last 30 days) and reads each new PDF, then looks
-for its article in two places, much as Zotero's *Retrieve metadata* does:
+**Drop it into the Library tab.** LibKey goes through your library's login,
+which is in your browser, so these PDFs you download yourself as usual. Then
+drag them onto *📎 Add PDFs* at the top of the Library tab, one or several at
+a time. For each file the app looks for its article in two places, much as
+Zotero's *Retrieve metadata* does:
 
 1. **In the archive**, by the DOI in the text, then a PMID, then the title of
-   an archived article appearing on the first page. The button is **Move into
+   an archived article appearing on the first page. The button is **Add to
    library**.
 2. **On PubMed**, for PDFs whose article is not in the archive. First by DOI,
    then by title: the title from the PDF's metadata, or the line in the
@@ -38,42 +39,70 @@ for its article in two places, much as Zotero's *Retrieve metadata* does:
    archive and library**, which imports the PubMed record first. This works
    even for an article you once marked read and had purged.
 
-The file is moved, not copied. PDFs that match nothing, such as certificates,
-contracts and supplements, go into a closed section with a PMID field each.
+A PDF that matches nothing gets a field for the PMID. *Add all* takes every
+recognised file at once. The original stays where you dragged it from: the
+library keeps its own copy.
 
 PubMed is sent a DOI, or a title, and nothing else. A title is sent only when
 the first pages look like a paper, meaning at least two of *Abstract*,
-*Keywords*, *Introduction*, *Received* and similar words appear. The name on a
-certificate or the title of a contract does not leave your computer. Each file
-is asked about once per run of the app.
-
-**By hand.** *📎 Attach a PDF by hand*, at the bottom of the Library tab, takes
-a file and a PMID.
+*Keywords*, *Introduction*, *Received* and similar words appear. Each file is
+asked about once per run of the app.
 
 An article that has a PDF is not purged at startup when it is marked read, as
 with articles in a reading list.
 
-Both folders can be changed under ⚙️ Settings in the sidebar: *PDF library
-folder* (default: `PDFs` inside the data folder) and *Downloads folder to
-watch*. Only file names are stored in the database, so the library folder can
-be moved to another disk and pointed at again.
+The library folder can be changed under ⚙️ Settings in the sidebar (*PDF
+library folder*; the default is `PDFs` inside the data folder). Only file names
+are stored in the database, so the folder can be moved to another disk and
+pointed at again.
 
-## Highlights
+## Reading and highlighting
 
-Highlight a PDF with any program that writes standard PDF annotations:
-Preview on a Mac (⌃⌘H), Acrobat, most iPad readers. Highlight, underline,
-squiggly and strike-through all count. A note attached to a highlight comes
-along with it. Sticky notes on their own do not, because there is no text
-under them.
+**📖 Read**, in the Library tab or on a Screening card, opens the PDF in the
+app's own reader, in a window of its own. The study window uses the same
+reader, next to Radiopaedia.
 
-The app reads the highlights from the file whenever the file changes. The
-ticks are stored in the database, not in the PDF, so the file stays as you
-downloaded and marked it. If you add highlights and save again, the ones you
-had already ticked stay ticked. A highlight you delete from the PDF also
-disappears from the list.
+The reader has two views. **PDF** shows the document, fitted to the window.
+**Highlights** shows one box per highlight, in reading order, with its page,
+its colour and its note.
+
+**To highlight**, select text in the PDF view. A small bar appears under the
+selection: four colours and **U** for underline. The keyboard works too:
+`1`–`4` for the colours, `U` for underline, `Esc` to cancel.
+
+The highlight is written into the PDF itself, as a standard annotation, so
+Preview, Acrobat or an iPad reader show it too. A highlight lies on one page:
+a selection that runs over two pages is highlighted on the first.
+
+On each box, or in the bar at the bottom of the PDF view:
+
+- **Note** writes a note into the PDF, where other readers show it as a
+  comment.
+- **Delete** removes the highlight from the PDF.
+- **Copy** puts the text on the clipboard.
+- **Show in PDF** jumps to it.
+- The **checkbox** marks it done, once the passage is in your article. *Hide
+  done* hides the ticked ones.
+
+The ticks are stored in the database, not in the PDF. Highlights made in
+other programs are read too, whenever the file changes: highlight, underline,
+squiggly and strike-through, with their notes. A tick stays when the file is
+saved again. A highlight deleted from the PDF also disappears from the list.
+
+In the PDF view the current highlight is outlined and the finished ones are
+marked ✓. The bar at the bottom steps through them:
+
+| Key | |
+|---|---|
+| `J` or `→` | next |
+| `K` or `←` | previous |
+| `Enter` | mark done and go to the next one still open |
+| `X` or space | tick or untick |
+| `H` / `P` | Highlights view / PDF view |
 
 In the Library tab, each PDF with highlights has a
-*🖍 12 highlight(s) · 3 done* section with one checkbox per highlight.
+*🖍 12 highlight(s) · 3 done* section with the same checkboxes. A tick made
+there shows up in the reader within a few seconds, and the other way round.
 
 ## The study window
 
@@ -87,29 +116,8 @@ In the Library tab, each PDF with highlights has a
 
 **Open study window** opens two windows. On the left is Radiopaedia itself: a
 real browser window where you can sign in and edit. The login is kept between
-sessions, separately from your usual browser. On the right is the PDF with two
-views.
-
-**Highlights** shows one box per highlight, in reading order, with its page,
-its colour and its note. *Copy* puts the text on the clipboard. *Show in PDF*
-jumps to it. Tick the box when the passage is in your article. *Hide done*
-hides the ticked ones.
-
-**PDF** shows the document, fitted to the window, with the current highlight
-outlined and the finished ones marked ✓. A bar at the bottom steps through the
-highlights:
-
-| Key | |
-|---|---|
-| `J` or `→` | next |
-| `K` or `←` | previous |
-| `Enter` | mark done and go to the next one still open |
-| `X` or space | tick or untick |
-| `H` / `P` | Highlights view / PDF view |
-
-**Open to highlight** opens the PDF in your system viewer. Save there, and the
-new highlights appear in the window within a few seconds. Ticks made in the
-Library tab show up in the same way.
+sessions, separately from your usual browser. On the right is the reader
+described above.
 
 ## The Radiopaedia article list
 

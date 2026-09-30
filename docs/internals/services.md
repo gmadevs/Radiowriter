@@ -4,7 +4,7 @@ Four services receive something from you:
 
 | | What is sent | What comes back |
 |---|---|---|
-| [NCBI E-utilities](https://www.ncbi.nlm.nih.gov/books/NBK25497/) | the query, your email, your API key if set; for a PDF in Downloads that is not in the archive, its DOI or title | the records |
+| [NCBI E-utilities](https://www.ncbi.nlm.nih.gov/books/NBK25497/) | the query, your email, your API key if set; for a PDF you add whose article is not in the archive, its DOI or title | the records |
 | [Unpaywall](https://unpaywall.org/products/api) | a DOI, your email | whether a free copy exists, and where |
 | [Semantic Scholar](https://api.semanticscholar.org/) | PMIDs, your API key if set | citation counts |
 | [radiopaedia.work/cite](https://radiopaedia.work) | an identifier you cited | the formatted citation |

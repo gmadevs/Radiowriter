@@ -129,9 +129,9 @@ article in a list is never purged.
 
 **Keep the PDFs.** One PDF per article, named `Author Year - Journal - Title
 [PMID].pdf`. Free copies are downloaded directly. The ones you download through
-LibKey are picked up from your Downloads folder and matched to their article by
-DOI. The passages you highlight in Preview or Acrobat are read back as a list
-to tick off.
+LibKey you drop into the app, which finds their article by DOI or title, in the
+archive or on PubMed. Highlight them in the app's own reader, and the
+highlights become a list to tick off.
 
 **Write.** A Markdown editor that knows the twenty-three section structures
 Radiopaedia recommends and can insert the ones your kind of article should

@@ -54,8 +54,8 @@ it is down, citations stay unresolved — the draft is unaffected.
 ## PDFs and the study window
 
 **PDFs through LibKey are downloaded by you.** They go through your library's
-login, which is in your browser. The app picks them up from Downloads, but it
-cannot fetch them itself.
+login, which is in your browser, so the app cannot fetch them. You drop them
+into the Library tab.
 
 **A PDF is recognised by the text in it.** A scanned PDF with no text layer
 has no readable DOI, PMID or title, and has to be attached by PMID.
@@ -67,8 +67,12 @@ can be opened from the folder but not attached.
 **One PDF per article.** A supplement or a second version replaces the first
 file.
 
-**Highlights have to be saved in the PDF.** Programs that keep highlights in
-their own database, rather than as annotations in the file, are invisible here.
+**Highlights made elsewhere have to be saved in the PDF.** Programs that keep
+highlights in their own database, rather than as annotations in the file, are
+invisible here.
+
+**A highlight lies on one page.** A selection across a page break is
+highlighted on the page where it starts.
 
 **The study window needs the network for its PDF reader**, which is loaded from
 jsdelivr. Radiopaedia needs it anyway.

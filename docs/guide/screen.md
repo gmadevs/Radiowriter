@@ -95,6 +95,6 @@ before searching so new records arrive with it already known.
 
 **⤓ Save free PDF**, in the card's right-hand column, downloads the free copy
 into the PDF library. Once an article has a PDF, the card shows a 📄 PDF badge
-and an **📄 Open PDF** button. A PDF downloaded through LibKey is picked up
-from your Downloads folder by the Library tab. See
+and a **📖 Read PDF** button. A PDF downloaded through LibKey goes in by
+dropping it into the Library tab. See
 [PDFs and the study window](./library).

@@ -8,11 +8,11 @@ python3 check_rules.py       # 147 — the Radiopaedia linter rules
 python3 check_structure.py   #  24 — the article structures
 python3 check_search.py      # 125 — query building, ISSG, strategies, lists
 python3 check_journals.py    #  85 — SCImago, matching, Unpaywall, backups
-python3 check_library.py     #  69 — PDF library, highlights, the Radiopaedia list
+python3 check_library.py     #  76 — PDF library, highlights, the Radiopaedia list
 python3 check_app.py         # 123 — the interface, driven without a browser
 ```
 
-573 checks. None of them needs the network, and none touches a real archive:
+580 checks. None of them needs the network, and none touches a real archive:
 each script points `RADIOPAEDIA_DB` at a throwaway file before importing `db`.
 `check_library.py` and `check_app.py` also point `RADIOWRITER_HOME` at a
 throwaway folder, because the PDF library is created there.
