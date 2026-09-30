@@ -2525,12 +2525,44 @@ with tab_screen:
 # TAB 3 - la libreria dei PDF
 # ---------------------------------------------------------------------------
 
+@st.cache_data(show_spinner=False, max_entries=500)
+def pubmed_for_pdf(sha256: str, dois: tuple, titles: tuple, article_like: bool) -> dict | None:
+    """L'articolo PubMed di un PDF, chiesto una volta per file (la chiave e'
+    l'impronta): ogni giro dell'app ridisegna la scheda, e PubMed non va
+    richiamato a ogni clic."""
+    # Un errore di rete non finisce in cache (st.cache_data non tiene le
+    # eccezioni): chi chiama lo prende, e al giro dopo si riprova.
+    email = settings["ncbi_email"].strip()
+    api_key = (settings.get("ncbi_api_key") or "").strip()
+    params = pubmed.ncbi_params(email, api_key)
+    params["_pause"] = pubmed.pause(api_key)
+    return library.lookup_pubmed(
+        {"dois": list(dois), "titles": list(titles), "article_like": article_like},
+        http_session(), params)
+
+
+def adopt_pdf(path: Path, pmid: str, record: dict | None) -> str | None:
+    """Porta in libreria un PDF da Download. Con `record` l'articolo non e'
+    ancora in archivio e ce lo si mette prima, anche se era fra quelli letti
+    e scartati: prenderne il PDF e' una decisione di tenerlo."""
+    if record is not None and db.article_row(pmid) is None:
+        db.unscreen(pmid)
+        db.insert_articles([record])
+    return attach_pdf(pmid, path=path, source="downloads", move=True)
+
+
 def downloads_inbox() -> None:
     """I PDF appena scaricati, riconosciuti e pronti da portare in libreria.
 
-    Si guarda la cartella Download a ogni giro, ma ogni file si apre una volta
-    sola (`identify_pdf` e' in cache per percorso, data e dimensione). Quelli
-    gia' in libreria - stessa impronta - non si mostrano: sono una copia."""
+    Per ogni PDF si cerca l'articolo: prima in archivio (DOI, PMID, titolo
+    nella prima pagina), poi su PubMed (DOI, poi titolo), come fa Zotero.
+    Quelli che non sono articoli - certificati, contratti, menu' - finiscono
+    in un riquadro chiuso invece di chiedere un PMID uno per uno.
+
+    Si guarda la cartella a ogni giro, ma ogni file si apre una volta sola
+    (`identify_pdf` e' in cache per percorso, data e dimensione) e a PubMed si
+    chiede una volta per file. Quelli gia' in libreria - stessa impronta - non
+    si mostrano: sono una copia."""
     folder = paths.downloads_folder(settings.get("downloads_folder") or "")
     ignored = st.session_state.setdefault("pdf_ignored", set())
     found = []
@@ -2557,13 +2589,13 @@ def downloads_inbox() -> None:
                    "publisher's site and it shows up here, recognised by its DOI.")
         return
 
-    # Dal testo del PDF all'articolo: DOI prima, PMID poi, titolo per ultimo.
+    # 1. in archivio: DOI prima, PMID poi, titolo per ultimo
     ids = db.articles_by_ids([d for _, i in found for d in i["dois"]],
                              [p for _, i in found for p in i["pmids"]])
     titles = None
     rows = []
     for path, info in found:
-        pmid, how = None, ""
+        pmid, how, record = None, "", None
         for doi in info["dois"]:
             if doi in ids:
                 pmid, how = ids[doi], f"DOI {doi}"
@@ -2583,41 +2615,61 @@ def downloads_inbox() -> None:
                     conn.close()
             pmid = library.match_title(info["text"], titles)
             how = "title on the first page" if pmid else ""
-        rows.append((path, info, pmid, how))
+        rows.append([path, info, pmid, how, record])
 
-    recognised = [(p, pm) for p, _, pm, _ in rows if pm]
-    if len(recognised) > 1 and st.button(
-            f"Move all {len(recognised)} recognised PDFs into the library",
+    # 2. su PubMed, per quelli che in archivio non ci sono
+    # Senza l'email NCBI non si chiede niente: e' la stessa regola della
+    # ricerca, e una risposta vuota finirebbe in cache per tutto l'avvio.
+    to_ask = [r for r in rows if r[2] is None
+              and (r[1]["dois"] or r[1].get("article_like"))
+              and (settings.get("ncbi_email") or "").strip()]
+    if to_ask:
+        with st.spinner(f"Asking PubMed about {len(to_ask)} PDF(s)…"):
+            for r in to_ask:
+                info = r[1]
+                try:
+                    hit = pubmed_for_pdf(info["sha256"], tuple(info["dois"]),
+                                         tuple(info.get("titles", [])),
+                                         bool(info.get("article_like")))
+                except (requests.RequestException, pubmed.PubMedError, ValueError):
+                    hit = None
+                if hit:
+                    r[4] = hit["record"]
+                    r[2] = str(hit["record"]["pmid"])
+                    r[3] = hit["how"]
+
+    matched = [r for r in rows if r[2]]
+    others = [r for r in rows if not r[2]]
+
+    if len(matched) > 1 and st.button(
+            f"Move all {len(matched)} recognised PDFs into the library",
             type="primary", key="inbox_all"):
-        problems = [f"{p.name}: {e}" for p, pm in recognised
-                    if (e := attach_pdf(pm, path=p, source="downloads", move=True))]
+        problems = [f"{p.name}: {e}" for p, _, pm, _, rec in matched
+                    if (e := adopt_pdf(p, pm, rec))]
         for msg in problems:
             st.error(msg)
         if not problems:
             st.rerun()
 
-    for i, (path, info, pmid, how) in enumerate(rows):
+    for i, (path, info, pmid, how, record) in enumerate(matched):
         with st.container(border=True):
             left, right = st.columns([4, 1.3])
             with left:
                 st.markdown(f"`{path.name}`")
-                if pmid:
-                    rec = db.article_row(pmid)
-                    st.caption(f"→ **{clean(rec['title'])}** (PMID {pmid}) — "
-                               f"matched by {how}.")
-                    st.caption(f"Will be saved as `{library.filename_for(rec)}`")
-                else:
-                    seen = ", ".join(info["dois"][:2]) or "no DOI in the text"
-                    st.caption(f"Not recognised ({seen}). Type the PMID of the "
-                               "article it belongs to — it has to be in the archive.")
-                    pmid = st.text_input("PMID", key=f"inbox_pmid_{i}_{path.name}",
-                                         label_visibility="collapsed",
-                                         placeholder="PMID").strip() or None
+                rec = record if record is not None else db.article_row(pmid)
+                where = ("not in the archive yet — it will be added"
+                         if record is not None and db.article_row(pmid) is None
+                         else "in the archive")
+                st.caption(f"→ **{clean(rec['title'])}** (PMID {pmid}) — "
+                           f"matched by {how}; {where}.")
+                st.caption(f"Will be saved as `{library.filename_for(rec)}`")
             with right:
-                if st.button("Move into library", key=f"inbox_go_{i}_{path.name}",
-                             width="stretch", disabled=not pmid,
-                             type="primary" if pmid else "secondary"):
-                    problem = attach_pdf(pmid, path=path, source="downloads", move=True)
+                label = ("Add to archive and library"
+                         if record is not None and db.article_row(pmid) is None
+                         else "Move into library")
+                if st.button(label, key=f"inbox_go_{i}_{path.name}",
+                             width="stretch", type="primary"):
+                    problem = adopt_pdf(path, pmid, record)
                     if problem:
                         st.error(problem)
                     else:
@@ -2628,6 +2680,25 @@ def downloads_inbox() -> None:
                                   "stays where it is."):
                     ignored.add(str(path))
                     st.rerun()
+
+    if others:
+        with st.expander(f"{len(others)} other PDF(s) that don't look like "
+                         "articles, or that PubMed does not know"):
+            st.caption("No DOI, PMID or title that leads to a PubMed article. "
+                       "If one of them is an article, type its PMID.")
+            for i, (path, info, _, _, _) in enumerate(others):
+                name_col, pmid_col, go_col = st.columns([3, 1.2, 1])
+                name_col.markdown(f"`{path.name}`")
+                typed = pmid_col.text_input(
+                    "PMID", key=f"inbox_pmid_{i}_{path.name}",
+                    label_visibility="collapsed", placeholder="PMID").strip()
+                if go_col.button("Move in", key=f"inbox_hand_{i}_{path.name}",
+                                 disabled=not typed, width="stretch"):
+                    problem = attach_pdf(typed, path=path, source="downloads", move=True)
+                    if problem:
+                        st.error(problem)
+                    else:
+                        st.rerun()
 
 
 with tab_library:

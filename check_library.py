@@ -120,6 +120,80 @@ except library.LibraryError:
     is_("un non-PDF viene rifiutato", "rifiutato", "rifiutato")
 
 # ---------------------------------------------------------------------------
+# chiedere a PubMed, come Zotero
+# ---------------------------------------------------------------------------
+
+print("\n--- PubMed per i PDF fuori archivio ---")
+
+from radiowriter import pubmed                 # noqa: E402
+
+# il titolo in un corpo piu' grande del resto, come in ogni articolo
+paper = Path(_TMP) / "paper.pdf"
+_doc = fitz.open()
+_page = _doc.new_page()
+_page.insert_text((50, 80), "Radiology 2024", fontsize=9)
+_page.insert_textbox(fitz.Rect(50, 100, 550, 160),
+                     "Imaging of vestibular schwannoma after radiosurgery", fontsize=18)
+_page.insert_textbox(fitz.Rect(50, 200, 550, 800),
+                     "Abstract\nBackground: tumours grow. Keywords: MRI\nIntroduction ...",
+                     fontsize=10)
+_doc.save(paper)
+_doc.close()
+contract = make_pdf(Path(_TMP) / "contract.pdf",
+                    "Proposta di contratto per la fornitura di energia elettrica\n"
+                    "Mario Rossi, via Roma 1")
+p_info, c_info = library.identify(paper), library.identify(contract)
+is_("un articolo ha l'aria di un articolo", p_info["article_like"], True)
+is_("un contratto no", c_info["article_like"], False)
+is_("il titolo si ricava dalla prima pagina",
+    p_info["titles"][:1], ["Imaging of vestibular schwannoma after radiosurgery"])
+is_("stesso titolo con punteggiatura e maiuscole diverse",
+    library.same_title("Imaging of Vestibular Schwannoma after radiosurgery.",
+                       "imaging of vestibular schwannoma after radiosurgery"), True)
+is_("un titolo corto dentro uno lungo non basta",
+    library.same_title("Vestibular schwannoma",
+                       "Imaging of vestibular schwannoma after radiosurgery"), False)
+
+asked: list[str] = []
+FAKE = {
+    "10.1/abc[doi]": ["111"],
+    "Imaging[ti] AND vestibular[ti] AND schwannoma[ti] AND after[ti] AND radiosurgery[ti]":
+        ["222", "333"],
+}
+RECS = {
+    "111": {"pmid": "111", "title": "Something by DOI", "doi": "10.1/abc"},
+    "222": {"pmid": "222", "title": "Imaging of vestibular schwannoma after radiosurgery.",
+            "doi": ""},
+    "333": {"pmid": "333", "title": "Vestibular schwannoma: a review", "doi": ""},
+}
+real_esearch, real_efetch = pubmed.esearch, pubmed.efetch
+pubmed.esearch = lambda term, *a, **k: (asked.append(term) or
+                                        (len(FAKE.get(term, [])), FAKE.get(term, []), 0))
+pubmed.efetch = lambda pmids, *a, **k: [RECS[p] for p in pmids]
+try:
+    hit = library.lookup_pubmed({"dois": ["10.1/abc"], "titles": [], "article_like": True},
+                                None, {"_pause": 0})
+    is_("col DOI PubMed trova l'articolo", (hit["record"]["pmid"], hit["how"]),
+        ("111", "DOI 10.1/abc on PubMed"))
+    hit = library.lookup_pubmed({**p_info, "dois": []}, None, {"_pause": 0})
+    is_("senza DOI lo trova col titolo, scartando quello simile",
+        hit["record"]["pmid"] if hit else None, "222")
+    asked.clear()
+    hit = library.lookup_pubmed(c_info, None, {"_pause": 0})
+    is_("un contratto non si cerca", (hit, asked), (None, []))
+finally:
+    pubmed.esearch, pubmed.efetch = real_esearch, real_efetch
+
+db.insert_articles([{"pmid": "555", "title": "Letto e scartato", "raw_text": ""}])
+db.set_status("555", "is_read", True)
+db.cleanup_read_articles()
+is_("un articolo letto e scartato non rientra da solo",
+    db.insert_articles([{"pmid": "555", "title": "Letto e scartato"}])[0], 0)
+db.unscreen("555")
+is_("...ma per tenerne il PDF si rimette", db.insert_articles(
+    [{"pmid": "555", "title": "Letto e scartato"}])[0], 1)
+
+# ---------------------------------------------------------------------------
 # entrare in libreria
 # ---------------------------------------------------------------------------
 

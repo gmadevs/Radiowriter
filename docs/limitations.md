@@ -60,6 +60,10 @@ cannot fetch them itself.
 **A PDF is recognised by the text in it.** A scanned PDF with no text layer
 has no readable DOI, PMID or title, and has to be attached by PMID.
 
+**Only articles in PubMed can go into the library.** The archive is keyed by
+PMID. A PDF of a book chapter, or of a journal that PubMed does not index,
+can be opened from the folder but not attached.
+
 **One PDF per article.** A supplement or a second version replaces the first
 file.
 

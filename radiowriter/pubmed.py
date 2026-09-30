@@ -369,8 +369,12 @@ def _parse_article(node) -> dict | None:
                 doi = _text(aid)
                 break
 
+    # L'abbreviazione NLM ("Nat Rev Neurol"): nei file MEDLINE e' il campo TA,
+    # e il nome dei PDF in libreria la usa al posto del titolo esteso.
+    abbrev = (_text(node.find(".//MedlineJournalInfo/MedlineTA"))
+              or _text(node.find(".//Article/Journal/ISOAbbreviation")))
     return _pack(pmid, title, abstract, journal, pub_date, year, doi, authors,
-                 pub_types, issns)
+                 pub_types, issns, journal_abbrev=abbrev)
 
 
 def _parse_book(node) -> dict | None:
@@ -395,7 +399,7 @@ def _parse_book(node) -> dict | None:
 
 
 def _pack(pmid, title, abstract, journal, pub_date, year, doi, authors, pub_types,
-          issns=()) -> dict:
+          issns=(), journal_abbrev="") -> dict:
     seen: list[str] = []
     for raw in issns:
         issn = re.sub(r"[^0-9X]", "", (raw or "").upper())
@@ -413,6 +417,7 @@ def _pack(pmid, title, abstract, journal, pub_date, year, doi, authors, pub_type
         "pub_types": "; ".join(pub_types),
         "issn": "; ".join(seen),
         "journal_title": journal,
+        "journal_abbrev": journal_abbrev,
     }
     rec["raw_text"] = _as_medline(rec)
     return rec
@@ -425,6 +430,8 @@ def _as_medline(rec: dict) -> str:
         lines.append(f"AB  - {rec['abstract']}")
     if rec["journal"]:
         lines.append(f"JT  - {rec['journal']}")
+    if rec.get("journal_abbrev"):
+        lines.append(f"TA  - {rec['journal_abbrev']}")
     if rec["pub_date"]:
         lines.append(f"DP  - {rec['pub_date']}")
     for a in (rec["authors"] or "").split("; "):

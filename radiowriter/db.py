@@ -1382,6 +1382,22 @@ def articles_by_ids(dois: list[str], pmids: list[str]) -> dict[str, str]:
     return out
 
 
+def unscreen(pmid: str) -> None:
+    """Toglie un PMID dai "gia' letti e scartati", per poterlo rimettere in
+    archivio. Serve quando si vuole tenere il PDF di un articolo letto e
+    cancellato mesi fa: la regola che non lo fa rientrare dalle ricerche non
+    deve impedire di riprenderlo apposta."""
+    def _write():
+        conn = get_connection()
+        try:
+            conn.execute("DELETE FROM screened_pmids WHERE pmid = ?", (str(pmid),))
+            conn.commit()
+        finally:
+            conn.close()
+
+    db_retry(_write)
+
+
 def article_row(pmid: str) -> sqlite3.Row | None:
     conn = get_connection()
     try:

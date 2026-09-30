@@ -25,11 +25,27 @@ so, and you download the PDF from that page yourself.
 
 **From Downloads.** LibKey goes through your library's login, which is in your
 browser, so these PDFs you download yourself as usual. The Library tab looks
-at your Downloads folder (the last 30 days) and reads each new PDF. It looks
-for a DOI first, then a PMID, then the article's title on the first page. When
-one of them matches an article in the archive, it offers **Move into
-library**. The file is moved, not copied. A PDF it cannot match gets a field
-for the PMID.
+at your Downloads folder (the last 30 days) and reads each new PDF, then looks
+for its article in two places, much as Zotero's *Retrieve metadata* does:
+
+1. **In the archive**, by the DOI in the text, then a PMID, then the title of
+   an archived article appearing on the first page. The button is **Move into
+   library**.
+2. **On PubMed**, for PDFs whose article is not in the archive. First by DOI,
+   then by title: the title from the PDF's metadata, or the line in the
+   largest type on the first page. A title search is accepted only when
+   exactly one PubMed article has the same title. The button is **Add to
+   archive and library**, which imports the PubMed record first. This works
+   even for an article you once marked read and had purged.
+
+The file is moved, not copied. PDFs that match nothing, such as certificates,
+contracts and supplements, go into a closed section with a PMID field each.
+
+PubMed is sent a DOI, or a title, and nothing else. A title is sent only when
+the first pages look like a paper, meaning at least two of *Abstract*,
+*Keywords*, *Introduction*, *Received* and similar words appear. The name on a
+certificate or the title of a contract does not leave your computer. Each file
+is asked about once per run of the app.
 
 **By hand.** *📎 Attach a PDF by hand*, at the bottom of the Library tab, takes
 a file and a PMID.

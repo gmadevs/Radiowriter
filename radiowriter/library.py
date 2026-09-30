@@ -253,18 +253,21 @@ def _norm(text: str) -> str:
 
 
 def identify(path: Path) -> dict:
-    """Quello che un PDF dice di se': DOI, PMID e il testo della prima pagina.
+    """Quello che un PDF dice di se': DOI, PMID, i titoli possibili e il testo
+    della prima pagina.
 
     Si guardano i metadati e le prime due pagine, dove stanno intestazione e
     piede con il DOI. Un PDF scansionato senza testo non dice niente, e si
     aggancia a mano."""
     import fitz  # PyMuPDF: importato qui perche' serve solo a questo
 
-    out = {"dois": [], "pmids": [], "text": ""}
+    out = {"dois": [], "pmids": [], "text": "", "titles": []}
     try:
         with fitz.open(path) as doc:
             meta = " ".join(str(v) for v in (doc.metadata or {}).values() if v)
             pages = [doc[i].get_text() for i in range(min(2, doc.page_count))]
+            out["titles"] = guess_titles(doc)
+            out["article_like"] = looks_like_article("\n".join(pages))
     except Exception as exc:  # un PDF rotto non deve fermare gli altri
         out["error"] = str(exc)
         return out
@@ -278,6 +281,75 @@ def identify(path: Path) -> dict:
     out["pmids"] = list(dict.fromkeys(PMID_RX.findall(text)))
     out["text"] = _norm(pages[0] if pages else "")
     return out
+
+
+# Titoli nei metadati che non sono titoli: li scrive il programma che ha
+# prodotto il PDF, non l'editore.
+JUNK_TITLE = re.compile(
+    r"^(microsoft word|untitled|document\d*|\S+\.(docx?|pdf|indd|tex))|^\s*$", re.I)
+
+
+def guess_titles(doc) -> list[str]:
+    """I titoli possibili di un articolo: quello dei metadati, se sembra un
+    titolo, e la riga col carattere piu' grande della prima pagina.
+
+    Il carattere piu' grande della prima pagina e' quasi sempre il titolo;
+    quando non lo e' (il nome della rivista in testata), la ricerca su PubMed
+    non trova un titolo uguale e non se ne fa niente."""
+    out: list[str] = []
+    meta = " ".join(((doc.metadata or {}).get("title") or "").split())
+    if len(meta) >= 20 and not JUNK_TITLE.match(meta):
+        out.append(meta)
+    if doc.page_count:
+        spans = []
+        page = doc[0]
+        for block in page.get_text("dict").get("blocks", []):
+            for line in block.get("lines", []):
+                for span in line.get("spans", []):
+                    text = span.get("text", "").strip()
+                    if text:
+                        spans.append((round(span.get("size", 0), 1), span["bbox"][1], text))
+        # i caratteri grandi della meta' alta della pagina, dal piu' grande
+        top = [s for s in spans if s[1] < page.rect.height * 0.6]
+        for size in sorted({s[0] for s in top}, reverse=True)[:3]:
+            line = " ".join(t for sz, _, t in sorted(top, key=lambda s: s[1])
+                            if abs(sz - size) < 0.6)
+            line = " ".join(line.split())
+            if 20 <= len(line) <= 300:
+                out.append(line)
+                break
+    seen, unique = set(), []
+    for t in out:
+        if _norm(t) not in seen:
+            seen.add(_norm(t))
+            unique.append(t)
+    return unique
+
+
+# Le parole che un articolo scientifico ha nelle prime due pagine. Servono a
+# decidere se un PDF senza DOI vale una ricerca per titolo su PubMed: il titolo
+# di un contratto o di un certificato - col nome di chi l'ha ricevuto - non
+# deve uscire da questo computer.
+ARTICLE_MARKERS = ("abstract", "keywords", "key words", "introduction",
+                   "background", "received", "accepted", "corresponding author",
+                   "references", "methods", "conclusion")
+
+
+def looks_like_article(text: str) -> bool:
+    low = (text or "").lower()
+    return sum(1 for m in ARTICLE_MARKERS if m in low) >= 2
+
+
+def same_title(a: str, b: str) -> bool:
+    """Due titoli sono lo stesso se, tolti punteggiatura e maiuscole, uno
+    contiene l'altro e sono lunghi quasi uguali: il PDF va a capo e a volte
+    perde o aggiunge un sottotitolo, ma un titolo corto dentro uno lungo non
+    basta."""
+    x, y = _norm(a), _norm(b)
+    if not x or not y:
+        return False
+    short, long_ = sorted((x, y), key=len)
+    return short in long_ and len(short) >= 0.85 * len(long_)
 
 
 def match_title(page_text: str, titles: dict[str, str]) -> str | None:
@@ -334,3 +406,57 @@ def _launch(path: Path, *, reveal: bool) -> None:
             os.startfile(str(path))  # noqa: S606 - e' un file nostro
     else:
         subprocess.Popen(["xdg-open", str(path.parent if reveal else path)])
+
+
+# ---------------------------------------------------------------------------
+# chiedere a PubMed di chi e' un PDF
+# ---------------------------------------------------------------------------
+
+STOPWORDS = {"the", "and", "for", "with", "from", "into", "its", "are", "was",
+             "were", "del", "della", "des", "der", "und", "une", "les"}
+
+
+def lookup_pubmed(info: dict, session, params: dict) -> dict | None:
+    """L'articolo PubMed di un PDF che non e' in archivio, come fa Zotero con
+    "Retrieve metadata": prima il DOI, poi il titolo.
+
+    Ritorna {"record", "how"} o None. Il record e' quello di efetch, pronto da
+    mettere in archivio. Col titolo si accetta solo un risultato il cui titolo
+    sia lo stesso, e uno solo: meglio un PDF da agganciare a mano che uno
+    agganciato all'articolo sbagliato.
+
+    A PubMed va il DOI, oppure il titolo - e il titolo solo se il PDF ha l'aria
+    di un articolo (vedi `looks_like_article`)."""
+    from radiowriter import pubmed
+
+    # La stessa pausa della ricerca fra una chiamata e l'altra: senza, due
+    # PDF di fila bastano a farsi rispondere 429 da NCBI.
+    def wait():
+        time.sleep(params.get("_pause", pubmed.PAUSE_NO_KEY))
+
+    for doi in info.get("dois", [])[:3]:
+        wait()
+        _, pmids, _ = pubmed.esearch(f"{doi}[doi]", session, params, max_results=2)
+        if len(pmids) == 1:
+            wait()
+            recs = pubmed.efetch(pmids, session, params)
+            if recs and (recs[0].get("doi") or "").lower() == doi:
+                return {"record": recs[0], "how": f"DOI {doi} on PubMed"}
+    if not info.get("article_like"):
+        return None
+    for title in info.get("titles", [])[:2]:
+        words = [w for w in re.findall(r"[A-Za-z0-9]{3,}", title)
+                 if w.lower() not in STOPWORDS][:14]
+        if len(words) < 3:
+            continue
+        term = " AND ".join(f"{w}[ti]" for w in words)
+        wait()
+        _, pmids, _ = pubmed.esearch(term, session, params, max_results=5)
+        if not pmids:
+            continue
+        wait()
+        recs = [r for r in pubmed.efetch(pmids, session, params)
+                if same_title(r.get("title") or "", title)]
+        if len(recs) == 1:
+            return {"record": recs[0], "how": "its title, on PubMed"}
+    return None
