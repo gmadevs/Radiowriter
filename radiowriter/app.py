@@ -583,6 +583,13 @@ st.markdown(
         margin: 0 0 .35rem 0;
       }}
       .app-title .sub {{ font-size: .9rem; font-weight: 400; opacity: .7; }}
+      /* La freccia che riapre la barra laterale, da sola, non dice cosa c'e'
+         dietro: impostazioni, backup, import. Accanto ci va scritto. */
+      [data-testid="stExpandSidebarButton"] {{ width: auto; }}
+      [data-testid="stExpandSidebarButton"]::after {{
+        content: "Options"; font-size: .9rem; font-weight: 500;
+        margin: 0 .5rem 0 .25rem; white-space: nowrap;
+      }}
       /* Le tre schede come i passi di Radiouploader: pillole numerate, quella
          attiva su un fondo piu' marcato. La lineetta colorata sotto la scheda
          di Streamlit diceva la stessa cosa in un'altra lingua. */
