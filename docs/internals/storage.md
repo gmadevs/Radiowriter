@@ -50,7 +50,7 @@ rule 1 or rule 2 chose the file, a third line says so:
 ```
 🗄 Archive · 2,453 articles · 1 draft(s)
 ~/Documents/Radiowriter/pubmed_database.db
-Next to the source, not the data folder — why
+Next to the source code, not in the data folder (why)
 ```
 
 `radiowriter --where` prints the same information. The app also prints the

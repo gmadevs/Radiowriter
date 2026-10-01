@@ -135,8 +135,9 @@ def read(path: Path | None = None) -> list[dict]:
     path = path or find_file()
     if path is None:
         raise JournalDataError(
-            "No journal metrics file at all — not even the one that ships with "
-            "the app. The install looks incomplete; reinstalling should fix it.")
+            "No journal metrics file was found, including the one included "
+            "with the app. The installation looks incomplete. Reinstall the "
+            "app to fix it.")
 
     rows: list[dict] = []
     with _open(path) as fh:

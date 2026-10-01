@@ -132,8 +132,8 @@ st.set_page_config(
     menu_items={
         "Get help": None,
         "Report a bug": "https://github.com/gmadevs/Radiowriter/issues",
-        "About": "**Radiowriter** — find the literature for a Radiopaedia "
-                 "article, screen it, and write the article against it. "
+        "About": "**Radiowriter** searches PubMed, helps you screen the "
+                 "results and write a Radiopaedia article from them. "
                  "Unofficial, not affiliated with Radiopaedia.org.",
     })
 
@@ -696,33 +696,34 @@ st.markdown(
 
 SERVICES = [
     ("PubMed (NCBI E-utilities)", True,
-     "Searches and downloads the records. **Wants an email in every "
-     "request**: it is how NCBI can reach whoever is calling when a script "
-     "starts hammering their servers — a warning instead of a silent block. "
-     "No registration, no mail."),
+     "Searches PubMed and downloads the records. **Requires an email "
+     "address in every request**, which NCBI uses to contact you if your "
+     "requests cause a problem. No registration is needed and no mail is "
+     "sent."),
     ("Unpaywall", True,
-     "Says whether a paper has a legally free copy, and where. It wants an "
-     "email in every request for the same reason. No key, no registration."),
+     "Reports whether a paper has a legal free copy, and where. It requires "
+     "an email address in every request, for the same reason. No key or "
+     "registration is needed."),
     ("Semantic Scholar", False,
-     "Citations and influential citations, which is how results get ranked "
-     "by importance. Works without a key, just more slowly."),
+     "Citation counts, used to sort the results. It works without a key, "
+     "more slowly."),
     ("LibKey", False,
-     "The direct link to the full text through your library's subscription. "
-     "It needs the library's ID, not an email."),
+     "Direct links to the full text through your library's subscription. "
+     "It needs your library's ID."),
 ]
 
 
 def setup_screen() -> None:
     """La schermata del primo avvio: un campo obbligatorio e il perche'."""
     # Il titolo lo stampa gia' il modulo, qualche riga sopra.
-    st.subheader("One thing to set up, and it takes a minute")
+    st.subheader("Set your email address")
 
     st.markdown(
-        "This app talks to a few public services on your behalf. Two of them "
-        "want **an email address in every request** — not to write to you, but "
-        "so they can tell who is calling if something goes wrong. There is "
-        "nothing to register for, and the address stays on this computer, in "
-        "the app's own database file."
+        "This app sends requests to a few public services. Two of them "
+        "require **an email address in every request**, so that they can "
+        "contact you if your requests cause a problem. You do not have to "
+        "register anywhere, and the address is stored only on this computer, "
+        "in the app's database file."
     )
 
     with st.form("first_run"):
@@ -733,9 +734,9 @@ def setup_screen() -> None:
         st.caption("**What each service is for**")
         for name, required, why in SERVICES:
             st.markdown(
-                f"- **{name}** — {'*required*' if required else '*optional*'}. {why}")
+                f"- **{name}** ({'*required*' if required else '*optional*'}). {why}")
 
-        with st.expander("Optional keys and IDs — you can add them later",
+        with st.expander("Optional keys and IDs (you can add them later)",
                          expanded=False):
             api_key = st.text_input(
                 "NCBI API key", type="password",
@@ -746,14 +747,14 @@ def setup_screen() -> None:
                 help="Makes the citation lookup faster. Free, on request.")
             libkey = st.text_input(
                 "LibKey library ID",
-                help="Your library's Third Iron ID — it appears in the URL "
+                help="Your library's Third Iron ID. It appears in the URL "
                      "libkey.io/libraries/<ID>/…")
 
         go, skip = st.columns([1, 1])
         started = go.form_submit_button("Save and start", type="primary",
                                         width="stretch")
         skipped = skip.form_submit_button(
-            "Skip — I only want to read the archive", width="stretch")
+            "Skip (read the archive only)", width="stretch")
 
     if started:
         if "@" not in email or "." not in email.split("@")[-1]:
@@ -808,8 +809,8 @@ with st.sidebar:
     # chiedersi da dove sia uscito questo archivio.
     if _db_origin == paths.FROM_SOURCE:
         st.caption(
-            "Next to the source, not the data folder — "
-            "[why](https://gmadevs.github.io/Radiowriter/internals/storage)")
+            "Next to the source code, not in the data folder "
+            "([why](https://gmadevs.github.io/Radiowriter/internals/storage))")
     elif _db_origin == paths.FROM_ENV:
         st.caption("Set by `RADIOPAEDIA_DB`.")
     st.divider()
@@ -834,9 +835,9 @@ with st.sidebar:
                      "URL libkey.io/libraries/<ID>/...")
             upw_email = st.text_input(
                 "Unpaywall email", value=settings.get("unpaywall_email", ""),
-                help="Unpaywall asks for an email in every request — it is not "
-                     "a key and there is nothing to register. Left empty, the "
-                     "NCBI email above is used.")
+                help="Unpaywall requires an email address in every request. It "
+                     "is not a key and no registration is needed. If empty, "
+                     "the NCBI email above is used.")
             pdf_dir = st.text_input(
                 "PDF library folder", value=settings.get("pdf_folder", ""),
                 placeholder=paths.short(paths.home(create=False) / "PDFs"),
@@ -898,31 +899,32 @@ with st.sidebar:
 
     with st.expander("📊 Journal metrics", expanded=False):
         st.caption(
-            "Quartiles and SJR come from SCImago. **This is not the Journal "
-            "Impact Factor**: that one is Clarivate's and lives in the JCR. SJR "
-            "weighs citations by the prestige of who makes them; *cites/doc "
-            "(2y)* is the one computed like an impact factor, but over Scopus."
+            "Quartiles and SJR come from SCImago. **These are not the Journal "
+            "Impact Factor**, which is published by Clarivate in the JCR. SJR "
+            "weights citations by the rank of the citing journal. *Cites/doc "
+            "(2y)* is calculated like an impact factor, but on Scopus data."
         )
         found_file, file_origin = paths.journal_csv_origin()
         if found_file is None:
             st.warning(
-                "No journal metrics file at all — not even the one that ships "
-                "with the app. The install looks incomplete.")
+                "No journal metrics file was found, including the one "
+                "included with the app. The installation looks incomplete.")
         else:
             status = db.journal_metrics_status()
-            st.caption(f"`{found_file.name}` — **{status['journals']:,}** journals · "
+            st.caption(f"`{found_file.name}`: **{status['journals']:,}** journals · "
                        f"**{status['matched']:,}** of {status['articles']:,} "
                        f"articles matched to one.")
             if file_origin == paths.FROM_BUNDLE:
                 st.caption(
-                    "This is the copy that ships with the app. For a newer "
-                    "year, take *Download data* from "
-                    "[scimagojr.com](https://www.scimagojr.com/journalrank.php) "
-                    "and drop the CSV into the data folder — any name starting "
-                    "with `scimagojr` wins over this one.")
+                    "This is the copy included with the app. For a newer "
+                    "year, click *Download data* on "
+                    "[scimagojr.com](https://www.scimagojr.com/journalrank.php), "
+                    "put the CSV in the data folder, then click the button "
+                    "below. A file whose name starts with `scimagojr` is "
+                    "used in place of this copy.")
             else:
-                st.caption("Your own download, which wins over the copy that "
-                           "ships with the app.")
+                st.caption("Your own download. It is used in place of the copy "
+                           "included with the app.")
             if st.button("↻ Reload the file and re-match", width="stretch"):
                 with st.status("Reading the SCImago file…", expanded=True) as box:
                     try:
@@ -940,18 +942,16 @@ with st.sidebar:
                             state="complete")
                         load_journal_metrics.clear()
             st.caption(
-                "Articles are matched by ISSN, which is exact. The ones left "
-                "over are journals SCImago does not list at all — they show no "
-                "quartile rather than a wrong one.")
+                "Articles are matched by ISSN. The unmatched ones are in "
+                "journals that SCImago does not list. They show no quartile.")
 
     with st.expander("⇅ Export and backup", expanded=False):
         st.caption(
-            "Two formats, and they are two different things. **`.nbib`** is "
-            "PubMed's own export: the articles, and nothing else. Any reference "
-            "manager reads it, and so does the import below. **`.json`** is the "
-            "whole archive — what you marked read, what you flagged, your "
-            "lists, your drafts — and it is the one to use when moving to "
-            "another computer."
+            "**`.nbib`** is PubMed's export format. It contains only the "
+            "articles. Reference managers can read it, and so can the import "
+            "below. **`.json`** contains the archive: read and flagged "
+            "states, lists and drafts. Use it to move to another computer. "
+            "It does not contain the PDFs."
         )
 
         scopes = {"Everything": ("all", None),
@@ -981,8 +981,8 @@ with st.sidebar:
         st.caption(
             f"{n['articles']:,} articles · {n['lists']} list(s) · "
             f"{n['drafts']} draft(s) · {n['citations']} resolved citation(s). "
-            "**Settings are left out on purpose** — a backup file travels, and "
-            "your email and keys should not travel with it."
+            "**Settings are not included**, so the file does not contain "
+            "your email address or keys."
         )
 
         st.divider()
@@ -997,7 +997,7 @@ with st.sidebar:
                 st.error(str(exc))
             else:
                 got = backup.counts(parsed)
-                st.caption(f"Written {str(parsed.get('exported'))[:10]} — "
+                st.caption(f"Written {str(parsed.get('exported'))[:10]}. "
                            f"{got['articles']:,} articles, {got['lists']} list(s), "
                            f"{got['drafts']} draft(s).")
                 if st.button("Restore it", type="primary", width="stretch",
@@ -1161,7 +1161,7 @@ def results_filters(records: list[dict], metric_of, status_by_pmid: dict,
     active = any(st.session_state.get(key(n)) for n in
                  ("status", "types", "quartile", "oa", "cites", "text"))
 
-    with st.expander("⚙ Filter these results" + (" — on" if active else ""),
+    with st.expander("⚙ Filter these results" + (" (on)" if active else ""),
                      expanded=active):
         st.caption("Narrows what is shown below. PubMed is not queried again.")
 
@@ -1189,8 +1189,8 @@ def results_filters(records: list[dict], metric_of, status_by_pmid: dict,
                                    key=key("oa"))
             else:
                 f_oa = False
-                st.caption("Open access: not looked up for these records — "
-                           "tick *Open access (Unpaywall)* in the sidebar "
+                st.caption("Open access: not looked up for these records. "
+                           "Tick *Open access (Unpaywall)* in the sidebar "
                            "before searching.")
             f_cites = st.number_input(
                 "At least this many citations", 0, 10000, step=1,
@@ -1305,9 +1305,8 @@ def strategy_panel(blocks: list[dict]) -> None:
     li legherebbe in AND, e chiederebbe a PubMed un lavoro che parla insieme di
     epidemiologia, risonanza e prognosi: quasi sempre zero risultati."""
     st.caption(
-        "Every heading is turned into the terms the literature actually uses "
-        "for it — controlled vocabulary (MeSH), words from the title and "
-        "abstract, or both."
+        "Each heading is turned into search terms: controlled vocabulary "
+        "(MeSH), words from the title and abstract, or both."
     )
 
     source = st.radio(
@@ -1318,8 +1317,8 @@ def strategy_panel(blocks: list[dict]) -> None:
     if source == "A draft":
         drafts = db.list_drafts()
         if not drafts:
-            st.caption("No drafts yet — write one in the Write tab, or take the "
-                       "headings from an article type instead.")
+            st.caption("No drafts yet. Write one in the Write tab, or take the "
+                       "headings from an article type.")
             return
         # Si sceglie per id e non per riga: un widget con `key` finisce in
         # session_state, che Streamlit copia in profondita', e una sqlite3.Row
@@ -1352,8 +1351,8 @@ def strategy_panel(blocks: list[dict]) -> None:
 
     pairs = stg.suggest(titles, mode_key)
     if not pairs:
-        st.caption("None of those headings has a search strategy — they are "
-                   "sections of the article rather than angles to search.")
+        st.caption("None of these headings has a search strategy. They are "
+                   "sections of an article, not search topics.")
         return
 
     st.caption(f"{len(pairs)} of the {len(set(titles))} headings have one.")
@@ -1407,10 +1406,8 @@ def modality_panel(blocks: list[dict]) -> None:
     modo di non trovare niente. Chi le vuole tutte e due davvero aggiunge due
     blocchi, che e' un gesto esplicito."""
     st.caption(
-        "Each one is written out in every form the literature uses — the MeSH "
-        "descriptor, the spelled-out name, the abbreviation, the British "
-        "spelling. Pick several and they are joined by **OR**: any one of them "
-        "is enough."
+        "Each modality adds its MeSH descriptor, full name, abbreviation and "
+        "British spelling. If you pick several, they are joined by **OR**."
     )
 
     stamp = st.session_state.get("mod_gen", 0)
@@ -1453,13 +1450,11 @@ def search_builder() -> str:
     blocks = qb_state()
 
     st.caption(
-        "**One block per concept** — the disease, the modality, the finding. "
-        "The kind of publication is not a block: it goes in the filters below, "
-        "so it is asked once. Inside a block you write the same thing in every way the "
-        "literature writes it, and those lines are joined by **OR** (any one is "
-        "enough). The blocks are joined by **AND** (all of them must hold). "
-        "PubMed reads the operators left to right, so what you see below is "
-        "what it does."
+        "**One block per concept**, for example the disease, the modality, the "
+        "finding. The kind of publication is not a block: set it in the "
+        "filters below. Inside a block, write the concept in each of the ways "
+        "papers write it. These lines are joined by **OR**. The blocks are "
+        "joined by **AND**. The query shown below is the one PubMed receives."
     )
 
     to_drop: int | None = None
@@ -1476,7 +1471,7 @@ def search_builder() -> str:
             block["label"] = head_name.text_input(
                 "Block name", value=block.get("label", ""),
                 key=f"qbl_{block['id']}", label_visibility="collapsed",
-                placeholder=f"Block {n} — a name, if you want one")
+                placeholder=f"Block {n} (optional name)")
             head_del.write("")
             if head_del.button("🗑", key=f"qbd_{block['id']}",
                                disabled=len(blocks) == 1,
@@ -1509,9 +1504,9 @@ def search_builder() -> str:
             b_add, b_inner, b_prev = st.columns([1.2, 1.2, 3])
             if b_add.button("＋ Another wording", key=f"qba_{block['id']}",
                             width="stretch",
-                            help="Another way the same thing gets written — "
+                            help="Another way of writing the same concept, for example "
                                  "“myocardial infarction”, “MI”, “heart "
-                                 "attack”. They are joined with OR, so a paper "
+                                 "attack”. The lines are joined by OR, so a paper "
                                  "matching any one of them is found."):
                 block["terms"].append(qb_new_term())
                 st.rerun()
@@ -1519,10 +1514,10 @@ def search_builder() -> str:
                 "Joined by", ["OR", "AND", "NOT"],
                 index=["OR", "AND", "NOT"].index(block.get("inner", "OR")),
                 key=f"qbi_{block['id']}", label_visibility="collapsed",
-                help="How the lines inside this block are joined. OR is what a "
-                     "list of wordings wants: any one of them is enough.")
+                help="How the lines inside this block are joined. Use OR for a "
+                     "list of synonyms.")
             rendered = qb.render_block(qb_model([block])[0])
-            b_prev.caption(f"`{rendered}`" if rendered else "empty — no terms yet")
+            b_prev.caption(f"`{rendered}`" if rendered else "empty (no terms yet)")
 
     if to_drop is not None:
         blocks.pop(to_drop)
@@ -1562,7 +1557,7 @@ with tab_search:
         "How to search", ["✎ One line", "⛁ Blocks"], default="✎ One line",
         key="search_how", label_visibility="collapsed",
         help="One line takes PubMed syntax as you write it. Blocks builds the "
-             "query one concept at a time — synonyms in OR, concepts in AND — "
+             "query one concept at a time (synonyms in OR, concepts in AND) "
              "and can turn the headings of a Radiopaedia article into terms.")
 
     if how == "⛁ Blocks":
@@ -1590,8 +1585,8 @@ with tab_search:
             "Filters", list(SEARCH_MODES), key="sf_mode",
             format_func=SEARCH_MODES.get, on_change=on_search_mode,
             label_visibility="collapsed",
-            help="Recent reviews and No filters set every control below. Change "
-                 "any control by hand and this moves to Custom by itself.")
+            help="Recent reviews and No filters set every control below. If you "
+                 "change a control by hand, Custom is selected.")
 
         fc1, fc2, fc3, fc4 = st.columns([1.1, 1, 1, 1], vertical_alignment="center")
         # zero e' un valore legittimo e vuol dire "nessun limite di data".
@@ -1621,7 +1616,7 @@ with tab_search:
             st.multiselect(
                 "Publication types", pubmed.DEFAULT_TYPE_LABELS, key="sf_types",
                 on_change=on_filter_change, label_visibility="collapsed",
-                placeholder="Choose publication types — several are joined by OR",
+                placeholder="Choose publication types (several are joined by OR)",
                 help="PubMed's own publication types, as NLM assigned them.")
         elif type_by == "issg":
             # I filtri ISSG non dicono DI COSA parla un lavoro, dicono CHE
@@ -1631,12 +1626,12 @@ with tab_search:
                 "Study design filters (ISSG)", list(issg.LABELS.values()),
                 key="sf_issg", on_change=on_filter_change,
                 label_visibility="collapsed",
-                placeholder="Choose ISSG filters — several are joined by OR",
+                placeholder="Choose ISSG filters (several are joined by OR)",
                 help="Published search filters from the InterTASC Information "
                      "Specialists' Sub-Group. They catch a kind of publication "
                      "by the words it uses, not by a subject.")
             for label in issg_picked:
-                st.caption(f"· **{label}** — {issg.FILTERS[issg.BY_LABEL[label]][2]}")
+                st.caption(f"· **{label}**: {issg.FILTERS[issg.BY_LABEL[label]][2]}")
 
         filters_now = effective_filters(st.session_state)
         st.caption(describe_filters(filters_now))
@@ -1681,7 +1676,7 @@ with tab_search:
                     max_results=int(max_results) or pubmed.ESEARCH_CAP,
                     exclude=already,
                     progress=lambda n, exc, seen, tot: status.write(
-                        f"PMIDs examined {seen}/{tot} — {n} new, {exc} already known and skipped"),
+                        f"PMIDs examined {seen}/{tot}: {n} new, {exc} already known and skipped"),
                     warn=unmatched.extend)
                 if unmatched:
                     # non e' un errore: PubMed le nomina solo quando il totale e'
@@ -1697,9 +1692,9 @@ with tab_search:
                 )
                 if total > pubmed.ESEARCH_CAP:
                     status.write(
-                        f"⚠️ PubMed hands out at most {pubmed.ESEARCH_CAP:,} "
+                        f"⚠️ PubMed returns at most {pubmed.ESEARCH_CAP:,} "
                         "records per search, the most recent first. To get the "
-                        "older ones, narrow the search — by years, for example.")
+                        "older ones, narrow the search, for example by years.")
                 records = pubmed.efetch(
                     pmids, session, params,
                     progress=lambda n, t: status.write(f"Details downloaded: {n}/{t}"))
@@ -1828,7 +1823,7 @@ with tab_search:
 
         ordered = sorted(shown, key=sort_key)
         if len(shown) != len(results):
-            st.caption(f"**Showing {len(shown)} of {len(results)}** — "
+            st.caption(f"**Showing {len(shown)} of {len(results)}**. "
                        f"{len(results) - len(shown)} hidden by the filters above.")
 
         rows = []
@@ -1933,7 +1928,7 @@ with tab_search:
                 st.session_state.search_page = 1
             page = min(max(1, st.session_state.get("search_page", 1)), n_pages)
             st.session_state.search_page = page
-            st.caption(f"Page {page} of {n_pages} — showing "
+            st.caption(f"Page {page} of {n_pages}, showing "
                        f"{min(per_page, len(ordered) - (page - 1) * per_page)} "
                        f"of {len(ordered)} records.")
             if n_pages > 1:
@@ -2122,12 +2117,9 @@ with tab_screen:
     # ----------------------------------------------------------------------
     with st.expander(f"🗂 Lists ({len(all_lists)})", expanded=False):
         st.caption(
-            "A list is a folder you decide: the papers for one section, the good "
-            "ones from yesterday's search. Read and flagged are two states and "
-            "the same for everybody; lists are as many as you like, and an "
-            "article can be in several at once. **An article in a list is never "
-            "purged at startup**, even once you mark it read — so a list keeps "
-            "what it holds until you say otherwise."
+            "A list is a named group of articles, for example the papers for "
+            "one section. An article can be in several lists. **An article in "
+            "a list is not deleted at startup**, even when it is marked read."
         )
 
         with st.form("new_list_form", clear_on_submit=True):
@@ -2177,9 +2169,8 @@ with tab_screen:
             doomed = db.get_list(st.session_state.confirm_list_delete)
             if doomed:
                 st.warning(
-                    f"Delete the list “{doomed['name']}”? The articles stay in "
-                    f"the archive — a list is a way of looking at them, not "
-                    f"where they live.")
+                    f"Delete the list “{doomed['name']}”? Its articles stay in "
+                    f"the archive.")
                 y, n = st.columns([1, 5])
                 if y.button("Yes, delete the list", type="primary",
                             key="ldel_yes"):
@@ -2214,9 +2205,9 @@ with tab_screen:
     NO_METRIC = "Not in SCImago"
     quartiles = st.multiselect(
         "Journal quartile:", jr.QUARTILES + [NO_METRIC],
-        help="SCImago's best quartile for the journal. “Not in SCImago” are "
-             "the journals the file does not list at all — Cureus, medRxiv, "
-             "most case-report journals.")
+        help="SCImago's best quartile for the journal. “Not in SCImago” means "
+             "the journal is not in the file, for example Cureus, medRxiv "
+             "and most case-report journals.")
 
     sort_cell, open_cell = st.columns([5, 1.3], vertical_alignment="bottom")
     order_label = sort_cell.radio(
@@ -2307,7 +2298,7 @@ with tab_screen:
     finally:
         conn.close()
 
-    st.caption(f"**{total}** articles found — page {page} of {n_pages} "
+    st.caption(f"**{total}** articles found. Page {page} of {n_pages} "
                f"({len(df)} on this page).")
 
     if n_pages > 1:
@@ -2561,7 +2552,7 @@ def read_pdf(pmid: str, path: Path) -> None:
         st.error(missing)
         return
     study.launch(None, path, settings.get("study_layout") or "lr", pmid=pmid)
-    st.toast("Opening the reader — it is a separate window.")
+    st.toast("The reader opens in a separate window.")
 
 
 def incoming_pdfs() -> None:
@@ -2575,7 +2566,7 @@ def incoming_pdfs() -> None:
     libreria lo si sposta, e dalla cartella di passaggio sparisce."""
     turn = st.session_state.setdefault("incoming_turn", 0)
     uploads = st.file_uploader(
-        "📎 Add PDFs — drop them here", type=["pdf"], accept_multiple_files=True,
+        "📎 Add PDFs (drop them here)", type=["pdf"], accept_multiple_files=True,
         key=f"incoming_{turn}",
         help="Each one is matched to its article by the DOI in the text, or by "
              "its title on PubMed, and renamed after the citation.")
@@ -2672,7 +2663,7 @@ def incoming_pdfs() -> None:
                 elif pmid:
                     rec = record if record is not None else db.article_row(pmid)
                     new = record is not None and db.article_row(pmid) is None
-                    st.caption(f"→ **{clean(rec['title'])}** (PMID {pmid}) — matched "
+                    st.caption(f"→ **{clean(rec['title'])}** (PMID {pmid}), matched "
                                f"by {how}" + ("; not in the archive yet, it will be "
                                               "added." if new else "."))
                     st.caption(f"Will be saved as `{library.filename_for(rec)}`")
@@ -2700,9 +2691,9 @@ with tab_library:
     folder = lib_folder()
     top_l, top_r = st.columns([4, 1])
     top_l.caption(
-        f"`{paths.short(folder)}` — one PDF per article, named "
-        "*Author Year - Journal - Title [PMID]*. Articles with a PDF are never "
-        "purged at startup, even when marked read.")
+        f"`{paths.short(folder)}`. One PDF per article, named "
+        "*Author Year - Journal - Title [PMID n]*. Articles with a PDF are not "
+        "deleted at startup, even when marked read.")
     if top_r.button("Show folder", width="stretch", key="lib_reveal"):
         library.reveal(folder)
 
@@ -2731,7 +2722,7 @@ with tab_library:
                 st.markdown(f"**{html.escape(clean(row['title']) or row['filename'])}**")
                 exists = path.exists()
                 st.caption(f"`{row['filename']}`"
-                           + ("" if exists else " — **missing from the folder**")
+                           + ("" if exists else " (**missing from the folder**)")
                            + f" · {row['source'] or ''} · {str(row['added_at'])[:10]}")
                 # Le evidenziazioni si rileggono solo se il file e' cambiato
                 # dall'ultima volta: di solito costa una `stat`, non l'apertura
@@ -2746,7 +2737,7 @@ with tab_library:
                             key_hl = f"hl_{m['id']}_{int(m['done'])}"
                             text = m["text"] or m["note"] or "(no text)"
                             st.checkbox(
-                                f"p. {m['page']} — {text}", value=m["done"],
+                                f"p. {m['page']}: {text}", value=m["done"],
                                 key=key_hl, on_change=on_highlight_toggle,
                                 args=(m["id"], key_hl))
                 if row["title"] is not None:
@@ -2880,7 +2871,7 @@ def rich_copy_box(html_body: str, *, label: str, height: int, key: str) -> None:
             try {{
               if (await viaClipboardAPI(window)) {{
                 btn.dataset.route = "clipboard-api";
-                return say("Copied ✓ — clean HTML");
+                return say("Copied ✓ (clean HTML)");
               }}
             }} catch (e) {{
               btn.dataset.err = (e && e.name ? e.name : "?") + ": " +
@@ -2890,10 +2881,10 @@ def rich_copy_box(html_body: str, *, label: str, height: int, key: str) -> None:
               btn.dataset.route = "exec-command";
               // onesto: per questa via il browser inlinea lo stile calcolato,
               // e se l'editor di Radiopaedia non lo scarta finisce nel testo
-              return say("Copied ✓ — via selection, your browser added inline styling");
+              return say("Copied ✓ (via selection: your browser added inline styling)");
             }}
             btn.dataset.route = "failed";
-            say("The browser refused the copy — select the box and press ⌘C.");
+            say("The browser refused the copy. Select the box and press ⌘C.");
           }});
         }})();
         </script>
@@ -2967,11 +2958,11 @@ def heading_panel(draft, body_md: str) -> None:
         chosen = st.selectbox(
             "Kind of article", names, index=names.index(current),
             format_func=lambda n: labels[n], key=profile_key, on_change=remember,
-            help="Radiopaedia has twenty-three structures, not one. This picks "
-                 "which of them the headings come from; it is guessed from the "
-                 "title and remembered once you change it.")
+            help="Radiopaedia has 23 article structures. This chooses the one "
+                 "the headings come from. It is guessed from the title until "
+                 "you choose one, and your choice is saved.")
     if not saved:
-        st.caption("Guessed from the title — change it if it is wrong.")
+        st.caption("Guessed from the title. Change it if it is wrong.")
 
     canon_name = sx.canon().profiles[chosen]["canon"]
     rows = sx.rows_for(chosen)
@@ -2981,8 +2972,8 @@ def heading_panel(draft, body_md: str) -> None:
     with opts:
         pending = st.checkbox(
             "with `content pending`", key=f"pending_{draft['id']}",
-            help="Radiopaedia's own word for a section that is there and empty. "
-                 "The linter has a rule that finds them again later.")
+            help="Radiopaedia's placeholder text for an empty section. The "
+                 "linter has a rule that finds these placeholders.")
 
     if not missing:
         st.success("Every heading this structure names is already in the draft.")
@@ -3055,8 +3046,8 @@ def heading_panel(draft, body_md: str) -> None:
         if row is not None:
             plan = sx.check_one(body_md, row, int(line), canon_name)
             if plan.conflict:
-                st.warning(plan.conflict + f" La struttura lo metterebbe alla "
-                                           f"riga {plan.canon_line}.")
+                st.warning(plan.conflict + f" The structure puts it on line "
+                                           f"{plan.canon_line}.")
             a, b = st.columns(2)
             if a.button(f"Put it on line {plan.canon_line} (the structure's place)",
                         key=f"canon_{draft['id']}", width="stretch"):
@@ -3086,12 +3077,11 @@ def lint_panel(draft, body_md: str, numbers: dict) -> None:
     non a quella in cui si incolla: le regole sono scritte contro la pagina di
     Radiopaedia, dove una sezione e' un `h4`."""
     st.caption(
-        "The linter at radiopaedia.work reads the published article, so it has "
-        "nothing to read while you are still writing. These are its own rules, "
-        f"transcribed on {lint.transcribed_on()} and run here — nothing leaves "
-        "the computer. It does not replace the real thing: Radiopaedia has "
-        "registered exceptions that this cannot see, so where the two disagree, "
-        "believe theirs."
+        "The linter at radiopaedia.work checks published articles, so it "
+        "cannot check a draft. These are its rules, transcribed on "
+        f"{lint.transcribed_on()} and run on this computer. Nothing is sent. "
+        "Radiopaedia has registered exceptions that are not available here. "
+        "Where the two disagree, follow Radiopaedia's."
     )
 
     if st.button("Lint the draft", type="primary", key=f"lint_{draft['id']}"):
@@ -3145,10 +3135,10 @@ def lint_panel(draft, body_md: str, numbers: dict) -> None:
     if hushed:
         with st.expander(f"{len(hushed)} set aside by the shared lists", expanded=False):
             st.caption(
-                "Proper nouns that may open a list item, and acronyms nobody "
-                "needs spelled out. The two files live in `data/`.")
+                "Proper nouns that can start a list item, and acronyms that "
+                "need no expansion. The two lists are in `radiowriter/data/`.")
             for finding in hushed:
-                st.caption(f"· **{finding.matched}** — {finding.check} "
+                st.caption(f"· **{finding.matched}**: {finding.check} "
                            f"(covered by “{finding.known}”)")
 
 
@@ -3246,13 +3236,13 @@ TOOLBAR_JS = r"""
   const TOOLS = [
     ["B",    "Bold  ⌘B",                        ta => wrap(ta, "**", "**", "bold")],
     ["I",    "Italic  ⌘I",                      ta => wrap(ta, "*", "*", "italic")],
-    ["H1",   "Section heading — h3 on Radiopaedia", ta => prefix(ta, "# ", false)],
-    ["H2",   "Subheading — h4",                 ta => prefix(ta, "## ", false)],
-    ["H3",   "Sub-subheading — h5",             ta => prefix(ta, "### ", false)],
+    ["H1",   "Section heading (h3 on Radiopaedia)", ta => prefix(ta, "# ", false)],
+    ["H2",   "Subheading (h4)",                 ta => prefix(ta, "## ", false)],
+    ["H3",   "Sub-subheading (h5)",             ta => prefix(ta, "### ", false)],
     ["•",    "Bulleted list",                   ta => prefix(ta, "- ", false)],
     ["1.",   "Numbered list",                   ta => prefix(ta, "", true)],
     ["🔗",   "Link  ⌘K",                        ta => link(ta)],
-    ["[@]",  "Citation — the identifier itself, not a number",
+    ["[@]",  "Citation (by identifier, numbered at export)",
                                                 ta => wrap(ta, "[@", "]", "27859258")],
   ];
 
@@ -3412,7 +3402,7 @@ def study_panel(draft) -> None:
                 "No article list in the data folder. Export it as CSV from the "
                 "Radiopaedia article search and drop it into "
                 f"`{paths.short(paths.home(create=False))}` as "
-                "`radiopaedia-articles-<date>.csv` — or use the other two options.")
+                "`radiopaedia-articles-<date>.csv`. You can also use the other two options.")
         else:
             index = radiopaedia_index(str(index_file), index_file.stat().st_mtime)
             text = st.text_input(
@@ -3429,7 +3419,7 @@ def study_panel(draft) -> None:
                                            f"{options[u]['systems']}"),
                     label_visibility="collapsed")
             elif text.strip():
-                st.caption("Nothing in the list. Try the Radiopaedia search — "
+                st.caption("Nothing in the list. Try the Radiopaedia search: "
                            "the list is only as recent as its export.")
     elif how == "Radiopaedia search":
         text = st.text_input("Search Radiopaedia for", value=draft["title"],
@@ -3444,7 +3434,7 @@ def study_panel(draft) -> None:
     # I PDF citati nella bozza per primi, poi il resto della libreria.
     cited = db.library_rows(draft_id=did)
     others = [r for r in db.library_rows() if r["pmid"] not in {c["pmid"] for c in cited}]
-    pdfs = {"": "No PDF — Radiopaedia only"}
+    pdfs = {"": "No PDF (Radiopaedia only)"}
     for r in cited:
         pdfs[r["pmid"]] = "★ " + r["filename"]
     for r in others:
@@ -3469,12 +3459,13 @@ def study_panel(draft) -> None:
             row = db.pdfs_for([pick]).get(pick)
             pdf_path = lib_folder() / row["filename"] if row else None
         study.launch(page, pdf_path, layout, pmid=pick or None)
-        st.toast("Study window opening — it is a separate window, look behind "
-                 "the browser if it does not come to the front.")
-    st.caption("Radiopaedia opens in a real browser window with its own login, "
-               "kept between sessions. Sign in once there to edit. With a PDF, "
-               "the other window lists its highlights to tick off — highlight in "
-               "Preview and save, and they show up there by themselves.")
+        st.toast("The study window opens separately. Look behind the browser "
+                 "if it does not come to the front.")
+    st.caption("Radiopaedia opens in a separate browser window with its own "
+               "login, which is kept between sessions. Sign in there once to "
+               "edit. With a PDF, the other window lists its highlights with a "
+               "checkbox each. Highlights you add in another program appear "
+               "there after you save the file.")
 
 
 with tab_write:
@@ -3491,7 +3482,7 @@ with tab_write:
             st.session_state.draft_id = labels[chosen]
         else:
             st.session_state.draft_id = None
-            st.info("No drafts yet — create one to start writing.")
+            st.info("No drafts yet. Create one to start writing.")
     with new_col:
         st.write("")
         if st.button("＋ New draft", width="stretch"):
@@ -3526,10 +3517,10 @@ with tab_write:
     # ----------------------------------------------------------------------
     with st.expander("⇅ Import a draft from a file", expanded=False):
         st.caption(
-            "The `.json` written by Export, from this computer or another one. "
-            "It comes back with its text, its kind of article, its reference "
-            "list and the citations already resolved. It always lands as a NEW "
-            "draft — nothing open is overwritten."
+            "A `.json` file written by Export, on this computer or another. "
+            "It restores the text, the kind of article, the reference list and "
+            "the resolved citations. It is always imported as a new draft, and "
+            "no existing draft is overwritten."
         )
         picked_file = st.file_uploader(
             "Draft file", type=["json"], key="draft_import",
@@ -3541,7 +3532,7 @@ with tab_write:
                 st.error(str(exc))
             else:
                 st.caption(
-                    f"**{incoming['title']}** — "
+                    f"**{incoming['title']}**: "
                     f"{len(incoming['body_md'].splitlines())} lines, "
                     f"{len(incoming['references'])} reference(s)"
                     + (f", exported {incoming['exported'][:10]}"
@@ -3554,7 +3545,7 @@ with tab_write:
     draft = db.get_draft(draft_id) if draft_id else None
 
     if draft:
-        with st.expander("🪟 Study window — the Radiopaedia page next to a PDF",
+        with st.expander("🪟 Study window: the Radiopaedia page next to a PDF",
                          expanded=False):
             study_panel(draft)
 
@@ -3608,16 +3599,16 @@ with tab_write:
                 "View", ["✎ Markdown", "◫ Formatted"], default="✎ Markdown",
                 key=f"mode_{draft['id']}", on_change=switched,
                 label_visibility="collapsed",
-                help="The formatted view is not a generic Markdown preview: it "
-                     "is the very HTML the copy button puts on the clipboard, "
-                     "so it is what the Radiopaedia editor will receive.")
+                help="The formatted view shows the HTML that the copy button "
+                     "puts on the clipboard, which is what the Radiopaedia "
+                     "editor receives.")
 
             if mode == "◫ Formatted":
                 preview_box(
                     rp.to_html(body_md, numbers, top_heading=draft["top_heading"] or 3),
                     rp.reference_lines(numbers, citations))
                 st.caption(
-                    "Read-only — switch back to Markdown to edit. "
+                    "Read-only. Switch back to Markdown to edit. "
                     "Citation numbers come from the order of first appearance."
                 )
             else:
@@ -3625,8 +3616,8 @@ with tab_write:
                 st.text_area(
                     "Body (Markdown)", value=draft["body_md"] or "", key=body_key,
                     height=460, on_change=autosave,
-                    help="Cite with [@27859258] — the identifier itself (PMID, DOI, "
-                         "PMCID, ISBN). Numbers are worked out at export from the "
+                    help="Cite with [@27859258], using the identifier (PMID, DOI, "
+                         "PMCID, ISBN). Numbers are assigned at export, in "
                          "order of first appearance.",
                 )
                 st.caption(
@@ -3636,8 +3627,8 @@ with tab_write:
                     "Saved when a field loses focus."
                 )
 
-            with st.expander("⌗ Headings — the structure this kind of article "
-                             "should have", expanded=False):
+            with st.expander("⌗ Headings for this kind of article",
+                             expanded=False):
                 heading_panel(draft, body_md)
 
         with col_side:
@@ -3645,7 +3636,7 @@ with tab_write:
             st.caption(f"{len(set(numbers.values()))} cited in the text · "
                        f"{len(listed)} in the list")
             for n, idents in sorted(merged.items()):
-                st.caption(f"↳ {' and '.join(idents)} are the same paper — "
+                st.caption(f"↳ {' and '.join(idents)} are the same paper: "
                            f"both are reference {n}.")
 
             if cited_not_listed:
@@ -3712,7 +3703,7 @@ with tab_write:
                     titles = {r["pmid"]: clean(r["title"]) for r in rows}
                     picked = st.multiselect(
                         "Articles", [r["pmid"] for r in available],
-                        format_func=lambda p: f"{p} — {titles[p][:60]}",
+                        format_func=lambda p: f"{p}: {titles[p][:60]}",
                         label_visibility="collapsed",
                         placeholder=f"Choose from {len(available)}…",
                         key=f"refpick_{draft['id']}_{source}")
@@ -3738,7 +3729,7 @@ with tab_write:
             attached_ids = {r["id"] for r in attached}
             for row in attached:
                 c1, c2 = st.columns([5, 1])
-                c1.caption(f"**{row['terms']}** — {row['n_found']} found, "
+                c1.caption(f"**{row['terms']}**: {row['n_found']} found, "
                            f"{row['n_saved']} saved")
                 if c2.button("✕", key=f"detach_{draft['id']}_{row['id']}"):
                     db.detach_search(draft["id"], row["id"])
@@ -3753,7 +3744,7 @@ with tab_write:
                     db.attach_search(draft["id"], pick["id"])
                     st.rerun()
             elif not attached:
-                st.caption("No searches recorded yet — run one in the PubMed search tab.")
+                st.caption("No searches recorded yet. Run one in the PubMed search tab.")
 
         # ------------------------------------------------------------------
         # anteprima ed export
@@ -3761,10 +3752,10 @@ with tab_write:
         st.divider()
         st.subheader("Paste into the Radiopaedia editor")
         st.caption(
-            "The editor is WYSIWYG: plain text loses the formatting. These two "
-            "boxes copy as rich text, so headings, bold and the <sup> markers "
-            "survive the paste. The article goes in the body; each reference "
-            "line goes in its own reference box."
+            "Radiopaedia's editor is a rich-text editor, and plain text loses "
+            "its formatting. These two boxes copy rich text, so headings, bold "
+            "and the <sup> markers are kept. Paste the article into the body, "
+            "and each reference line into its own reference box."
         )
 
         article_html = rp.to_html(body_md, numbers, top_heading=draft["top_heading"] or 3)
@@ -3800,7 +3791,7 @@ with tab_write:
             for ident in listed_not_cited:
                 rec = citations.get(ident) or {}
                 c1, c2 = st.columns([5, 1.3])
-                c1.caption(f"not cited — {rec.get('title') or ident}")
+                c1.caption(f"not cited: {rec.get('title') or ident}")
                 if c2.button("✕", key=f"drop_{draft['id']}_{ident}"):
                     db.remove_draft_ref(draft["id"], ident)
                     st.rerun()
@@ -3811,12 +3802,10 @@ with tab_write:
         st.divider()
         st.subheader("Keep a copy")
         st.caption(
-            "Two files, and they are two different things. The `.json` is the "
-            "draft — text, kind of article, references with their notes, and "
-            "the citations already resolved — and it is the one Import reads "
-            "back. The `.md` is to read: it opens in anything, years from now. "
-            "Import takes the JSON only, because the Markdown has none of the "
-            "other three in it and reading it back would lose them silently."
+            "The `.json` file contains the draft: text, kind of article, "
+            "references with their notes, and resolved citations. Import "
+            "reads this file. The `.md` file contains only the text and opens "
+            "in any text editor. It cannot be imported."
         )
         bundle = draft_io.bundle(draft["id"])
         dl_json, dl_md, _ = st.columns([1, 1, 2])

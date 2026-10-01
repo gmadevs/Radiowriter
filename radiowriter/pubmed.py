@@ -226,7 +226,7 @@ def esearch(
         errors = result.get("errorlist") or {}
         if errors.get("fieldsnotfound"):
             raise PubMedError(
-                "PubMed does not know these search fields: "
+                "PubMed does not recognise these search fields: "
                 + ", ".join(errors["fieldsnotfound"]))
         if errors.get("phrasesnotfound") and warn:
             warn(list(errors["phrasesnotfound"]))

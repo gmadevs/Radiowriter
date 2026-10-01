@@ -377,6 +377,6 @@ def reference_lines(numbers: dict[str, int], citations: dict[str, dict]) -> list
                                        KIND_RANK.get(identifier_kind(i), 9), i))
         best = idents[0]
         rec = citations.get(best) or {}
-        text = rec.get("citation") or f"[{identifier_kind(best)} {best} — not resolved yet]"
+        text = rec.get("citation") or f"[{identifier_kind(best)} {best}: not resolved yet]"
         lines.append(f"{n}. {text}")
     return lines

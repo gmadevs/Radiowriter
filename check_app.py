@@ -137,8 +137,8 @@ try:
 
     is_("una riga nella sezione sbagliata viene segnalata", len(at.warning) >= 1, "True")
     is_("...e dice sotto cosa va e dove e' finito",
-        "va sotto \"Pathology\"" in at.warning[0].value
-        and "dentro \"Epidemiology\"" in at.warning[0].value, "True")
+        "belongs under \"Pathology\"" in at.warning[0].value
+        and "inside \"Epidemiology\"" in at.warning[0].value, "True")
 
     at = next(b for b in at.button if b.key == f"canon_{draft_id}").click().run()
     is_("messo dove dice la struttura, finisce sotto il proprio genitore",
@@ -510,7 +510,7 @@ try:
 
     page = " ".join([m.value for m in at.markdown] + [c.value for c in at.caption]
                     + [h.value for h in at.subheader])
-    is_("...che chiede una cosa sola", "One thing to set up" in page, "True")
+    is_("...che chiede una cosa sola", "Set your email address" in page, "True")
     is_("...e dice a cosa serve l'email",
         "email address in every request" in page, "True")
     is_("...nominando i servizi", "Unpaywall" in page and "PubMed" in page, "True")
@@ -690,7 +690,7 @@ for origin in (_paths.FROM_ENV, _paths.FROM_SOURCE, _paths.FROM_DATA_DIR):
     is_(f"la riga di comando spiega l'origine '{origin}'",
         bool(_cli._why(origin).strip()), "True")
 is_("...e per l'archivio accanto al codice dice perche' non viene spostato",
-    "never moved out" in _cli._why(_paths.FROM_SOURCE), "True")
+    "does not move an existing archive" in _cli._why(_paths.FROM_SOURCE), "True")
 
 print(f"\n{checked} controlli, {failed} falliti")
 sys.exit(1 if failed else 0)

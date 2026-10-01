@@ -318,11 +318,11 @@ def compile_rules(spec: dict) -> list[Rule]:
 @lru_cache(maxsize=1)
 def rules() -> list[Rule]:
     if not RULES_FILE.exists():
-        raise LintError(f"Manca {RULES_FILE.name}: le regole del linter non si possono leggere.")
+        raise LintError(f"{RULES_FILE.name} is missing: the linter rules cannot be read.")
     try:
         spec = json.loads(RULES_FILE.read_text(encoding="utf-8"))
     except json.JSONDecodeError as exc:
-        raise LintError(f"{RULES_FILE.name} non e' JSON valido: {exc}") from exc
+        raise LintError(f"{RULES_FILE.name} is not valid JSON: {exc}") from exc
     return compile_rules(spec)
 
 

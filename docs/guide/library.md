@@ -29,7 +29,7 @@ it as described below.
 ### Adding a PDF you downloaded
 
 LibKey uses your library's login in your browser, so you download these PDFs
-in the browser as usual. Then drag them onto **📎 Add PDFs — drop them here**
+in the browser as usual. Then drag them onto **📎 Add PDFs (drop them here)**
 at the top of the Library tab, one or several at a time. For each file the app
 looks for the article in two places:
 
@@ -129,7 +129,7 @@ appears in the tab when it is redrawn.
 
 ## The study window
 
-In the **4 Write** tab, open **🪟 Study window — the Radiopaedia page next to
+In the **4 Write** tab, open **🪟 Study window: the Radiopaedia page next to
 a PDF** and set three things:
 
 - **Radiopaedia page**: choose it from the article list, from Radiopaedia's

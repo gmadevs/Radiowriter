@@ -86,7 +86,7 @@ def normalise(text) -> str:
 def canon() -> Canon:
     if not CANON_FILE.exists():
         raise StructureError(
-            f"Manca {CANON_FILE.name}: la struttura degli articoli non si puo' leggere.")
+            f"{CANON_FILE.name} is missing: the article structures cannot be read.")
     raw = json.loads(CANON_FILE.read_text(encoding="utf-8"))
 
     index: dict[str, dict[str, list[dict]]] = {}
@@ -353,9 +353,9 @@ def check_one(body_md: str, row: Row, at_line: int, canon_name: str) -> Placemen
     if row.parent:
         under = canonical(inside, canon_name) if inside else None
         if under != row.parent:
-            where = f'dentro "{inside}"' if inside else "sopra ogni sezione"
-            conflict = (f'"{row.title}" va sotto "{row.parent}", '
-                        f"e la riga {at_line} e' {where}.")
+            where = f'inside "{inside}"' if inside else "above every section"
+            conflict = (f'"{row.title}" belongs under "{row.parent}", '
+                        f"and line {at_line} is {where}.")
     return Placement(line=at_line, canon_line=canon_line, inside=inside, conflict=conflict)
 
 

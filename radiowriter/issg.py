@@ -107,15 +107,15 @@ EVIDENCE_SYNTHESIS = (
 # chiave interna -> (etichetta nella UI, stringa, riga di aiuto)
 FILTERS: dict[str, tuple[str, str, str]] = {
     "guidelines_broad": (
-        "Guidelines — broad",
+        "Guidelines (broad)",
         GUIDELINES_BROAD,
-        "Catches anything that reads like a recommendation: many results, "
-        "much noise.",
+        "Finds anything worded like a recommendation. Many results, many "
+        "of them irrelevant.",
     ),
     "guidelines_standard": (
-        "Guidelines — standard",
+        "Guidelines (standard)",
         GUIDELINES_STANDARD,
-        "The precise one: publication type and title, little noise.",
+        "Uses publication type and title. Fewer irrelevant results.",
     ),
     "meta_analysis": (
         "Meta-analysis",

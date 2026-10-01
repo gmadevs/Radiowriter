@@ -32,8 +32,7 @@ etymology, and Differential diagnosis. Other types of article have their own
 structure. An anatomy article, for example, has *Gross anatomy* and *Variant
 anatomy* and no *Epidemiology*.
 
-Open **⌗ Headings — the structure this kind of article should have** to
-insert headings:
+Open **⌗ Headings for this kind of article** to insert headings:
 
 1. **Kind of article** chooses the structure. The app guesses it from the
    title until you choose one yourself. Your choice is saved with the draft.

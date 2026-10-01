@@ -172,7 +172,7 @@ def problems(blocks: list[Block]) -> list[str]:
     msgs: list[str] = []
     live = [b for b in blocks if b.enabled and render_block(b)]
     if not live:
-        return ["No terms yet — write at least one."]
+        return ["No terms yet. Write at least one."]
 
     first = next(b for b in blocks if b.enabled and render_block(b))
     if first.join == "NOT":

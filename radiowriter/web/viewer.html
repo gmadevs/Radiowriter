@@ -273,7 +273,7 @@ function ask(message, { input = false, value = "", ok = "OK" } = {}) {
 
 async function editNote(i) {
   const h = S.highlights[i]; if (!h) return;
-  const note = await ask("Note on this highlight — saved in the PDF, where other readers show it as a comment.",
+  const note = await ask("Note on this highlight. It is saved in the PDF, where other readers show it as a comment.",
                          { input: true, value: h.note || "", ok: "Save note" });
   if (note === null) return;
   await write(() => api().set_note(h.id, note), "Note saved");
@@ -512,7 +512,7 @@ function drawOverlays() {
       d.dataset.i = i;
       Object.assign(d.style, { left: `${x0 * W - 2}px`, top: `${y0 * H - 2}px`,
                                width: `${(x1 - x0) * W + 4}px`, height: `${(y1 - y0) * H + 4}px` });
-      d.title = h.done ? "Done — click to select" : "Click to select";
+      d.title = h.done ? "Done (click to select)" : "Click to select";
       p.el.appendChild(d);
     }
   });

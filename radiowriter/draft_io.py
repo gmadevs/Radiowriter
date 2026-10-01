@@ -56,7 +56,7 @@ def bundle(draft_id: int) -> dict:
     """Tutto quello che serve per rimettere in piedi una bozza altrove."""
     draft = db.get_draft(draft_id)
     if draft is None:
-        raise DraftIOError("Questa bozza non esiste piu'.")
+        raise DraftIOError("This draft no longer exists.")
 
     refs = [{"identifier": r["identifier"], "note": r["note"] or ""}
             for r in db.draft_ref_rows(draft_id)]
@@ -124,25 +124,25 @@ def read_bundle(raw: bytes | str) -> dict:
     """Il file, controllato. Solleva se non e' una bozza di questo programma."""
     if isinstance(raw, bytes):
         if len(raw) > MAX_BYTES:
-            raise DraftIOError("Il file e' troppo grande per essere una bozza.")
+            raise DraftIOError("The file is too large to be a draft.")
         try:
             raw = raw.decode("utf-8")
         except UnicodeDecodeError as exc:
-            raise DraftIOError("Il file non e' testo UTF-8.") from exc
+            raise DraftIOError("The file is not UTF-8 text.") from exc
 
     try:
         data = json.loads(raw)
     except json.JSONDecodeError as exc:
         raise DraftIOError(
-            "Non e' un JSON valido. L'import vuole il file .json, non il .md accanto."
+            "The file is not valid JSON. Import needs the .json file, not the .md file."
         ) from exc
 
     if not isinstance(data, dict) or data.get("format") != FORMAT:
         raise DraftIOError(
-            "Non e' una bozza esportata da questo programma. "
-            "L'import vuole il file .json, non il .md accanto.")
+            "This file is not a draft exported by this app. "
+            "Import needs the .json file, not the .md file.")
     if not isinstance(data.get("body_md"), str):
-        raise DraftIOError("La bozza non ha un testo dentro.")
+        raise DraftIOError("The draft file contains no text.")
 
     refs = []
     for item in (data.get("references") or [])[:MAX_REFS]:

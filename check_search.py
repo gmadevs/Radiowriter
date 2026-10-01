@@ -112,7 +112,7 @@ is_("due filtri diversi vanno in OR fra loro",
     issg.clause(["guidelines_broad", "meta_analysis"]),
     f"(({issg.GUIDELINES_BROAD}) OR ({issg.EVIDENCE_SYNTHESIS}))")
 is_("si accettano anche le etichette della UI",
-    issg.clause(["Guidelines — broad"]), issg.clause(["guidelines_broad"]))
+    issg.clause(["Guidelines (broad)"]), issg.clause(["guidelines_broad"]))
 for key, (label, text, _) in issg.FILTERS.items():
     is_(f"{key}: parentesi bilanciate", text.count("("), text.count(")"))
     is_(f"{key}: virgolette pari", text.count('"') % 2, 0)

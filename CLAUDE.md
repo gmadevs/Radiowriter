@@ -28,26 +28,10 @@ Measure a page with the `plain-docs` skill script:
 node ~/.claude/skills/plain-docs/scripts/prose.mjs README.md
 ```
 
-## Pages to rewrite
+## Standing rule
 
-One page per commit, in this order.
-
-- [x] README.md
-- [x] docs/index.md
-- [x] docs/guide/install.md
-- [x] docs/guide/search.md
-- [x] docs/guide/blocks.md
-- [x] docs/guide/screen.md
-- [x] docs/guide/journals.md
-- [x] docs/guide/library.md
-- [x] docs/guide/write.md
-- [x] docs/guide/backup.md
-- [x] docs/limitations.md
-- [x] docs/internals/architecture.md
-- [x] docs/internals/storage.md
-- [x] docs/internals/services.md
-- [x] docs/internals/journals.md
-- [x] docs/develop/run.md
-- [x] docs/develop/tests.md
-- [x] docs/develop/release.md
-- [ ] Interface strings in radiowriter/app.py and radiowriter/issg.py
+The README, every page in `docs/` and the interface text were rewritten to
+these rules between `b2287cb` and the commit "Rewrite the interface text in
+plain prose". New text follows the same rules. Run the measuring script on
+any page you change, and run the six `check_*.py` scripts after changing
+interface text, because some checks match it.

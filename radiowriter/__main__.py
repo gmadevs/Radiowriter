@@ -47,13 +47,12 @@ def main(argv: list[str] | None = None) -> int:
             print("SCImago:     (none - quartiles are off)")
         elif csv_origin == paths.FROM_USER:
             print(f"SCImago:     {csv}")
-            print("             (your own download, so it wins over the bundled one)")
+            print("             (your own download, used in place of the included copy)")
         else:
             print(f"SCImago:     {csv}")
-            print("             (the one that ships with the app - drop a newer "
-                  "scimagojr*.csv")
-            print("              into the data folder above and that one is used "
-                  "instead)")
+            print("             (the copy included with the app; a scimagojr*.csv "
+                  "file")
+            print("              in the data folder above is used in its place)")
         return 0
 
     # La cartella dei dati si crea adesso, prima che parta il server: se il
@@ -109,8 +108,8 @@ def _why(origin: str) -> str:
     if origin == paths.FROM_ENV:
         return "(chosen by RADIOPAEDIA_DB)"
     if origin == paths.FROM_SOURCE:
-        return ("(found next to the source, so that one is used - "
-                "an existing archive is never moved out from under you)")
+        return ("(found next to the source code, so that file is used; "
+                "the app does not move an existing archive)")
     return "(the data folder for this platform)"
 
 
