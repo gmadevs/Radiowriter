@@ -1,96 +1,97 @@
 # Known limitations
 
-Written down because finding them yourself, halfway through a search, is worse.
+## Searching
 
-## The searching
+- A search downloads at most 9,999 records. This is the limit of PubMed's
+  esearch service. The app downloads the most recent records up to that
+  number and shows a message when a search has more. To reach the older
+  records, narrow the search, for example by years. **Records to download**
+  in the sidebar sets a lower limit. Downloading several thousand records
+  takes a few minutes, and longer when citations and open access are looked
+  up.
+- The filters on the results are not sent to PubMed. They filter the records
+  that were downloaded. A record that was not downloaded cannot be found with
+  them.
+- The block builder has two levels: lines inside a block, and blocks. A query
+  with deeper nesting, such as `(A OR B) AND (C OR (D AND E))`, cannot be
+  built in blocks. Type it on one line, which the app sends as written.
+- PubMed reads operators from left to right and does not give AND precedence
+  over OR. The block builder puts each block in brackets. In a query typed on
+  one line, you have to add the brackets yourself.
 
-**At most 9,999 records per search.** That is PubMed's own limit: esearch does
-not hand out more, however it is paged. The app downloads everything up to
-there, most recent first, and says so when a search goes over. *Records to
-download* in the sidebar can set a lower cap. A search that returns thousands
-of results is usually worth narrowing anyway, and downloading them takes
-minutes, more with citations and open access switched on.
+## Journals
 
-**The filters on the results do not go back to PubMed.** They narrow what was
-already downloaded. If a paper was not downloaded, no filter here will find
-it.
+- SJR is not the Journal Impact Factor. The Impact Factor is published by
+  Clarivate in the JCR and is not in the SCImago file. SCImago gives *SJR*,
+  which weights citations by the rank of the citing journal, and *cites/doc
+  (2y)*, which is calculated like an impact factor but on Scopus data. The
+  app shows both, each with its label.
+- About one article in ten has no quartile, because its journal is not in the
+  SCImago file. Examples are Cureus, medRxiv and most case-report journals.
+  These articles show no quartile badge.
+- Articles are matched to journals by ISSN, and by exact title when the ISSN
+  finds nothing. Approximate title matching is not used. It would add about
+  1% more matches and could give an article the quartile of a different
+  journal with a similar name.
+- A newer SCImago file is not loaded automatically. After putting it in the
+  data folder, click **↻ Reload the file and re-match** under
+  **📊 Journal metrics**.
 
-**Blocks are two levels, not a syntax tree.** Wordings inside a block, blocks
-between themselves. `(A OR B) AND (C OR (D AND E))` cannot be drawn — write it
-by hand on one line instead, which the app accepts as it is.
+## Writing
 
-**PubMed reads operators left to right.** It does not give AND precedence over
-OR the way a programming language would. Each block gets its own brackets for
-exactly this reason, but a hand-written line is your own responsibility.
-
-## The journals
-
-**SJR is not the Journal Impact Factor.** The impact factor is Clarivate's, from
-the JCR, and is not in any file here. SCImago gives *SJR* — citations weighted
-by the prestige of the journals making them — and *cites/doc (2y)*, computed
-like an impact factor but over Scopus. Both are shown and both are labelled.
-
-**About one article in ten has no quartile**, because its journal is not in
-SCImago at all: Cureus, medRxiv, most case-report journals. They show nothing
-rather than a wrong badge.
-
-**Matching is by ISSN only**, plus an exact title match as a fallback. Fuzzy
-title matching would raise the hit rate by a percent and would occasionally
-give an article the quartile of a different journal with a similar name. A
-wrong quartile is worse than no quartile.
-
-## The writing
-
-**The article structures and the linter rules are a transcription.** They were
-copied from Radiopaedia's published guidance on 2026-08-04. When theirs change,
-this is an old copy until someone redoes it.
-
-**The linter runs on the draft, not on the published article.** It cannot see
-what their server would say about images, tags or links.
-
-**Citations are resolved through radiopaedia.work/cite**, which is not ours. If
-it is down, citations stay unresolved — the draft is unaffected.
+- The article structures and the linter rules are copies of Radiopaedia's
+  published guidance. The structures were transcribed on 2026-08-04 and the
+  linter rules on 2026-08-27. Changes Radiopaedia makes after those dates are
+  not included until the files are updated.
+- The linter runs on the draft and not on the published article. It does not
+  check images, tags or links, which Radiopaedia's linter checks on its
+  server. It also does not have the exceptions registered on Radiopaedia.
+- Citations are resolved through radiopaedia.work/cite, a service this
+  project does not run. When it is unavailable, citations stay unresolved.
+  The text of the draft is not affected.
 
 ## PDFs and the study window
 
-**PDFs through LibKey are downloaded by you.** They go through your library's
-login, which is in your browser, so the app cannot fetch them. You drop them
-into the Library tab.
+- The app cannot download PDFs through LibKey. LibKey uses your library's
+  login in your browser. You download the PDF there and drop it into the
+  Library tab.
+- A free PDF larger than 150 MB is not saved.
+- A PDF is recognised by its text. A scanned PDF without a text layer has no
+  readable DOI, PMID or title, and you have to type its PMID.
+- Only articles that are in PubMed can be added to the library, because the
+  archive identifies articles by PMID. A PDF of a book chapter, or from a
+  journal PubMed does not index, cannot be added.
+- The library holds one PDF per article. Adding a second file for the same
+  article, such as a supplement, deletes the first file.
+- Highlights made in other programs are listed only if they are saved in the
+  PDF as annotations. Programs that keep highlights in their own database do
+  not write them to the file.
+- A highlight is on one page. A selection that continues on the next page is
+  highlighted only on the page where it starts.
+- The PDF reader needs a network connection. It loads PDF.js from the
+  jsdelivr CDN each time it opens.
+- On Linux the study window and the reader need GTK or Qt, which pip does not
+  install. Without them the app shows a message and does not open the window.
+- The Radiopaedia article list contains the articles that existed when you
+  exported it. For newer articles, use the **Radiopaedia search** option of
+  the study window.
 
-**A PDF is recognised by the text in it.** A scanned PDF with no text layer
-has no readable DOI, PMID or title, and has to be attached by PMID.
+## Backup
 
-**Only articles in PubMed can go into the library.** The archive is keyed by
-PMID. A PDF of a book chapter, or of a journal that PubMed does not index,
-can be opened from the folder but not attached.
+- The `.json` backup does not contain the PDF files, the record of which PDF
+  belongs to which article, or the ticks on the highlights. Copy the PDF
+  library folder separately. See [Backup](/guide/backup).
+- Restoring the same backup twice duplicates its searches in the search
+  history.
 
-**One PDF per article.** A supplement or a second version replaces the first
-file.
+## The app
 
-**Highlights made elsewhere have to be saved in the PDF.** Programs that keep
-highlights in their own database, rather than as annotations in the file, are
-invisible here.
-
-**A highlight lies on one page.** A selection across a page break is
-highlighted on the page where it starts.
-
-**The study window needs the network for its PDF reader**, which is loaded from
-jsdelivr. Radiopaedia needs it anyway.
-
-**On Linux the study window needs GTK or Qt**, which pip does not install. The
-app says so instead of opening it.
-
-**The Radiopaedia article list is only as recent as your export.** Articles
-written after it can still be found through their search, inside the window.
-
-## The app itself
-
-**One person at a time.** It serves a page to your own browser on localhost.
-There is no login and no sharing; two people cannot screen the same archive.
-
-**No undo.** Deleting a list, a draft or an article is immediate. The backup in
-the sidebar is the undo.
-
-**Articles marked read are purged at startup**, and their PMIDs remembered so
-they do not come back in a later search. An article in a reading list is never
-purged.
+- The app is for one user. It serves a page to the browser on the same
+  computer. It has no login and no sharing, and two people cannot work on
+  the same archive.
+- There is no undo. Deleting a list or a draft asks for confirmation and
+  cannot be reversed afterwards. A backup made earlier is the only way to
+  get the data back.
+- Articles marked read are deleted from the archive each time the app
+  starts. Their PMIDs are kept, so that later searches can skip them. An
+  article in a reading list or with a PDF in the library is not deleted.
