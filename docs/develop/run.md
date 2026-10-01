@@ -8,43 +8,62 @@ pip install -e .
 radiowriter
 ```
 
-`-e` means editable: the command runs the code in the folder, so an edit shows
-up on the next reload without reinstalling.
+`-e` installs the package in editable mode. The command runs the code in the
+folder, so a change is used at the next reload without reinstalling.
 
-To work on a throwaway archive instead of your real one:
+## Using a test archive
+
+To run the app on a separate archive, set both variables:
 
 ```bash
-RADIOWRITER_HOME=/tmp/rw-dev radiowriter
+RADIOWRITER_HOME=/tmp/rw-dev RADIOPAEDIA_DB=/tmp/rw-dev/pubmed_database.db radiowriter
 ```
 
-## The house style
+`RADIOWRITER_HOME` sets the data folder. It is not enough on its own in a
+source checkout: if the project folder contains a `pubmed_database.db`, the
+app uses that file. `RADIOPAEDIA_DB` sets the database file and takes
+precedence. See [Where the data is stored](/internals/storage).
 
-- **Comments and docstrings in Italian, without accented letters** — `e'`,
-  `perche'`, `piu'`. **Interface text in English.**
-- Comments explain *why*, not *what*. If a line looks odd, the comment says
-  what goes wrong without it.
-- Modules live one level deep in `radiowriter/` and import each other with
+## Code conventions {#the-house-style}
+
+- Comments and docstrings are in Italian, written without accented letters
+  (`e'`, `perche'`, `piu'`). Interface text is in English.
+- Comments explain why the code is written as it is. For a line that looks
+  unusual, the comment says what goes wrong without it.
+- Modules are one level deep in `radiowriter/` and import each other with
   `from radiowriter import db`.
-- Migrations are additive: `PRAGMA table_info` plus `ALTER TABLE ADD COLUMN`,
-  driven by an `EXTRA_*_COLUMNS` dictionary in `db.py`. Never destructive.
-- Few dependencies, each with its reason written next to it in
-  `pyproject.toml` when the reason is not obvious.
-- Data transcribed from someone else lives in `radiowriter/data/` with the date
-  it was transcribed, and it says plainly what is theirs and what is ours.
+- Migrations only add. They use `PRAGMA table_info` and
+  `ALTER TABLE ADD COLUMN`, driven by the `EXTRA_*_COLUMNS` dictionaries in
+  `db.py`. No migration drops or rewrites data.
+- Dependencies are few. When the reason for one is not obvious, it is written
+  next to it in `pyproject.toml`.
+- Data transcribed from another source is in `radiowriter/data/`, with the
+  date of transcription and a statement of which parts come from the source
+  and which were changed here.
 
-Read a file through before writing in it. The voice is consistent and easy to
-break.
+Read a file from start to end before changing it, and write in the same
+style.
 
-## Two things about Streamlit worth knowing before you start
+## Writing documentation and interface text
 
-**State is discarded for widgets that are not drawn.** Hiding a control means
-losing its value, silently, back to the default. Verify before assuming
-otherwise — it costs a five-line test.
+The README, the pages in `docs/` and the English text of the interface
+follow the writing rules in `CLAUDE.md`, at the root of the repository. Check
+every label, default and file name against the code when you change a page.
 
-**A widget's key cannot be written after the widget exists.** Change a
-control's value from a callback (they run before that run's widgets are
-created), or put a counter in the key so the next one is a new widget that
-reads its `value=` again. Both patterns are in the code, commented.
+## Two Streamlit behaviours to know
+
+Streamlit discards the state of a widget that is not drawn. A control that is
+hidden goes back to its default value. If you are not sure whether this
+applies to a change, write a short test with `AppTest`.
+
+Streamlit does not allow writing to a widget's key after the widget has been
+created. To change the value of a control from code, use one of two methods:
+
+- do it in a callback, which runs before the widgets of that run are created;
+- put a counter in the key, so that the next run creates a new widget that
+  reads its `value=` again.
+
+Both are used in the code, with a comment at each place.
 
 ## The documentation site
 
@@ -54,30 +73,29 @@ npm run docs:dev        # http://localhost:5173/Radiowriter/
 npm run docs:build      # writes docs/.vitepress/dist
 ```
 
-CI builds it on every push that touches `docs/` and publishes it to
-[gmadevs.github.io/Radiowriter](https://gmadevs.github.io/Radiowriter/).
+CI builds the site on every push to `main` that changes `docs/` and publishes
+it to [gmadevs.github.io/Radiowriter](https://gmadevs.github.io/Radiowriter/).
 
-The deploy job is skipped while the repository is private, because Pages on a
-private repository needs a paid plan. The site is still built in that case, so
-a broken link or a bad config is caught either way.
+While the repository is private, the deploy job is skipped, because GitHub
+Pages on a private repository needs a paid plan. The site is still built, so
+a dead link or a configuration error fails the build.
 
 ## Screenshots
 
-They are taken by a script, not by hand, because a hand-taken screenshot ages
-in silence: a button gets renamed, the picture does not, and the page that was
-meant to explain ends up lying.
+The screenshots in the documentation are taken by a script, so that they can
+be taken again when the interface changes:
 
 ```bash
 pip install playwright && playwright install chromium
 python3 scripts/shots.py
 ```
 
-It builds a throwaway archive in `/tmp` with a made-up email, runs a real
-PubMed search in it, drives the app and writes `docs/public/shots/*.png`.
+The script creates a temporary archive with a made-up email address, runs a
+real PubMed search in it, drives the app, and writes
+`docs/public/shots/*.png`. It needs the network.
 
-**It never touches your archive.** The results are real papers; the identity is
-not. Without that separation the screenshots would carry the email address and
-the library ID of whoever took them.
+The script does not read or change your archive. The screenshots therefore
+do not contain your email address or your library ID. The articles in them
+are real PubMed records.
 
-If a control it looks for is gone, the script fails instead of photographing
-the wrong thing.
+If the script cannot find a control it looks for, it stops with an error.
