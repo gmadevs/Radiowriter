@@ -1,8 +1,8 @@
 # Build a query in blocks
 
-A serious search is not a string. It is two or three **concepts** — the disease,
-the modality, the kind of study — each written in every way the literature
-writes it, and joined with AND.
+The block builder composes a query from concepts, for example the disease, the
+modality and the finding. Each concept is one block. Inside a block you write
+the concept in each of the ways papers write it.
 
 ```
 Block 1   "Joubert syndrome"[tiab] OR "molar tooth sign"[tiab]
@@ -11,102 +11,117 @@ Block 2   MRI[tiab] OR "magnetic resonance"[tiab]
 ("Joubert syndrome"[tiab] OR "molar tooth sign"[tiab]) AND (MRI[tiab] OR …)
 ```
 
-Inside a block, **OR**: any one of the wordings is enough. Between blocks,
-**AND**: all of them must hold.
+The lines inside a block are joined by OR, so a paper matching any one of them
+is found. The blocks are joined by AND, so a paper has to match every block.
+
+The kind of publication is not a block. Set it in the
+[filters](/guide/search#the-filters) below the builder.
 
 ![Two concept blocks](/shots/02-blocks.png)
 
 ## The parts of a block
 
-**＋ Another wording** adds a line. That is what it is for: *myocardial
-infarction*, *MI*, *heart attack* are one concept written three ways, and a
-paper that uses any of them should be found.
+**＋ Another wording** adds a line for another way of writing the same
+concept. For example, *myocardial infarction*, *MI* and *heart attack* are
+three lines of one block.
 
-**The field** next to each line — Title/Abstract, MeSH terms, Publication type,
-Author, Journal and the rest. Multi-word terms get their quotation marks
-automatically. Anything you have already tagged yourself is left alone: paste
-`"Brain Abscess"[Mesh]` and it stays exactly that.
+The field list next to each line sets where PubMed looks for the term:
+Title/Abstract, Title, Text word, MeSH terms, Publication type, Author,
+Journal and others. Terms of more than one word are put in quotation marks
+automatically. A term that already has a field tag is left unchanged. For
+example, `"Brain Abscess"[Mesh]` is sent as typed.
 
-**The operator** between blocks is AND by default; OR and NOT are there too. A
-NOT block subtracts — a good way to drop case reports.
+The list next to **＋ Another wording** sets how the lines inside the block
+are joined. It is OR by default, and can be changed to AND or NOT.
 
-PubMed reads operators left to right and does not give AND precedence over OR.
-Each block gets its own brackets for that reason, so what the preview shows is
-what PubMed does.
+The list at the top left of each block after the first sets how the block is
+joined to the previous ones. It is AND by default, and can be changed to OR
+or NOT. A NOT block removes what it matches, for example case reports.
+
+**＋ Add a block** adds a block. **↺ Start over** clears the builder.
+
+PubMed reads operators from left to right and does not give AND precedence
+over OR. Each block is therefore put in its own brackets. The query shown
+under the builder is the one PubMed receives.
 
 ## Terms from the Radiopaedia headings
 
-The headings of an article are already the outline of the search. `Epidemiology`
-means looking for prevalence and incidence; `Treatment and prognosis` means
-therapy and survival; `MRI` means magnetic resonance.
+The app can turn the section headings of an article into search terms. For
+example, `Epidemiology` gives terms for prevalence and incidence,
+`Treatment and prognosis` gives terms for therapy and survival, and `MRI`
+gives terms for magnetic resonance.
 
-Open **⌗ Terms from the Radiopaedia headings**, choose where the headings come
-from — one of your drafts, or the structure Radiopaedia recommends for a kind
-of article — and each heading becomes a piece of query:
+1. Open **⌗ Terms from the Radiopaedia headings**.
+2. Choose where the headings come from: **A draft** uses the headings of one
+   of your drafts, **An article type** uses the structure Radiopaedia
+   recommends for that type of article.
+3. Under **Terms**, choose what to build from each heading (see the table
+   below).
+4. Choose the headings.
+5. Under **Where do they go**, choose **A new block, joined with AND** or an
+   existing block, then click the **Add** button.
 
-| | |
+| Terms | What it builds |
 |---|---|
-| **MeSH only** | Controlled vocabulary: precise, but only reaches what MEDLINE has already indexed. A paper from three months ago is not in it yet. |
-| **Keywords only** | Words in the title and abstract: catches the not-yet-indexed and the way authors actually write, at the price of some noise. |
-| **MeSH + keywords** | Both. This is how a search-strategy block is normally built. |
+| **MeSH only** | Controlled vocabulary. It is precise, but finds only records MEDLINE has already indexed, which excludes most papers from the last few months. |
+| **Keywords only** | Words in the title and abstract. It also finds records that are not indexed yet, and returns more irrelevant results. |
+| **MeSH + keywords** | Both, joined by OR. This is the default. |
 
-127 headings have a strategy. The ones that do not — *See also*, *Practical
-points* — are sections of an article rather than angles to search, and are not
-offered.
+127 headings have a strategy. Headings such as *See also* and *Practical
+points* have none, because they are sections of an article and not search
+topics. They are not offered.
 
-They all go into **one** block, joined by OR. Putting them in separate blocks
-would AND them together and ask PubMed for a paper that is about epidemiology
-*and* MRI *and* prognosis at once, which is almost always nothing.
+The headings you choose are added to the same block, one per line, joined by
+OR. If you put them in separate blocks they would be joined by AND, and the
+query would ask for papers that cover epidemiology, MRI and prognosis
+together. That usually returns very few results.
 
-::: tip Every MeSH term is verified
-The controlled-vocabulary terms were checked against the live PubMed API — a
-descriptor that does not exist returns zero results forever without saying why.
-`check_mesh_live.py` re-runs that check when MeSH changes, once a year.
+::: tip The MeSH terms are checked against PubMed
+A MeSH descriptor that does not exist returns no results and no error.
+`check_mesh_live.py` asks the PubMed API whether every descriptor used here
+exists. Run it when MeSH is updated, once a year.
 :::
 
 ## Imaging modalities
 
-The modality is one of the three concepts a search is made of, and it is the one
-most often got wrong, because every technique has three or four names and nobody
-uses all of them. Searching `ultrasound` loses the papers that say
-*sonography*; searching `MRI` loses the ones that only write *magnetic
-resonance*; and neither finds what is indexed under the MeSH descriptor and
-never named in the abstract.
+Most imaging techniques have several names. A search for `ultrasound` misses
+papers that write *sonography*, and a search for `MRI` misses papers that
+write only *magnetic resonance*. Neither finds a paper that is indexed under
+the MeSH descriptor and does not name the technique in the abstract.
 
-Open **🩻 Imaging modalities** and pick from the list. 43 modalities in nine
-families — plain radiography and fluoroscopy, CT, MRI, ultrasound, nuclear
-medicine, vascular and interventional, contrast studies, breast imaging, and the
-across-modality ones. Each is written out in every form the literature uses:
+Open **🩻 Imaging modalities** and choose from the list. It has 43 modalities
+in 9 groups: plain radiography and fluoroscopy, CT, MRI, ultrasound, nuclear
+medicine, vascular and interventional, contrast studies, breast imaging, and
+across modalities. Each modality adds its MeSH descriptors, its full name, its
+abbreviations and its British and American spellings:
 
-| Pick | You get |
+| Modality | Terms added |
 |---|---|
-| **Doppler ultrasound** | three MeSH descriptors, plus `doppler`, `duplex ultraso*`, `power doppler`, both spellings of *colour*, and `resistive index` |
-| **Transoesophageal echocardiography** | the descriptor, plus `transoesophageal`, `transesophageal`, `TOE` and `TEE` |
-| **Cholangiography (ERCP, MRCP, PTC)** | three descriptors, plus `ERCP`, `MRCP`, `cholangiograph*` and `percutaneous transhepatic` |
+| **Doppler ultrasound** | 3 MeSH descriptors, `doppler`, `colour doppler`, `color doppler`, `duplex ultraso*`, `power doppler`, `spectral waveform*` and `resistive index` |
+| **Transoesophageal echocardiography** | 1 MeSH descriptor, `transoesophageal`, `transesophageal`, `TOE` and `TEE` |
+| **Cholangiography (ERCP, MRCP, PTC)** | 3 MeSH descriptors, `cholangiograph*`, `ERCP`, `MRCP`, `percutaneous transhepatic` and `cholangiopancreatograph*` |
 
-The same three modes apply as for the headings, and they go into one block
-joined by OR: picking CT and ultrasound means either one, not a paper that used
-both. If you do want both, add two blocks — which is an explicit thing to do
-rather than a surprise.
+The **Terms** and **Where do they go** controls work as for the headings. The
+modalities you choose are added to one block, joined by OR. Choosing CT and
+ultrasound therefore finds papers that used either. To find only papers that
+used both, add them to two separate blocks.
 
-::: warning Short abbreviations are limited to the title
-`US`, `MR` and `CT` on their own are ambiguous in an abstract: `US` matches every
-paper that writes "US population", `MR` every "Mr Smith". Where the abbreviation
-is too short to be safe it is restricted to the title with `[ti]`, and the
-coverage is made up by the descriptor and the spelled-out forms.
+::: warning Short abbreviations are searched only in the title
+`US`, `MR` and `CT` are ambiguous in an abstract. `US` matches "US
+population" and `MR` matches "Mr Smith". These abbreviations are searched
+with `[ti]`, in the title only. The descriptor and the full names find the
+papers that the abbreviation misses.
 :::
 
-::: danger Why there are no modality subheadings
-There is no `ultrasonography[sh]` here, and that is deliberate. MeSH merged
-`radiography`, `ultrasonography` and `radionuclide imaging` into a single
-subheading, `diagnostic imaging`, and PubMed maps the old names onto it — asked
-one at a time they all return the same 1,665,656 records, and the difference
-between any two of them is zero in both directions.
+::: danger Modality subheadings are not used
+The app does not use `ultrasonography[sh]` or the other modality subheadings.
+MeSH merged `radiography`, `ultrasonography` and `radionuclide imaging` into
+one subheading, `diagnostic imaging`, and PubMed maps the old names to it.
+Searched one at a time, they all return the same 1,665,656 records.
 
-So `ultrasonography[sh]` does not mean ultrasound. It means *this paper involves
-imaging*, and on its own it drags in 376,616 CT papers. It looks like it
-narrows and it widens instead, which is the worst way for a query to be wrong.
-The descriptors do separate properly, so only those are used.
-`"diagnostic imaging"[sh]` is still there, but only under *Any imaging (broad)*,
-where it says what it means.
+`ultrasonography[sh]` therefore matches any paper indexed with imaging of any
+kind, including 376,616 CT papers. It makes a query broader, although its
+name suggests a narrower one. The MeSH descriptors do distinguish the
+modalities, so the app uses only those. `"diagnostic imaging"[sh]` is used
+only by *Any imaging (broad)*.
 :::
