@@ -1,43 +1,50 @@
 # Tests
 
-Plain scripts. They print `OK` or `NO`, count at the end, and exit non-zero if
-anything failed. No pytest, no fixtures, no configuration.
+The tests are plain Python scripts, without pytest, fixtures or
+configuration. Each script prints one line per check, starting with `OK` or
+`NO`, then the number of checks and of failures. It exits with a non-zero
+status if any check failed. The descriptions of the checks are in Italian.
 
 ```bash
-python3 check_rules.py       # 147 — the Radiopaedia linter rules
-python3 check_structure.py   #  24 — the article structures
-python3 check_search.py      # 125 — query building, ISSG, strategies, lists
-python3 check_journals.py    #  85 — SCImago, matching, Unpaywall, backups
-python3 check_library.py     #  76 — PDF library, highlights, the Radiopaedia list
-python3 check_app.py         # 123 — the interface, driven without a browser
+python3 check_rules.py       # 147 checks: the Radiopaedia linter rules
+python3 check_structure.py   #  24 checks: the article structures
+python3 check_search.py      # 125 checks: query building, ISSG, strategies, lists
+python3 check_journals.py    #  85 checks: SCImago, matching, Unpaywall, backups
+python3 check_library.py     #  76 checks: PDF library, highlights, the Radiopaedia list
+python3 check_app.py         # 123 checks: the interface, driven without a browser
 ```
 
-580 checks. None of them needs the network, and none touches a real archive:
-each script points `RADIOPAEDIA_DB` at a throwaway file before importing `db`.
-`check_library.py` and `check_app.py` also point `RADIOWRITER_HOME` at a
-throwaway folder, because the PDF library is created there.
+That is 580 checks. None of them needs the network, and none reads or changes
+a real archive. The four scripts that use the database set `RADIOPAEDIA_DB`
+to a temporary file before they import `db`. `check_library.py` and
+`check_app.py` also set `RADIOWRITER_HOME` to a temporary folder, because the
+PDF library is created there.
 
-`check_library.py` builds its PDFs with PyMuPDF, highlights included, and
-tests the study window's `ReaderApi` directly. It does not open any windows.
-`web/viewer.html` has no automated test; check it by hand when it changes.
+`check_library.py` creates its PDFs with PyMuPDF, with highlights, and calls
+the reader's `ReaderApi` directly. It does not open any window.
+`web/viewer.html` has no automated test. Test it by hand when you change it.
 
-## The one that needs the network
+## The test that needs the network
 
 ```bash
 python3 check_mesh_live.py
 ```
 
-It asks PubMed whether every MeSH descriptor and subheading in `strategies.py`
-still exists. Run it when you change the strategies, and once a year when MeSH
-is updated in January. It needs the NCBI email to be set in the app.
+It asks PubMed whether every MeSH descriptor and subheading used in
+`strategies.py` and `modalities.py` exists. Run it when you change either
+file, and each January, when MeSH is updated. It takes about a minute without
+an NCBI API key and about 20 seconds with one.
+
+It reads the NCBI email address and API key from the settings of your
+archive, so the email address must be set in the app.
 
 ## check_app.py
 
-The other scripts test the engines. This one tests the wire between them and
-the interface, which is where the mistakes live that an engine cannot make.
+The other scripts test the modules below the interface. `check_app.py` tests
+the interface itself, including how it calls those modules.
 
-`streamlit.testing.v1.AppTest` runs the real app in memory and lets you press
-buttons by key, so what is exercised is exactly the code that ships:
+`streamlit.testing.v1.AppTest` runs the app in memory and operates its
+widgets by key, so the test runs the same `app.py` that is installed:
 
 ```python
 at = AppTest.from_file(APP, default_timeout=60)
@@ -47,15 +54,21 @@ is_("changing a filter by hand moves the control to Custom",
     next(b for b in at.get("button_group") if b.key == "sf_mode").value, "custom")
 ```
 
-Two real bugs were caught this way and could not have been caught otherwise: a
-`sqlite3.Row` passed as a widget option, which is unpicklable and took the whole
-page down, and a write to `session_state` after the widget existed.
+Two kinds of error are found only by this script:
 
-Note that `st.caption` output is in `at.caption`, not `at.markdown`.
+- a value that Streamlit cannot copy passed as a widget option, for example a
+  `sqlite3.Row`, which makes the whole page fail;
+- a write to `session_state` for a widget that already exists.
+
+The output of `st.caption` is in `at.caption`, and is not included in
+`at.markdown`.
 
 ## What CI runs
 
-`.github/workflows/test.yml`, on macOS, Linux and Windows against Python 3.11
-and 3.13. It runs the six scripts, then starts the installed command and asks
-`/_stcore/health` — because nothing else exercises the entry point, and the
-entry point is what breaks only once it is installed.
+`.github/workflows/test.yml` runs on every push to `main` and on every pull
+request, on macOS, Linux and Windows, with Python 3.11 and 3.13.
+
+It runs the six scripts. It then runs `radiowriter --version` and
+`radiowriter --where`, starts the installed command, and requests
+`/_stcore/health` until the server answers. This last step is the only test
+of the `radiowriter` entry point as it is installed.
