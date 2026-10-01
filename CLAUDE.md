@@ -33,7 +33,7 @@ node ~/.claude/skills/plain-docs/scripts/prose.mjs README.md
 One page per commit, in this order.
 
 - [x] README.md
-- [ ] docs/index.md
+- [x] docs/index.md
 - [ ] docs/guide/install.md
 - [ ] docs/guide/search.md
 - [ ] docs/guide/blocks.md

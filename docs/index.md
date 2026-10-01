@@ -3,8 +3,8 @@ layout: home
 
 hero:
   name: Radiowriter
-  text: The literature behind a Radiopaedia article
-  tagline: Found, screened, cited — on your own computer.
+  text: Literature search and writing for Radiopaedia articles
+  tagline: Search PubMed, screen the results and write the article, on your own computer.
   actions:
     - theme: brand
       text: Install it
@@ -14,17 +14,17 @@ hero:
       link: https://github.com/gmadevs/Radiowriter
 
 features:
-  - title: Search the way a search should be built
-    details: PubMed syntax on one line, or one block per concept with every wording of it inside. The ISSG published filters for guidelines and evidence syntheses are built in, and the section headings of your draft can be turned into search strategies.
+  - title: Search PubMed
+    details: Type PubMed syntax on one line, or build the query in blocks, one per concept, with the synonyms joined by OR. The ISSG published filters for guidelines and evidence syntheses are included, and the section headings of your draft can be turned into search strategies.
     link: /guide/blocks
-  - title: Sift two hundred abstracts without losing the thread
-    details: Filter what came back by publication type, journal quartile, year, citations and open access — with the counts next to each. Keep what matters in reading lists that survive everything else.
+  - title: Screen the results
+    details: Filter the results by status, article type, journal quartile, year, citations and open access. The status, type and quartile options show how many results each one matches. Save articles in reading lists, which are kept when read articles are deleted.
     link: /guide/screen
-  - title: Know where it was published
-    details: Journal quartile and SJR from SCImago, matched to your articles by ISSN. Green for Q1, red for Q4, and nothing at all when the journal is not in the file — never a guess.
+  - title: Journal quartiles
+    details: Journal quartile and SJR come from SCImago and are matched to your articles by ISSN. Q1 is shown in green and Q4 in red. A journal that is not in the SCImago file shows no quartile.
     link: /guide/journals
-  - title: Write against Radiopaedia's own structure
-    details: The twenty-three section structures they recommend, their linter rules, citations resolved for you, and rich-text output their editor accepts.
+  - title: Write the article
+    details: The editor includes the 23 section structures Radiopaedia recommends and their linter rules. It numbers the citations at export and produces rich text that Radiopaedia's editor accepts.
     link: /guide/write
 ---
 
