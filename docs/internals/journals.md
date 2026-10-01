@@ -1,68 +1,80 @@
 # Matching journals to SCImago
 
-Two catalogues have to be joined: PubMed's records and SCImago's ranking. They
-name journals differently — *Medicine* against *Medicine (United States)*,
-*European journal of radiology* against *European Journal of Radiology*.
+The app joins PubMed's records to SCImago's journal table. The two sources
+write journal names differently, for example *Medicine* and *Medicine (United
+States)*, or *European journal of radiology* and *European Journal of
+Radiology*.
 
-## Which file, and why that one
+## Which SCImago file is used {#which-file-and-why-that-one}
 
-There are two candidates and the rule is one line: **a `scimagojr*.csv` the user
-put there wins; otherwise the copy inside the package.** Even when the user's
-file is from an older year — a file someone put there on purpose is a decision,
-and an update should not overrule it silently. `paths.journal_csv_origin()`
-returns the reason along with the path, the same way `db_origin()` does, so the
-sidebar and `radiowriter --where` cannot end up telling different stories.
+A `scimagojr*.csv` file that the user downloaded is used if there is one.
+Otherwise the copy inside the package is used.
 
-The bundled copy is SCImago's export cut down by `scripts/trim_scimago.py`: the
-ten columns `journals.read()` reads, the rows whose `Type` is `journal`, gzipped.
-11.2 MB becomes 1.37 MB, and all 30,412 journals survive — the trim is lossless
-for everything the app looks at, which `check_journals.py` verifies by reading
-both and comparing. The column names are left exactly as SCImago writes them so
-that one reader handles both files; two formats would mean two code paths and
-nobody would ever exercise the second.
+The user's file is used even when its data is older than the included copy,
+so that an upgrade of the app does not replace a file the user chose.
+`paths.journal_csv_origin()` returns the path together with the rule that
+chose it, as `db_origin()` does for the database. The sidebar and
+`radiowriter --where` both take their text from it.
 
-## By ISSN
+The included copy is SCImago's export reduced by `scripts/trim_scimago.py`:
 
-The ISSN is the same number in both. On a real archive of 2,455 articles:
+- it keeps the 10 columns that `journals.read()` reads;
+- it keeps the rows whose `Type` is `journal`, which are 30,412;
+- it is compressed with gzip, from 11.2 MB to 1.37 MB.
 
-| | |
+The column names, the separator and the decimal comma are unchanged, so
+`journals.read()` reads the included copy and a downloaded file with the same
+code. `check_journals.py` checks that the included copy can be read, that it
+has only rows of type `journal`, and that its quartiles are Q1 to Q4.
+
+## Matching by ISSN {#by-issn}
+
+The ISSN is the same in PubMed and in SCImago. In an archive of 2,455
+articles the result was:
+
+| Result | Articles |
 |---|---|
 | matched by ISSN | 2,207 (90%) |
 | matched by exact normalised title | 4 |
-| **not matched** | **244 (10%)** |
+| not matched | 244 (10%) |
 
-The unmatched ten percent are not a failure of the matching. They are journals
-SCImago does not list at all: Cureus alone is 111 of them, plus medRxiv,
-*Experimental and Therapeutic Medicine*, and a long tail of case-report
-journals. They get no quartile, which is the honest answer.
+The unmatched articles are in journals that SCImago does not list. Cureus
+accounts for 111 of the 244. Others are medRxiv, *Experimental and
+Therapeutic Medicine* and many case-report journals. These articles get no
+quartile.
 
-## Why not fuzzy titles
+For the title match, both titles are normalised: lower case, `&` replaced by
+"and", and every character that is not a letter or a digit replaced by a
+space.
 
-A suffix match on the title was tried. It raised the hit rate by about one
-percent and matched *Radiology case reports* to *Journal of Radiology Case
-Reports* — a different journal, with a different quartile. A wrong quartile is
-worse than a missing one, because a missing one is visibly missing.
+## Why approximate title matching is not used {#why-not-fuzzy-titles}
 
-## The historical archive
+A match on the end of the title was tested. It raised the match rate by about
+1% and matched *Radiology case reports* to *Journal of Radiology Case
+Reports*, which is a different journal with a different quartile. An article
+with no quartile shows no badge, so the user can see that the value is
+missing. A wrong quartile looks the same as a correct one.
 
-Articles saved before ISSNs were stored have no ISSN column. They do have the
-raw MEDLINE block, which the app has always kept in full, and the block has
-`IS` lines. The backfill reads them from there and fills the column in on the
-way past.
+## Articles saved by older versions {#the-historical-archive}
 
-The same records have the abbreviation glued to the full title in their
-`journal` field — `Eur J Radiol European journal of radiology` — because an
-older version of the app wrote it that way. The raw block keeps `TA` and `JT`
-apart, so the clean title is recovered from there too. The original value is
-not overwritten.
+Articles saved before the app stored ISSNs have an empty ISSN column. The app
+stores the full MEDLINE record of every article, and the record has `IS`
+lines. `match_journals` reads the ISSN from there and fills in the column.
 
-## Verifying the strategies
+In the same articles, the `journal` field holds the abbreviation followed by
+the full title, for example `Eur J Radiol European journal of radiology`,
+because an older version of the app wrote it that way. The MEDLINE record has
+the two in separate fields, `TA` and `JT`, and the full title is read from
+`JT`. It is stored in the `journal_title` column. The `journal` field is not
+changed.
 
-Every MeSH descriptor and subheading used by `strategies.py` was checked
-against the live PubMed API. A descriptor that does not exist does not return
-zero results — PubMed reports it in `errorlist`, and the app used to treat that
-as fatal. One typo would have made a whole search fail with a message about
-syntax.
+## Checking the MeSH terms {#verifying-the-strategies}
 
-`check_mesh_live.py` re-runs the check. It is the only test that needs the
-network, which is why it is not in the ordinary suite.
+A MeSH descriptor that does not exist matches nothing. PubMed reports it in
+`errorlist`, and no offline test can detect it. A misspelt descriptor in a
+strategy would therefore pass every other test and never find anything.
+
+`check_mesh_live.py` asks the PubMed API about every controlled-vocabulary
+term used by `strategies.py` and `modalities.py`. It is the only test that
+needs the network, so it is not run with the others. Run it when you change
+the strategies or the modalities, and each January, when MeSH is updated.

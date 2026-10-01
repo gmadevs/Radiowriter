@@ -77,9 +77,9 @@ query would ask for papers that cover epidemiology, MRI and prognosis
 together. That usually returns very few results.
 
 ::: tip The MeSH terms are checked against PubMed
-A MeSH descriptor that does not exist returns no results and no error.
-`check_mesh_live.py` asks the PubMed API whether every descriptor used here
-exists. Run it when MeSH is updated, once a year.
+A MeSH descriptor that does not exist matches nothing. `check_mesh_live.py`
+asks the PubMed API whether every descriptor used for the headings and the
+imaging modalities exists. Run it when MeSH is updated, once a year.
 :::
 
 ## Imaging modalities
