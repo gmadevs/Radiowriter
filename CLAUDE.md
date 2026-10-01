@@ -49,5 +49,5 @@ One page per commit, in this order.
 - [x] docs/internals/journals.md
 - [x] docs/develop/run.md
 - [x] docs/develop/tests.md
-- [ ] docs/develop/release.md
+- [x] docs/develop/release.md
 - [ ] Interface strings in radiowriter/app.py and radiowriter/issg.py

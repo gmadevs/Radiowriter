@@ -1,31 +1,35 @@
 # Releasing to PyPI
 
-PyPI is the index `pip` and `uv` install from. `radiowriter` has been there
-since **0.1.0** (3 September 2026), which is what makes
-`uv tool install radiowriter` work. This page is how the next one gets there.
+PyPI is the index that `pip` and `uv` install from. `radiowriter` has been on
+PyPI since version 0.1.0 (3 September 2026). This page describes how to
+publish a new version.
 
-## What has to exist first
+A version is published by pushing a git tag that starts with `v`. Nothing
+else publishes: a push to `main` does not, and the workflow cannot be started
+by hand.
 
-1. **A PyPI account** — [pypi.org/account/register](https://pypi.org/account/register/),
-   with two-factor authentication, which is now mandatory for publishing.
-2. **The name reserved.** `radiowriter` was free at the time of writing; the
-   first upload claims it. Nobody else can take it afterwards.
-3. **A tagged version.** `version` in `pyproject.toml` and the git tag should
-   agree, or the release page will disagree with what `pip` installed.
+## Requirements
 
-## The safe way: Trusted Publishing
+1. A PyPI account, from
+   [pypi.org/account/register](https://pypi.org/account/register/), with
+   two-factor authentication. PyPI requires it for publishing.
+2. A TestPyPI account, if you publish release candidates. TestPyPI is a
+   separate site with separate accounts.
+3. Trusted Publishing set up on both sites, as described below.
+4. The `version` in `pyproject.toml` equal to the tag. The workflow stops if
+   they differ.
 
-You can upload with an API token, but then the token has to live somewhere —
-your laptop, or a GitHub secret — and a token that can publish is a token that
-can publish something that is not yours.
+## Trusted Publishing {#the-safe-way-trusted-publishing}
 
-**Trusted Publishing** removes the token. PyPI is told "the workflow
-`release.yml` in `gmadevs/Radiowriter` may publish `radiowriter`", and GitHub
-signs each run so PyPI can check it. Nothing is stored anywhere.
+With an API token, the token has to be stored on your computer or as a GitHub
+secret, and anyone who obtains it can publish under the project's name.
 
-Set it up once, before the first release. **Twice, in fact** — PyPI and
-TestPyPI are separate sites with separate accounts, and the only difference in
-the form is the environment name:
+Trusted Publishing does not use a stored token. On PyPI you declare that the
+workflow `release.yml` in `gmadevs/Radiowriter` may publish `radiowriter`.
+GitHub signs each run of the workflow, and PyPI verifies the signature.
+
+Set it up once on each site. The only difference between the two forms is the
+environment name:
 
 | | PyPI | TestPyPI |
 |---|---|---|
@@ -36,105 +40,109 @@ the form is the environment name:
 | Workflow | `release.yml` | `release.yml` |
 | Environment | `pypi` | `testpypi` |
 
-On GitHub both environments have to exist too: **Settings → Environments → New
-environment**, named `pypi` and `testpypi`.
+The two environments also have to exist on GitHub. Create them under
+**Settings → Environments → New environment**, named `pypi` and `testpypi`.
 
-"Pending publisher" is the form to use before the project exists — the first
-successful run creates it.
+For a project that does not exist on the site yet, use the "pending
+publisher" form. The first successful run creates the project.
 
-::: tip When it says `invalid-publisher`
-The workflow fails with *"valid token, but no corresponding publisher"* and
-then prints the claims it sent — `repository`, `workflow_ref`, `environment`.
-Those are what the form has to match. Most of the time the mismatch is the
-environment, or the publisher having been added on the other one of the two
-sites.
+::: tip If the workflow fails with `invalid-publisher`
+The message is *"valid token, but no corresponding publisher"*, followed by
+the claims the workflow sent: `repository`, `workflow_ref` and `environment`.
+The form on the site has to match them. The usual causes are a different
+environment name, or a publisher added on PyPI when the tag went to TestPyPI
+(or the reverse).
 :::
 
-## Trying it on TestPyPI first
+## Where a tag is published {#trying-it-on-testpypi-first}
 
-[test.pypi.org](https://test.pypi.org) is a full copy of PyPI that nobody
-installs from by accident. It is a **separate site with a separate account**:
-registering on PyPI does not register you there, and the pending publisher has
-to be added again, with `testpypi` as the environment.
+The form of the tag decides the destination:
 
-**Where a tag goes is decided by its shape**, so trying something out is not a
-separate procedure to remember:
-
-| Tag | Goes to |
+| Tag | Published to |
 |---|---|
-| `v0.1.0rc1`, `v0.2.0a3`, `v1.0.0b2` | TestPyPI |
-| `v0.1.0`, `v1.2.3` | PyPI |
+| a pre-release, such as `v0.1.0rc1`, `v0.2.0a3`, `v1.0.0b2` | TestPyPI |
+| a final version, such as `v0.1.0`, `v1.2.3` | PyPI |
 
-The version in `pyproject.toml` has to say the same thing, and the workflow
-stops if it does not — a release page that contradicts what `pip` installed is
-a thing nobody notices until it matters. The comparison goes through
-`packaging` rather than string equality, because PEP 440 normalises:
-`0.1.0-rc1` and `0.1.0rc1` are the same version written two ways.
+[test.pypi.org](https://test.pypi.org) is a separate copy of PyPI for
+testing. Publish a release candidate there before a final version.
 
-Push a release candidate, then check the result is installable:
+The workflow compares the tag with the version in `pyproject.toml` and stops
+if they differ. Otherwise the GitHub release page and the installed package
+would show different versions. The comparison uses `packaging`, because PEP
+440 normalises versions: `0.1.0-rc1` and `0.1.0rc1` are the same version.
+
+After pushing a release candidate, check that it installs:
 
 ```bash
 uv tool install --index-url https://test.pypi.org/simple/ \
                 --extra-index-url https://pypi.org/simple/ radiowriter
 ```
 
-The two index URLs are needed because TestPyPI does not carry Streamlit or
-pandas: the package comes from the test index, its dependencies from the real
-one.
+Both index URLs are needed. TestPyPI does not have Streamlit or pandas, so
+the package is installed from TestPyPI and its dependencies from PyPI.
 
 ## Making a release
 
-```bash
-# 1. the version, in one place
-$EDITOR pyproject.toml          # version = "0.1.1"
+1. Set the version in `pyproject.toml`, for example `version = "0.1.4"`.
 
-# 2. the tests, all of them
-python3 check_rules.py && python3 check_structure.py && \
-python3 check_search.py && python3 check_journals.py && python3 check_app.py
+2. Run the tests:
 
-# 3. tag it and push
-git commit -am "Version 0.1.1"
-git tag v0.1.1
-git push && git push --tags
-```
+   ```bash
+   python3 check_rules.py && python3 check_structure.py && \
+   python3 check_search.py && python3 check_journals.py && \
+   python3 check_library.py && python3 check_app.py
+   ```
 
-The tag triggers `release.yml`, which builds the wheel and the sdist, uploads
-them to PyPI and opens a GitHub release.
+3. Commit, tag and push:
 
-A few minutes later:
+   ```bash
+   git commit -am "Version 0.1.4"
+   git tag v0.1.4
+   git push && git push --tags
+   ```
+
+The tag starts `release.yml`. The workflow:
+
+1. checks that the tag and the version agree;
+2. runs the tests (all the scripts above except `check_library.py`);
+3. builds the wheel and the sdist and runs `twine check`;
+4. uploads them to PyPI, or to TestPyPI for a pre-release;
+5. creates a GitHub release with the files, marked as a pre-release when the
+   tag is one.
+
+A few minutes later the version can be installed:
 
 ```bash
 uv tool install radiowriter          # or: uv tool upgrade radiowriter
 ```
 
-## Checking a build before it goes out
+## Checking a build locally {#checking-a-build-before-it-goes-out}
 
 ```bash
 pip install build twine
 python -m build                      # writes dist/
-twine check dist/*                   # README renders on the project page?
-pip install dist/radiowriter-*.whl   # into a throwaway venv
+twine check dist/*                   # checks that PyPI can render the README
+pip install dist/radiowriter-*.whl   # in a temporary venv
 radiowriter --version
 ```
 
-`twine check` catches the commonest embarrassment: a README that PyPI refuses
-to render, leaving the project page blank.
+If PyPI cannot render the README, the project page is empty. `twine check`
+reports this before the upload.
 
-## A version cannot be replaced
+## A published version cannot be replaced {#a-version-cannot-be-replaced}
 
-Once `0.1.0` is uploaded it is that file forever. A version can be *yanked* —
-hidden from new installs while staying available to anything that pinned it —
-but never overwritten. Which is why TestPyPI exists, and why release candidates
-are worth the extra minute.
+A file uploaded as version `0.1.0` cannot be changed or uploaded again. A
+version can be yanked: it is then hidden from new installs and stays
+available to projects that pinned it. It cannot be overwritten. For this
+reason, publish a release candidate to TestPyPI before each final version.
 
-## Installing from git instead
+## Installing from git {#installing-from-git-instead}
 
-Still perfectly good, and it needs no index at all:
+The package can also be installed from the repository, without an index:
 
 ```bash
 uv tool install git+https://github.com/gmadevs/Radiowriter
 ```
 
-The difference is what you get: the index gives you the last released version,
-git gives you whatever is on `main` at that moment — which may be ahead of any
-release, and may be mid-change.
+PyPI gives the last released version. The repository gives the current state
+of `main`, which can include unreleased and unfinished changes.
