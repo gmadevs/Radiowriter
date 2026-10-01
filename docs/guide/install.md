@@ -1,32 +1,31 @@
 # Install and first run
 
-Radiowriter is a Python program. It starts a small server on your own computer
-and serves a page to your own browser — nothing is hosted anywhere, and no page
-of yours leaves the machine. The server listens only on this computer: another
-device on the same network cannot open it.
+Radiowriter is a Python program. It starts a server on your own computer and
+serves a page to your browser. The server accepts connections only from the
+same computer, so another device on your network cannot open it.
 
 ## Install
 
-One command, the same on macOS, Linux and Windows:
+The command is the same on macOS, Linux and Windows:
 
 ```bash
 uv tool install radiowriter
 ```
 
-::: tip Or the very latest
-`uv tool install git+https://github.com/gmadevs/Radiowriter` installs from the
-repository instead of from the index: whatever is on `main` right now, released
-or not.
+::: tip Installing from the repository
+`uv tool install git+https://github.com/gmadevs/Radiowriter` installs the
+current state of the `main` branch, including changes that have not been
+released yet.
 :::
 
-Then, whenever you want it:
+To start it:
 
 ```bash
 radiowriter
 ```
 
-It prints a link and opens `http://localhost:8501`. `Ctrl+C` in the terminal
-stops it.
+It prints the address and opens `http://localhost:8501` in your browser.
+`Ctrl+C` in the terminal stops it.
 
 ::: details If you do not have uv
 macOS and Linux:
@@ -41,57 +40,59 @@ Windows, in PowerShell:
 powershell -c "irm https://astral.sh/uv/install.ps1 | iex"
 ```
 
-`pipx install radiowriter` does the same job if you already have pipx.
+If you already have pipx, `pipx install radiowriter` also works.
 :::
 
-Updating is `uv tool upgrade radiowriter`. Removing it is
-`uv tool uninstall radiowriter`, and your archive stays where it is.
+To update, run `uv tool upgrade radiowriter`. To remove it, run
+`uv tool uninstall radiowriter`. Uninstalling leaves your archive in place.
 
 ## First run
 
-The app asks for one thing: an email address.
+The first screen asks for an email address.
 
-It is not a sign-up. Two of the services it calls — PubMed and Unpaywall — ask
-for a contact address in **every** request, so that when a script starts
-hammering their servers they can warn whoever is running it instead of silently
-blocking the address. There is nothing to register for, no confirmation mail,
-and the address is stored on your computer.
+PubMed and Unpaywall require a contact address in every request. They use it
+to reach you if your requests cause a problem. You do not create an account,
+no confirmation mail is sent, and the address is stored only on your computer.
 
-Three more are optional and can wait:
+Three other settings are optional:
 
-| | What it buys you |
+| Setting | What it does |
 |---|---|
-| **NCBI API key** | 10 requests a second instead of 3. Free, from your NCBI account settings. |
-| **Semantic Scholar key** | Faster citation lookups. Works without one. |
-| **LibKey library ID** | Direct full-text links through your library's subscription. It is your library's Third Iron ID, the number in `libkey.io/libraries/<ID>/…`. |
+| **NCBI API key** | Raises the rate limit from 3 to 10 requests a second. Free, from your NCBI account settings. |
+| **Semantic Scholar API key** | Makes citation lookups faster. Lookups also work without a key. |
+| **LibKey library ID** | Gives direct full-text links through your library's subscription. It is your library's Third Iron ID, the number in `libkey.io/libraries/<ID>/…`. |
 
-You can add them later under ⚙️ **Settings** in the sidebar.
+You can add them later under **⚙️ Settings** in the sidebar.
 
 ## Journal quartiles
 
-Nothing to do: a copy of the SCImago table for 2025 ships with the app. It is
-read at first start and your articles are matched to it by ISSN, and
-📊 **Journal metrics** in the sidebar says how many matched.
+Quartiles need no setup. A copy of the SCImago table for 2025 is included. It
+is loaded at the first start and your articles are matched to it by ISSN.
+**📊 Journal metrics** in the sidebar shows how many articles were matched.
 
-### A newer year
+### Using a newer year
 
-1. Go to [scimagojr.com/journalrank.php](https://www.scimagojr.com/journalrank.php)
-2. **Download data** — the link at the top right of the table
-3. Drop the CSV into the folder that `radiowriter --where` prints
+1. Go to [scimagojr.com/journalrank.php](https://www.scimagojr.com/journalrank.php).
+2. Click *Download data*, at the top right of the table.
+3. Put the CSV in the folder that `radiowriter --where` prints.
+4. In the app, open **📊 Journal metrics** in the sidebar and click
+   **↻ Reload the file and re-match**.
 
-Any name starting with `scimagojr` wins over the bundled copy — even an older
-one, because a file you put there on purpose is a decision and the app does not
-overrule it. `radiowriter --where` says which of the two is in use.
+A file whose name starts with `scimagojr` is used in place of the included
+copy, even if its data is older. If there are several, the last one in
+alphabetical order is used, so `scimagojr 2026.csv` is chosen over
+`scimagojr 2025.csv`. `radiowriter --where` prints which file is in use.
 
-::: info Whose data this is
-The bundled file is SCImago's, under
-[CC BY-NC](https://creativecommons.org/licenses/by-nc/4.0/): cut down to the
-columns the app reads and to the rows that are journals, with the numbers
-untouched. `radiowriter/data/scimagojr-2025.about.txt` records the download date
-and the cut. The NonCommercial term applies to that file.
+::: info Licence of the SCImago data
+The included file is SCImago's data, used under
+[CC BY-NC](https://creativecommons.org/licenses/by-nc/4.0/). It has been
+reduced to the columns the app reads and to the rows of type "journal". The
+values are unmodified. `radiowriter/data/scimagojr-2025.about.txt` records the
+download date and what was removed. The NonCommercial term applies to that
+file.
 :::
 
-## Where things are kept
+## Where the data is stored
 
 ```bash
 radiowriter --where
@@ -100,14 +101,14 @@ radiowriter --where
 | | |
 |---|---|
 | macOS | `~/Library/Application Support/Radiowriter` |
-| Linux | `~/.local/share/radiowriter` |
+| Linux | `~/.local/share/radiowriter` (or `$XDG_DATA_HOME/radiowriter`) |
 | Windows | `%LOCALAPPDATA%\Radiowriter` |
 
-One SQLite file holds everything. To keep it somewhere else — an external disk,
-a synced folder — set `RADIOWRITER_HOME`:
+The archive is one SQLite file. To store it somewhere else, for example on an
+external disk or in a synced folder, set `RADIOWRITER_HOME`:
 
 ```bash
 RADIOWRITER_HOME=/Volumes/work/radiowriter radiowriter
 ```
 
-See [Backup and moving computer](/guide/backup) before you copy it around.
+Read [Backup and moving computer](/guide/backup) before you copy the file.

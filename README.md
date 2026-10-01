@@ -98,7 +98,9 @@ articles are matched to it by ISSN.
 To use a newer year, click *Download data* (top right of the table) on
 [scimagojr.com](https://www.scimagojr.com/journalrank.php) and put the CSV in
 the folder that `radiowriter --where` prints. A file whose name starts with
-`scimagojr` is used in place of the included copy.
+`scimagojr` is used in place of the included copy. Then open
+**📊 Journal metrics** in the sidebar and click
+**↻ Reload the file and re-match**.
 
 The included copy is SCImago's data, used under
 [CC BY-NC](https://creativecommons.org/licenses/by-nc/4.0/). It has been

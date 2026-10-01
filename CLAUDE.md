@@ -34,7 +34,7 @@ One page per commit, in this order.
 
 - [x] README.md
 - [x] docs/index.md
-- [ ] docs/guide/install.md
+- [x] docs/guide/install.md
 - [ ] docs/guide/search.md
 - [ ] docs/guide/blocks.md
 - [ ] docs/guide/screen.md
