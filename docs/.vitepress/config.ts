@@ -42,7 +42,7 @@ export default defineConfig({
         text: 'How it works',
         items: [
           { text: 'Architecture', link: '/internals/architecture' },
-          { text: 'Where the data lives', link: '/internals/storage' },
+          { text: 'Where the data is stored', link: '/internals/storage' },
           { text: 'Matching journals to SCImago', link: '/internals/journals' },
           { text: 'The services it calls', link: '/internals/services' }
         ]

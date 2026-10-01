@@ -44,7 +44,7 @@ One page per commit, in this order.
 - [x] docs/guide/backup.md
 - [x] docs/limitations.md
 - [x] docs/internals/architecture.md
-- [ ] docs/internals/storage.md
+- [x] docs/internals/storage.md
 - [ ] docs/internals/services.md
 - [ ] docs/internals/journals.md
 - [ ] docs/develop/run.md
