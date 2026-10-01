@@ -1,87 +1,100 @@
 # Search PubMed
 
-Two ways in, chosen with the pills at the top: **One line** takes PubMed syntax
-as you write it, **Blocks** builds the query a concept at a time. Blocks has
-[its own page](/guide/blocks).
+The control at the top of the tab chooses between two ways of searching.
+**✎ One line** takes PubMed syntax as you type it. **⛁ Blocks** builds the
+query one concept at a time, and is described in
+[Build a query in blocks](/guide/blocks).
 
 ![The search tab](/shots/01-search.png)
 
 ## The filters
 
-They sit in a panel that is always open, because a filter you cannot see is a
-filter you forget.
+The filter panel is always shown, below the search terms.
 
 ### Recent reviews, No filters, Custom
 
-One control with three positions sits at the top of the panel.
+The control at the top of the panel has three positions.
 
 - **★ Recent reviews** sets the last 10 years, full text, English, humans, and
-  the publication types NLM uses for reviews and syntheses: Review, Systematic
-  Review, Scoping Review, Meta-Analysis, Network Meta-Analysis, Evidence
-  Synthesis, Guideline, Practice Guideline, Consensus Statement.
-- **No filters** turns everything off, date limit included. Only the search
-  terms go to PubMed.
-- **Custom** is where it moves by itself as soon as you change a control by
-  hand. Put everything back as a preset had it and it returns to that preset.
+  these NLM publication types: Review, Systematic Review, Scoping Review,
+  Meta-Analysis, Network Meta-Analysis, Evidence Synthesis, Guideline,
+  Practice Guideline, Consensus Statement.
+- **No filters** turns every filter off, including the date limit. Only the
+  search terms are sent to PubMed.
+- **Custom** is selected automatically when you change any control by hand.
+  If you set the controls back to the values of a preset, that preset is
+  selected again.
 
-The position is worked out from the values of the controls, so it cannot say
-one thing while the query does another. The line under the controls is written
-from the same values and says what the query will ask.
+The line under the controls describes the filters that the query will apply.
+It is written from the same values as the query.
 
 ### Last N years
 
-**0 means no date limit at all.** Not fifty years, not a hundred: none.
+0 means no date limit.
 
 ### Humans
 
-This filter leaves out what is indexed as an animal study and not as a human
-one: `NOT (animals[mh] NOT humans[mh])`. Asking for `humans[mh]` instead would
-also drop every paper NLM has not indexed yet, which means most of the last few
-months.
+This filter excludes records indexed as animal studies and not as human
+studies: `NOT (animals[mh] NOT humans[mh])`. It does not use `humans[mh]`,
+because that would also exclude every record NLM has not indexed yet, which
+includes most papers from the last few months.
 
 ### Kind of publication
 
-Choose one way of asking for it, or none:
+Choose **Any** or one of two methods:
 
-- **Publication type (NLM)**: the labels an NLM indexer gave the record.
-- **Search filter (ISSG)**: published search filters from the InterTASC
-  Information Specialists' Sub-Group. They catch a kind of publication by the
-  words it uses, not a subject. Four are available: guidelines broad,
-  guidelines standard, meta-analysis and systematic reviews.
+- **Publication type (NLM)** uses the labels an NLM indexer gave the record.
+- **Search filter (ISSG)** uses published search filters from the InterTASC
+  Information Specialists' Sub-Group. They find a kind of publication by the
+  words it uses. Four are available: guidelines (broad), guidelines
+  (standard), meta-analysis and systematic reviews.
 
-You cannot use both at once. They would be joined with AND, and only what
-satisfies both would survive, which is usually far fewer results than you
-meant. Several choices inside one method are joined with OR. The choice you
-made in the other method is kept for when you switch back.
+The two methods cannot be used together. They would be joined with AND, and
+only records matching both would be returned. Several choices within one
+method are joined with OR. If you switch method, the choices you made in the
+other one are kept for when you switch back.
 
-## In the sidebar
+## Settings in the sidebar
 
-Four things are settings rather than filters, so they live in the sidebar and
-stay put: how many records to download, what to skip because it is already
-known, and whether to enrich with Semantic Scholar and Unpaywall.
+Four settings under **⚙ Search behaviour** in the sidebar apply to every
+search and are not changed by the presets:
+
+- **Records to download**: how many records are downloaded in detail.
+- **Skip what is already known**: which records to leave out because they are
+  already in the database.
+- **Citations (Semantic Scholar)**: look up citation counts.
+- **Open access (Unpaywall)**: look up whether a free copy exists.
 
 ## Filtering the results
 
-Once results are in, **⚙ Filter these results** narrows what is shown without
-asking PubMed anything again. Every facet carries the count from these very
-records:
+When a search has returned results, **⚙ Filter these results** narrows what
+is shown. PubMed is not queried again.
 
-- **Status** — new, already in the archive, already screened
-- **Article type** — the publication types NLM gave these records
-- **Journal quartile** — including *Not in SCImago*
-- **Words in title or abstract**
-- **Published between** — the range of the records you actually have
-- **At least this many citations**
-- **Only free full text** — if Unpaywall was asked
+- **Status**: new, already in the archive, or already screened.
+- **Article type**: the publication types NLM gave these records.
+- **Journal quartile**: includes *Not in SCImago*.
+- **Words in title or abstract**.
+- **Published between**: limited to the years of the records you have.
+- **At least this many citations**: available after citations have been
+  looked up.
+- **Only free full text**: available if **Open access (Unpaywall)** was
+  ticked before the search.
 
-A line under the panel says *Showing 15 of 200*. What you save, add to a list
-or add to a draft is what you can see: a tick left on a record the filter is
-hiding does not come along.
+The status, article type and quartile options show how many of the results
+match each one.
 
-![Results, with the facets open](/shots/03-results.png)
+When a filter hides some results, a line above the table reads, for example,
+*Showing 15 of 200*. Saving, adding to a list and adding to a draft apply only
+to the records shown. A record that is ticked but hidden by a filter is not
+included.
 
-## What happens to a search
+![Results, with the filters open](/shots/03-results.png)
 
-Every search is logged with its terms, its query and how many it found — 🕘
-**Recent searches** at the bottom. A search can be attached to a draft, so the
-article records where its bibliography came from.
+## The search log
+
+Every search is recorded. **🕘 Recent searches**, at the bottom of the tab,
+lists each search with its date, its terms, and the number of records found,
+downloaded and saved.
+
+When you add results to a draft as references, the search is attached to that
+draft, so the draft records which search its references came from.
