@@ -1,100 +1,130 @@
-# Screen what comes back
+# Screen the results
 
-The **📚 Screening** tab is the archive: everything you saved, in one list you
-can narrow from several directions at once.
+The **2 Screening** tab shows the archive, which holds every article you
+saved from a search. You can filter it, sort it, and mark each article.
 
 ![The archive](/shots/04-screening.png)
 
-## Two states, and as many lists as you like
+## Read, flagged and reading lists
 
-**Read** and **Flagged** are two states, the same for everybody. **Reading
-lists** are yours: the papers for one section, the good ones from yesterday's
-search. An article can be in several at once.
+Each article has two checkboxes, **✅ Read** and **★ Flagged**.
 
-A list is made in the 🗂 **Lists** panel, or straight from the results of a
-search with *Add selected to a list…*. Rename it or change its note by typing
-in its box — it saves when the field loses focus.
+A reading list is a named group of articles, for example the papers for one
+section of your article. You can have any number of lists, and an article can
+be in several.
 
-::: tip An article in a list is never purged
-Articles marked read are deleted at startup and their PMIDs remembered so they
-do not come back in later searches. An article in a list is exempt. Without
-that exemption a list would empty itself exactly while you were working
-through it.
+To create a list, open **🗂 Lists** at the top of the tab, type a name and
+click **＋ Create**. You can also create one from the results of a search,
+with *Add selected to a list…*. To rename a list or change its note, edit the
+text in its box. The change is saved when you leave the field. Deleting a
+list does not delete its articles from the archive.
+
+To add an article to a list from the archive, use **🗂 Add to a list** on its
+card.
+
+::: warning Read articles are deleted at startup
+Articles marked read are deleted from the archive each time the app starts.
+Their PMIDs are kept, so that later searches can skip them. An article is not
+deleted if it is in a reading list or has a PDF in the library.
 :::
 
-## Reading
+## Reading the abstracts
 
-Abstracts are set for reading rather than scanning: a serif typeface, lines
-of about seventy characters, and one paragraph per section with its label
-(BACKGROUND, METHODS, RESULTS…) above it. Abstracts imported from a `.nbib`,
-which arrive as a single block, are split at their labels too.
+Abstracts are set in a serif typeface, in lines of at most 70 characters.
+Each section of a structured abstract (BACKGROUND, METHODS, RESULTS and so
+on) is a separate paragraph with its label above it. Abstracts imported from
+a `.nbib` file are split at their labels in the same way.
 
-**Abstracts open** shows every abstract on the page already open, so you can
-read down the page without a click per record. It is one choice for both tabs:
-switch it in the search results or in Screening and the other follows, and it
-is remembered the next time the app starts.
+**Abstracts open** shows every abstract on the page expanded. The setting is
+shared by the search results and the Screening tab, and is remembered when
+the app is restarted.
 
-**The words you searched for are highlighted** in titles and abstracts. In the
-search results they come from the search you ran; in Screening, from the
-*Search title, abstract or PMID* box. Field tags and operators are ignored, and
-whatever follows a `NOT` is not highlighted. A regular English plural counts
-(*abscess* lights *abscesses*), a trailing `*` means anything that starts that
-way, and inside a quoted phrase a space also matches a hyphen. It is a reading
-aid, not a record of why PubMed returned a paper: PubMed expands terms through
-MeSH and automatic term mapping, so a paper can have been found for a word
-that is not lit.
+The words you searched for are highlighted in titles and abstracts. In the
+search results they are taken from the search you ran. In Screening they are
+taken from the **🔍 Search title, abstract or PMID** box. The rules are:
 
-Under ⚙️ **Settings** you can switch abstracts to the same sans-serif as the
-rest of the app and change their size, next to the size of the titles.
+- field tags and operators are ignored;
+- the term that follows `NOT` is not highlighted;
+- a regular English plural is also highlighted (*abscess* highlights
+  *abscesses*);
+- a term ending in `*` highlights every word that starts with it;
+- inside a quoted phrase, a space also matches a hyphen.
 
-**Light or dark** is chosen from the ⋮ menu at the top right. *System* follows
-your operating system. Both themes are built for long reading: the dark one is
-not pure black, and the light one is an off-white rather than pure white.
+The highlighting does not show why PubMed returned a paper. PubMed expands
+terms through MeSH and automatic term mapping, so a paper can be found
+through a word that is not highlighted.
 
-## Narrowing
+Under **⚙️ Settings** in the sidebar, **Abstract typeface** switches the
+abstracts to the sans-serif typeface used in the rest of the app, and
+**Abstract size (rem)** and **Title size (rem)** change the text sizes.
 
-| | |
+To choose the light or dark theme, open the ⋮ menu at the top right and
+choose Settings. *System* follows your operating system.
+
+## Filtering and sorting
+
+| Control | What it filters |
 |---|---|
-| **Show** | All, to read, read, flagged |
-| **In list** | One reading list |
-| **Search** | Title, abstract or PMID |
-| **Journal quartile** | Q1–Q4, or *Not in SCImago* |
+| **Show:** | All, To read, Read or Flagged ★ |
+| **In list:** | The articles in one reading list |
+| **🔍 Search title, abstract or PMID:** | The articles containing the text |
+| **Journal quartile:** | One or more of Q1 to Q4, and *Not in SCImago* |
 
-These are database queries, not a filter applied after the fact, so the page
-count and the total agree with what you asked for.
+The filters are applied by the database query, so the total and the number
+of pages count only the articles that match.
 
-Sorting: recently added, influential citations, total citations, citations per
-year, year, or journal SJR.
+**Articles per page:** sets how many articles each page shows.
 
-## A card
+**Sort by:** has six options: Recently added, Influential citations, Total
+citations, Citations per year, Year and Journal SJR.
 
-Everything on one line each, because a page of them is meant to be scanned:
+## The article card
+
+Each article is shown as a card:
 
 ```
 📖 Diagnostic evidence in suspected discogenic low back pain
-   Frontiers in Medicine · 2026 · PMID 42639130
+   Authors · Frontiers in Medicine · 2026 · PMID 42639130
    ▎Q1 · SJR 0.95   3.4 cites/doc (2y)   🔓 gold OA   79 cites · 6 infl · 8.8/yr
    in Medicine (miscellaneous) (Q1); Neurology (Q2)
    PubMed · 🔓 LibKey full text · DOI · Free full text
-   ▸ Abstract                                          ☐ Read  ☐ ★ Flagged  🗂
+   ▸ Abstract                          ☐ ✅ Read  ☐ ★ Flagged  🗂 Add to a list
 ```
 
-The abstract is collapsed: the title, the journal and the quartile are what you
-scan, and the abstract is what you open for the ones that survive.
+The lines are, in order:
 
-Publication types that carry no signal — *Journal Article*, *Research
-Support…* — are left off. They were three lines of badges covering the ones that
-matter.
+1. The title. It starts with 📖 for an article to read, ✅ for a read one,
+   and ★ if it is flagged.
+2. Authors, journal, date and PMID.
+3. Badges: quartile and SJR, cites/doc, open access status, publication
+   types, citations, the lists the article is in, and 📄 PDF if it has a PDF.
+4. The SCImago categories of the journal, each with its quartile. The
+   quartile in the badge is the best of these.
+5. Links to PubMed, LibKey, the DOI and the free full text, where available.
+6. The abstract, collapsed unless **Abstracts open** is on.
 
-## Getting the full text
+At most three publication types are shown. *Journal Article*, *English
+Abstract*, *Comparative Study*, *Validation Study*, *Historical Article* and
+the *Research Support* types are not shown.
 
-**LibKey** goes through your library's subscription, if you set the library ID.
-**Free full text** appears once Unpaywall has been asked — the button above the
-list does a page at a time, or tick *Open access (Unpaywall)* in the sidebar
-before searching so new records arrive with it already known.
+## Citations and full text
 
-**⤓ Save free PDF**, in the card's right-hand column, downloads the free copy
-into the PDF library. Once an article has a PDF, the card shows a 📄 PDF badge
-and a **📖 Read PDF** button. A PDF downloaded through LibKey goes in by
-dropping it into the Library tab. See
+**📈 Fetch citations for N articles on this page** asks Semantic Scholar for
+the citation counts of the articles on the page that have none yet.
+
+**🔓 LibKey full text** opens the article through your library's
+subscription. It appears if you set the LibKey library ID.
+
+**Free full text** appears after Unpaywall has been asked about the article.
+There are two ways to ask:
+
+- click **🔓 Check open access for N articles on this page**, above the
+  list;
+- tick **Open access (Unpaywall)** in the sidebar before a search, so that
+  new records are checked as they are downloaded.
+
+**⤓ Save free PDF**, in the right-hand column of the card, downloads the free
+copy into the PDF library. When an article has a PDF, the card shows a 📄 PDF
+badge and a **📖 Read PDF** button. To add a PDF you downloaded through
+LibKey, drop it into the Library tab. See
 [PDFs and the study window](./library).

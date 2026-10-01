@@ -31,7 +31,7 @@ export default defineConfig({
           { text: 'Install and first run', link: '/guide/install' },
           { text: 'Search PubMed', link: '/guide/search' },
           { text: 'Build a query in blocks', link: '/guide/blocks' },
-          { text: 'Screen what comes back', link: '/guide/screen' },
+          { text: 'Screen the results', link: '/guide/screen' },
           { text: 'Journal quartiles and open access', link: '/guide/journals' },
           { text: 'PDFs and the study window', link: '/guide/library' },
           { text: 'Write the article', link: '/guide/write' },
