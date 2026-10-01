@@ -12,18 +12,19 @@
 
 </div>
 
-Find the literature for a [Radiopaedia.org](https://radiopaedia.org) article,
-screen it, and write the article against it.
+Radiowriter searches PubMed, helps you screen the results, and gives you an
+editor for writing a [Radiopaedia.org](https://radiopaedia.org) article from
+them.
 
-Search PubMed one line at a time or build the query concept by concept. Rank
-what comes back by how much it is cited and by where it was published. Sift it
-down with the filters, keep what is worth keeping in reading lists, then write
-the article — with the section structure Radiopaedia recommends for that kind
-of article, the citations resolved for you, their own linter run over your
-draft, and the formatted HTML their editor expects.
+You can type a PubMed query on one line or build it in blocks, one per concept.
+Results can be sorted by citation count or by journal rank (SJR), filtered, and
+saved in reading lists. The editor inserts the section structure Radiopaedia
+recommends for the type of article, numbers the citations at export, runs
+Radiopaedia's linter rules on the draft, and produces the HTML their editor
+accepts.
 
-Runs on macOS, Linux and Windows. Nothing leaves your computer except the
-searches themselves and the lookups listed in
+It runs on macOS, Linux and Windows. The archive is stored on your computer.
+The only network requests are the searches and the lookups listed in
 [The services it calls](docs/internals/services.md).
 
 > Unofficial. Not affiliated with or endorsed by Radiopaedia.org.
@@ -32,21 +33,25 @@ searches themselves and the lookups listed in
 
 ## Install
 
-Radiowriter is a Python program that serves a page to your own browser. One
-command installs it, one command runs it — the same on macOS, Linux and
-Windows.
+Radiowriter is a Python program that serves a page to your own browser. The
+commands are the same on macOS, Linux and Windows.
+
+Install it:
 
 ```bash
 uv tool install radiowriter
 ```
+
+Run it:
 
 ```bash
 radiowriter
 ```
 
 It opens `http://localhost:8501` in your browser. `Ctrl+C` in the terminal
-stops it. `uv tool upgrade radiowriter` updates it, and
-`uv tool uninstall radiowriter` removes it — your archive stays where it is.
+stops it. `uv tool upgrade radiowriter` updates it.
+`uv tool uninstall radiowriter` removes the program and leaves your archive in
+place.
 
 <details>
 <summary>If you do not have <code>uv</code></summary>
@@ -63,102 +68,131 @@ Windows, in PowerShell:
 powershell -c "irm https://astral.sh/uv/install.ps1 | iex"
 ```
 
-`pipx install radiowriter` does the same job if you already have pipx.
+If you already have pipx, `pipx install radiowriter` also works.
 
 </details>
 
-> **Want what is on `main` instead of the last release?**
-> `uv tool install git+https://github.com/gmadevs/Radiowriter` installs straight
-> from the repository — no index, no account, whatever is on the branch right
-> now. [How releasing works](docs/develop/release.md).
+To install the current state of the `main` branch in place of the last
+release, use `uv tool install git+https://github.com/gmadevs/Radiowriter`.
+See [How releasing works](docs/develop/release.md).
 
 ## First run
 
-It asks for an email address, and says why: PubMed and Unpaywall both want a
-contact address in every request, so they can warn whoever is calling instead
-of silently blocking them. There is nothing to register for, and the address
-stays on your computer.
+The first screen asks for an email address. PubMed and Unpaywall require a
+contact address in every request, and use it to reach you if your requests
+cause a problem. You do not have to register anywhere, and the address is
+stored only on your computer.
 
-Three other things are optional and can wait: an NCBI API key (raises the rate
-limit from 3 to 10 requests a second), a Semantic Scholar key (faster citation
-lookups), and your library's LibKey ID (direct full-text links through your
-subscription).
+Three other settings are optional and can be added later:
+
+- an NCBI API key, which raises the rate limit from 3 to 10 requests a second;
+- a Semantic Scholar key, which makes citation lookups faster;
+- your library's LibKey ID, which gives direct full-text links through your
+  library's subscription.
 
 ### Journal quartiles
 
-They work out of the box. A copy of the SCImago table (2025) ships with the
-app, and your articles are matched to it by ISSN at first start.
+Quartiles need no setup. A copy of the SCImago table for 2025 is included, and
+articles are matched to it by ISSN.
 
-For a newer year, take *Download data* from
-[scimagojr.com](https://www.scimagojr.com/journalrank.php) — top right of the
-table — and drop the CSV into the folder that `radiowriter --where` prints. Any
-name starting with `scimagojr` wins over the bundled copy, so updating is one
-drag and nothing else.
+To use a newer year, click *Download data* (top right of the table) on
+[scimagojr.com](https://www.scimagojr.com/journalrank.php) and put the CSV in
+the folder that `radiowriter --where` prints. A file whose name starts with
+`scimagojr` is used in place of the included copy.
 
-The bundled copy is SCImago's data, not ours: cut down to the ten columns the
-app reads and to the rows that are journals, and used under
-[CC BY-NC](https://creativecommons.org/licenses/by-nc/4.0/).
-`radiowriter/data/scimagojr-2025.about.txt` records where it came from, when,
-and exactly what was cut.
+The included copy is SCImago's data, used under
+[CC BY-NC](https://creativecommons.org/licenses/by-nc/4.0/). It has been
+reduced to the 10 columns the app reads and to the rows of type "journal".
+`radiowriter/data/scimagojr-2025.about.txt` records the source, the download
+date and what was removed.
 
-> **This is not the Journal Impact Factor.** That one is Clarivate's and lives
-> in the JCR. SCImago gives *SJR*, which weighs citations by the prestige of
-> the journals making them, and *cites/doc (2y)*, which is computed like an
-> impact factor but over Scopus. Both are shown, both are labelled.
+> **These metrics are not the Journal Impact Factor.** The Impact Factor is
+> published by Clarivate in the JCR. SCImago gives *SJR*, which weights
+> citations by the rank of the citing journal, and *cites/doc (2y)*, which is
+> calculated like an impact factor but on Scopus data. The app shows both,
+> each with its label.
 
 ## What it does
 
 ![Building a query in blocks](docs/public/shots/02-blocks.png)
 
-**Search.** PubMed syntax on one line, or the block builder: one block per
-concept, every wording of it inside joined by OR, the blocks joined by AND.
+### Search
+
+Type PubMed syntax on one line, or use the block builder. A block holds one
+concept. The terms inside a block are joined by OR, and the blocks are joined
+by AND.
+
 The ISSG published search filters for guidelines and evidence syntheses are
-built in. So is a generator that turns the section headings of a Radiopaedia
-article into search strategies — `Epidemiology` becomes prevalence and
-incidence, `MRI` becomes the MeSH terms and the words for magnetic resonance.
-And forty-three **imaging modalities** are written out for you: pick *Doppler
-ultrasound* and you get the MeSH descriptors, `doppler`, `duplex`, the colour
-and the color spelling, and the resistive index — the things a paper says
-instead of naming the technique.
+included.
 
-**Screen.** The archive, filtered by read, flagged, reading list, journal
-quartile, and sorted by citations or by SJR. Full text through LibKey if your
-library has it, through Unpaywall if there is a legal free copy. Reading lists
-you make, rename and delete; an article can be in several at once, and an
-article in a list is never purged.
+A generator turns the section headings of a Radiopaedia article into search
+strategies. For example, `Epidemiology` becomes terms for prevalence and
+incidence, and `MRI` becomes the MeSH terms and text words for magnetic
+resonance.
 
-**Keep the PDFs.** One PDF per article, named `Author Year - Journal - Title
-[PMID].pdf`. Free copies are downloaded directly. The ones you download through
-LibKey you drop into the app, which finds their article by DOI or title, in the
-archive or on PubMed. Highlight them in the app's own reader, and the
-highlights become a list to tick off.
+Search terms for 43 imaging modalities are included. *Doppler ultrasound*, for
+example, adds the MeSH descriptors, `doppler`, `duplex`, both spellings of
+"colour", and the resistive index.
 
-**Write.** A Markdown editor that knows the twenty-three section structures
-Radiopaedia recommends and can insert the ones your kind of article should
-have. Cite with `[@27859258]` — the identifier itself — and the numbering is
-worked out at export from the order of first appearance. Radiopaedia's own
-linter rules run over the draft. Two buttons copy the article and the
-reference list as rich text, so headings, bold and the `<sup>` markers survive
-the paste into their editor. The study window opens the Radiopaedia page you
-are editing next to a PDF and its highlights.
+### Screen
 
-## Where your data lives
+The archive can be filtered by read, flagged, reading list and journal
+quartile, and sorted by citations or by SJR. Full text opens through LibKey if
+your library subscribes, or through Unpaywall if a legal free copy exists.
 
-One SQLite file, in the place your system keeps user data:
+You can create, rename and delete reading lists, and an article can be in
+several lists. Articles marked read are deleted from the archive at the next
+start, except those in a list or with a PDF in the library.
+
+### Keep the PDFs
+
+The library holds one PDF per article, named
+`Author Year - Journal - Title [PMID n].pdf`. Free copies are downloaded
+directly. A PDF you downloaded yourself, for example through LibKey, can be
+dropped into the app, which finds its article by DOI or title in the archive
+or on PubMed. Highlights made in the app's reader are listed with a checkbox
+each.
+
+### Write
+
+The Markdown editor includes the 23 section structures Radiopaedia recommends
+and inserts the one for your type of article.
+
+Cite with the PubMed identifier, `[@27859258]`. At export the citations are
+numbered in order of first appearance.
+
+Radiopaedia's linter rules run on the draft. Two buttons copy the article and
+the reference list as rich text, so that headings, bold and the `<sup>`
+markers are kept when you paste into Radiopaedia's editor.
+
+The study window shows the Radiopaedia page you are editing next to a PDF and
+its highlights.
+
+## Where your data is stored
+
+The archive is one SQLite file in the user data folder of your system:
 
 | | |
 |---|---|
 | macOS | `~/Library/Application Support/Radiowriter` |
-| Linux | `~/.local/share/radiowriter` |
+| Linux | `~/.local/share/radiowriter` (or `$XDG_DATA_HOME/radiowriter`) |
 | Windows | `%LOCALAPPDATA%\Radiowriter` |
 
-`radiowriter --where` prints it. `RADIOWRITER_HOME=/some/path radiowriter`
-overrides it, which is how you keep an archive on an external disk.
+`radiowriter --where` prints the folder. To use another folder, for example on
+an external disk, set `RADIOWRITER_HOME`:
 
-`⇅ Export and backup` in the sidebar writes a `.nbib` (the articles, in
-PubMed's own format, readable by any reference manager) or a `.json` (the whole
-archive, to move it to another computer). The `.json` deliberately leaves your
-settings out, so a backup you share does not carry your email or your keys.
+```bash
+RADIOWRITER_HOME=/some/path radiowriter
+```
+
+**⇅ Export and backup** in the sidebar writes one of two files:
+
+- a `.nbib` file with the articles, in PubMed's format, which reference
+  managers can import;
+- a `.json` file with the whole archive, for moving it to another computer.
+
+The `.json` file does not contain your settings, so a backup you share does
+not include your email address or your keys.
 
 ## Running from source
 
@@ -181,24 +215,25 @@ python3 check_library.py     # PDF library, highlights, the Radiopaedia list
 python3 check_app.py         # the interface, driven without a browser
 ```
 
-`check_mesh_live.py` is the one exception: it asks PubMed whether every MeSH
-term the strategies use still exists. Run it when you change them, or when MeSH
-changes — once a year, in January.
+`check_mesh_live.py` needs the network. It asks PubMed whether every MeSH term
+used by the strategies still exists. Run it when you change the strategies,
+and each January, when MeSH is updated.
 
 ## Documentation
 
-**[gmadevs.github.io/Radiowriter](https://gmadevs.github.io/Radiowriter/)**
+The full documentation is at
+[gmadevs.github.io/Radiowriter](https://gmadevs.github.io/Radiowriter/).
 
 | | |
 |---|---|
-| [Install and first run](docs/guide/install.md) | Getting it going, and the SCImago file |
-| [Search PubMed](docs/guide/search.md) · [in blocks](docs/guide/blocks.md) | The filters, and building a query concept by concept |
+| [Install and first run](docs/guide/install.md) | Installation, settings, the SCImago file |
+| [Search PubMed](docs/guide/search.md) · [in blocks](docs/guide/blocks.md) | The filters, and building a query one concept at a time |
 | [Screen](docs/guide/screen.md) · [journals](docs/guide/journals.md) | Reading lists, quartiles, open access |
 | [PDFs and the study window](docs/guide/library.md) | The PDF library, highlights, Radiopaedia next to a PDF |
 | [Write](docs/guide/write.md) | Structures, citations, the linter |
 | [Backup](docs/guide/backup.md) | Moving to another computer |
 | [How it works](docs/internals/architecture.md) | Architecture, storage, the services it calls |
-| [Known limitations](docs/limitations.md) | What it does not do, written down |
+| [Known limitations](docs/limitations.md) | What the app does not do |
 
 ## Licence
 
@@ -206,13 +241,13 @@ changes — once a year, in January.
 
 The Radiopaedia article structures in `radiowriter/data/article-structure.json`
 and the linter rules in `radiowriter/data/lint-rules.json` are transcriptions
-of Radiopaedia's own published guidance, not ours.
+of Radiopaedia's published guidance.
 
-`radiowriter/data/scimagojr-2025.csv.gz` is journal metrics from
+`radiowriter/data/scimagojr-2025.csv.gz` contains journal metrics from
 [SCImago Journal & Country Rank](https://www.scimagojr.com/), derived from
-Elsevier's Scopus, used under
-[CC BY-NC 4.0](https://creativecommons.org/licenses/by-nc/4.0/). It is
-redistributed here cut down to the columns the app reads; the numbers are
-theirs and unmodified. The `.about.txt` beside it records the download date and
-the cut. **The NonCommercial term applies to that file**, whatever you do with
-the rest of the code.
+Elsevier's Scopus and used under
+[CC BY-NC 4.0](https://creativecommons.org/licenses/by-nc/4.0/). The file is
+redistributed with only the columns the app reads. The values are SCImago's
+and are unmodified. The `.about.txt` file next to it records the download date
+and what was removed. **The NonCommercial term applies to that file**,
+whatever licence terms you follow for the rest of the code.
