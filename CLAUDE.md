@@ -40,7 +40,7 @@ One page per commit, in this order.
 - [x] docs/guide/screen.md
 - [x] docs/guide/journals.md
 - [x] docs/guide/library.md
-- [ ] docs/guide/write.md
+- [x] docs/guide/write.md
 - [ ] docs/guide/backup.md
 - [ ] docs/limitations.md
 - [ ] docs/internals/architecture.md
