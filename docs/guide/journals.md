@@ -1,65 +1,73 @@
 # Journal quartiles and open access
 
-## Where a paper was published
+## Journal quartiles and SJR
 
-Quartiles and SJR come from SCImago. A copy of the 2025 table ships with the
-app, so this works without setting anything up; dropping a newer
-`scimagojr*.csv` into the data folder replaces it — see
+Quartiles and SJR come from SCImago. A copy of the 2025 table is included, so
+they need no setup. To use a newer table, see
 [Install](/guide/install#journal-quartiles).
 
-::: danger This is not the Journal Impact Factor
-The impact factor is Clarivate's and lives in the Journal Citation Reports,
-which is a different product and is not in any file here.
+::: danger These metrics are not the Journal Impact Factor
+The Impact Factor is published by Clarivate in the Journal Citation Reports.
+It is not in the SCImago file and the app does not show it.
 
-SCImago gives two numbers, and they are two different things:
+SCImago gives two different metrics:
 
-- **SJR** — how much regard the journal is held in. It does not count
-  citations, it weighs them: a citation from *Radiology* is worth more than one
-  from a journal nobody reads. This is what the quartiles are built on.
-- **Cites/doc (2y)** — mean citations per paper over the last two years.
-  Computed the way an impact factor is computed, but over Scopus rather than
-  Web of Science, so the numbers are not the same ones.
+- **SJR** weights each citation by the rank of the journal it comes from, so
+  a citation from a highly ranked journal counts more. The quartiles are
+  based on SJR.
+- **Cites/doc (2y)** is the mean number of citations per paper over the last
+  two years. It is calculated like an impact factor, but on Scopus data and
+  not on Web of Science data, so the values differ from the Impact Factor.
 
-Both are shown, both are labelled.
+The app shows both, each with its label.
 :::
 
-The badge is green for Q1 through red for Q4. The quartile in the badge is the
-**best** the journal holds in any of its categories; the line underneath breaks
-it down, which for a radiologist often says more — Q1 in *Medicine
-(miscellaneous)* and Q3 in *Radiology* are two different facts.
+The quartile badge is green for Q1 and red for Q4. It shows the best quartile
+the journal has in any of its SCImago categories. The line under the badges
+lists every category with its quartile. For example, a journal can be Q1 in
+*Medicine (miscellaneous)* and Q3 in *Radiology*.
 
-### About one in ten has no quartile
+### Journals without a quartile
 
-Because its journal is not in SCImago at all. Cureus, medRxiv, most
-case-report journals. Those show no badge rather than a grey one: a missing
-number and a poor number are different, and the display should not blur them.
+About one article in ten has no quartile, because its journal is not in the
+SCImago file. Examples are Cureus, medRxiv and most case-report journals.
+These articles show no quartile badge. In the filters they are under
+*Not in SCImago*.
 
-### Matching is by ISSN
+### How articles are matched to journals {#matching-is-by-issn}
 
-Not by title. What PubMed calls a journal and what SCImago calls it are often
-the same journal written two ways — *Medicine* against *Medicine (United
-States)* — while the ISSN is the same number for both. On a real archive the
-ISSN matches nine articles in ten, exactly; an exact title match adds a
-handful. Fuzzy title matching would add another percent and would occasionally
-hand an article the quartile of a different journal with a similar name.
+Articles are matched to SCImago journals by ISSN. PubMed and SCImago often
+write the name of the same journal differently, for example *Medicine* and
+*Medicine (United States)*, but the ISSN is the same in both.
 
-Articles saved before ISSNs were stored are matched from the raw MEDLINE block,
-which has always been kept in full.
+In the archive this was tested on, the ISSN matched about nine articles in
+ten. An article with no ISSN match is then matched by exact journal title,
+which adds a few more. Approximate title matching is not used: it would add
+about 1% more matches and could give an article the quartile of a different
+journal with a similar name.
+
+For articles saved before the app stored ISSNs, the ISSN is read from the
+MEDLINE record, which is stored in full for every article.
 
 ## Open access
 
-Unpaywall says whether a paper has a legally free copy, and where. It is not
-the same thing as LibKey: LibKey goes through what your library pays for,
-Unpaywall finds what anyone can open.
+Unpaywall reports whether a paper has a legal free copy, and where it is.
+LibKey is a different service: it opens the copy your library subscribes to.
 
-| | |
+| Status | Meaning |
 |---|---|
-| **gold** | The journal is fully open; the paper was born free |
-| **hybrid** | Paywalled journal, this paper was released — someone paid |
-| **green** | A copy sits in a repository or in PubMed Central |
-| **bronze** | Readable on the publisher's site with no licence: free today, maybe not tomorrow |
-| **closed** | Nothing |
+| **gold** | The journal is fully open access |
+| **hybrid** | A subscription journal in which this paper was made open access for a fee |
+| **green** | A copy is in a repository or in PubMed Central |
+| **bronze** | Free to read on the publisher's site, with no licence. The publisher can withdraw access. |
+| **closed** | No free copy |
 
-Ask for it a page at a time from the Screening tab, or tick *Open access
-(Unpaywall)* in the sidebar so searches arrive with it already looked up. One
-call per DOI, about ten a second.
+There are two ways to look it up:
+
+- in the Screening tab, click **🔓 Check open access for N articles on this
+  page**;
+- tick **Open access (Unpaywall)** in the sidebar before a search, so that
+  new records are checked as they are downloaded.
+
+The app makes one request per DOI, at about 10 requests a second. Articles
+without a DOI are not checked.
