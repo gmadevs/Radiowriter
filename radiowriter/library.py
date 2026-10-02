@@ -160,10 +160,14 @@ def sha256_of(path: Path) -> str:
 
 def _readable(path) -> None:
     """Un file temporaneo nasce leggibile solo dal proprietario (0600); un PDF
-    in libreria deve potersi aprire come qualunque altro documento."""
+    in libreria si apre anche dal gruppo, come in una cartella condivisa. Non
+    da tutti: su un computer con piu' utenti gli articoli scaricati con
+    l'abbonamento della biblioteca non sono affare degli altri."""
     try:
-        os.chmod(path, 0o644)
+        os.chmod(path, 0o640)
     except OSError:
+        # Su un disco che non ha i permessi Unix (FAT, certe condivisioni di
+        # rete) chmod fallisce, e il file resta com'e': si legge comunque.
         pass
 
 

@@ -91,6 +91,22 @@ def search_url(text: str) -> str:
     return SEARCH_URL + urllib.parse.quote_plus(text.strip())
 
 
+def is_radiopaedia(url: str, *, article: bool = False) -> bool:
+    """Vero se l'URL e' una pagina https di radiopaedia.org.
+
+    Si guarda l'host, non come comincia la stringa: `https://radiopaedia.org.
+    altro.com` comincia nello stesso modo ed e' un altro sito - e la finestra
+    di studio lo aprirebbe con dentro il login di Radiopaedia."""
+    try:
+        parts = urllib.parse.urlsplit((url or "").strip())
+    except ValueError:
+        return False
+    host = (parts.hostname or "").lower()
+    if parts.scheme != "https" or host not in ("radiopaedia.org", "www.radiopaedia.org"):
+        return False
+    return parts.path.startswith("/articles/") if article else True
+
+
 # ---------------------------------------------------------------------------
 # lanciare la finestra
 # ---------------------------------------------------------------------------
@@ -193,6 +209,8 @@ class ReaderApi:
             db.refresh_pdf_hash(self._pmid, library.sha256_of(self._pdf),
                                 self._pdf.stat().st_size)
         except OSError:
+            # L'impronta resta quella di prima: serve solo a riconoscere un
+            # PDF gia' in libreria, e la scrittura nel file e' gia' riuscita.
             pass
         return self._state(force=True)
 

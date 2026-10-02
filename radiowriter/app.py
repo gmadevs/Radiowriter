@@ -3458,8 +3458,8 @@ def study_panel(draft) -> None:
         format_func={"lr": "◫ Side by side", "tb": "⬒ One above the other"}.get)
 
     if st.button("🪟 Open study window", type="primary", key=f"study_go_{did}",
-                 disabled=not page.startswith("https://radiopaedia.org")):
-        if page.startswith("https://radiopaedia.org/articles/") and page != saved:
+                 disabled=not study.is_radiopaedia(page)):
+        if study.is_radiopaedia(page, article=True) and page != saved:
             db.set_draft_page(did, page)
         if layout != settings.get("study_layout"):
             db.save_settings({"study_layout": layout})

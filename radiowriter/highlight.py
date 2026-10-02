@@ -19,7 +19,9 @@ from __future__ import annotations
 import html
 import re
 
-FIELD_TAG = re.compile(r"\[[^\]]*\]")
+# `[^\[\]]` e non `[^\]]`: escludendo anche la quadra aperta, una stringa di
+# sole `[` si scorre una volta invece di ripartire da ognuna (tempo quadratico).
+FIELD_TAG = re.compile(r"\[[^\[\]]*\]")
 # dopo un NOT: un gruppo tra parentesi (un livello), una frase tra virgolette,
 # o una parola sola
 AFTER_NOT = re.compile(r'\bNOT\s+(?:\([^()]*\)|"[^"]*"|\S+)')
