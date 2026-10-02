@@ -61,4 +61,4 @@ radiowriter = "radiowriter.__main__:main"
 packages = ["radiowriter"]
 
 [tool.setuptools.package-data]
-radiowriter = ["data/*.json", "data/*.txt", "data/*.csv.gz", "web/*.html"]
+radiowriter = ["data/*.json", "data/*.txt", "data/*.csv.gz", "web/*.html", "web/*.png"]

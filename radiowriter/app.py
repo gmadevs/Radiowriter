@@ -126,7 +126,8 @@ SEARCH_PREFS = {
 }
 
 st.set_page_config(
-    page_title="Radiowriter", layout="wide", page_icon="🔬",
+    page_title="Radiowriter", layout="wide",
+    page_icon=str(Path(__file__).parent / "web" / "icon.png"),
     # Il menu resta perche' e' li' che si sceglie il tema; le voci che
     # rimandano all'assistenza di Streamlit non riguardano chi usa l'app.
     menu_items={

@@ -15,8 +15,10 @@ export default defineConfig({
   cleanUrls: true,
   lastUpdated: true,
   appearance: 'dark',
+  head: [['link', { rel: 'icon', href: '/Radiowriter/favicon.png' }]],
 
   themeConfig: {
+    logo: '/favicon.png',
     nav: [
       { text: 'Guide', link: '/guide/install' },
       { text: 'How it works', link: '/internals/architecture' },

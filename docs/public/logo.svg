@@ -1,0 +1,51 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <!-- Il marchio di Radiowriter, nella famiglia di quello di Radiouploader:
+       quadrato blu notte, una sagoma grigia simmetrica, un punto azzurro
+       acceso al centro. La' sono due polmoni, qui le due pagine di un libro
+       aperto, e il punto e' la punta della penna.
+       Il quadrato e' 840 su 1024, come vuole la griglia delle icone di macOS. -->
+  <defs>
+    <radialGradient id="spark" cx="50%" cy="45%" r="55%">
+      <stop offset="0" stop-color="#8fe9ff"/>
+      <stop offset="0.55" stop-color="#3fb4ff"/>
+      <stop offset="1" stop-color="#1e8fff"/>
+    </radialGradient>
+    <filter id="glow" x="-150%" y="-150%" width="400%" height="400%">
+      <feGaussianBlur stdDeviation="26"/>
+    </filter>
+  </defs>
+
+  <rect x="92" y="92" width="840" height="840" rx="196" fill="#0d1f3c"/>
+
+  <g>
+    <!-- le due pagine -->
+    <path fill="#b7b9be" d="M500 318 C436 272 322 266 236 296 Q222 301 222 316 L222 716 Q222 734 240 729 C326 706 436 712 500 756 Z"/>
+    <path fill="#b7b9be" d="M524 318 C588 272 702 266 788 296 Q802 301 802 316 L802 716 Q802 734 784 729 C698 706 588 712 524 756 Z"/>
+    <!-- le righe di testo, del grigio dei bronchi -->
+    <g fill="none" stroke="#a0a3a9" stroke-width="20" stroke-linecap="round">
+      <path d="M282 388 C330 376 384 376 440 392"/>
+      <path d="M282 458 C324 448 364 448 404 456"/>
+      <path d="M282 528 C320 519 356 519 392 526"/>
+      <path d="M282 598 C324 588 364 588 404 596"/>
+      <path d="M282 668 C330 656 384 658 440 676"/>
+      <path d="M742 388 C694 376 640 376 584 392"/>
+      <path d="M742 458 C700 448 660 448 620 456"/>
+      <path d="M742 528 C704 519 668 519 632 526"/>
+      <path d="M742 598 C700 588 660 588 620 596"/>
+      <path d="M742 668 C694 656 640 658 584 676"/>
+    </g>
+  </g>
+  <!-- la finestra al centro, dove nei polmoni c'e' il mediastino: del colore
+       del fondo, disegnata sopra le pagine (una maschera si perdeva
+       rimpicciolendo l'immagine) -->
+  <rect x="446" y="392" width="132" height="262" rx="66" fill="#0d1f3c"/>
+
+  <!-- la punta accesa, e i tre tratti sopra -->
+  <circle cx="512" cy="572" r="58" fill="#2aa5ff" opacity="0.55" filter="url(#glow)"/>
+  <g fill="none" stroke="#35aaff" stroke-width="9" stroke-linecap="round">
+    <path d="M490 500 C492 482 480 472 484 452"/>
+    <path d="M512 492 C518 470 504 456 512 430"/>
+    <path d="M534 500 C532 482 544 472 540 452"/>
+  </g>
+  <circle cx="512" cy="572" r="45" fill="url(#spark)"/>
+</svg>

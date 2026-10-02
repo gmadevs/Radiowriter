@@ -1,6 +1,9 @@
 <div align="center">
 
-# Radiowriter
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/gmadevs/Radiowriter/main/docs/public/banner-dark.png">
+  <img src="https://raw.githubusercontent.com/gmadevs/Radiowriter/main/docs/public/banner-light.png" alt="Radiowriter" width="708">
+</picture>
 
 [![PyPI](https://img.shields.io/pypi/v/radiowriter?style=flat-square&logo=pypi&logoColor=white)](https://pypi.org/project/radiowriter/)
 [![Licence: AGPL-3.0-only](https://img.shields.io/badge/licence-AGPL--3.0--only-blue?style=flat-square)](LICENSE)
