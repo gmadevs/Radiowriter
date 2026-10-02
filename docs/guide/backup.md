@@ -35,6 +35,19 @@ hundred addresses. They are public on PubMed, but consider this before you
 publish the file, for example in a public repository.
 :::
 
+### Importing a PubMed export
+
+**📥 Import PubMed export** in the sidebar adds articles from a file or from
+pasted text. It reads PubMed's MEDLINE format, in which every record starts
+with a `PMID-` line. To get such a file on PubMed, click **Save** and choose
+the format **PubMed** (a `.txt` file), or click **Send to**, then **Citation
+manager** (a `.nbib` file). The Summary, Abstract, PMID and CSV formats
+cannot be imported.
+
+After the import, the app reports how many articles were added, how many were
+already in the archive, and how many were skipped because you had read and
+deleted them.
+
 ### The `.json` file: the archive
 
 **⤓ Full backup (.json)** writes:

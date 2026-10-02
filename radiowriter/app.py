@@ -1011,10 +1011,20 @@ with st.sidebar:
                     st.rerun()
 
     with st.expander("📥 Import PubMed export", expanded=False):
-        import_type = st.radio("Method:", ["Upload .txt file", "Paste raw text"])
+        import_type = st.radio(
+            "Method:", ["Upload a file", "Paste raw text"],
+            help="Imports records in PubMed's MEDLINE format, in which every "
+                 "record starts with a `PMID-` line. On PubMed, click **Save** "
+                 "and choose the format **PubMed** (a `.txt` file), or click "
+                 "**Send to**, then **Citation manager** (a `.nbib` file). "
+                 "The Summary, Abstract, PMID and CSV formats cannot be "
+                 "imported.")
         input_text = ""
-        if import_type == "Upload .txt file":
-            uploaded = st.file_uploader("PubMed export file", type=["txt", "nbib"])
+        if import_type == "Upload a file":
+            uploaded = st.file_uploader(
+                "PubMed export file", type=["txt", "nbib"],
+                help="A `.txt` file saved from PubMed in the format PubMed, or "
+                     "a `.nbib` file.")
             if uploaded is not None:
                 input_text = uploaded.read().decode("utf-8", errors="replace")
         else:
