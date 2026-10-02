@@ -16,6 +16,7 @@ radiowriter/
   querybuilder.py composing a query from concept blocks
   issg.py         the four published ISSG search filters
   strategies.py   Radiopaedia heading → PubMed search strategy
+  editorial.py    the journals and the query of each editorial group
   modalities.py   the search terms of the 43 imaging modalities
   highlight.py    highlighting the search terms in titles and abstracts
   journals.py     reading the SCImago CSV

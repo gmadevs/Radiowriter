@@ -692,5 +692,13 @@ for origin in (_paths.FROM_ENV, _paths.FROM_SOURCE, _paths.FROM_DATA_DIR):
 is_("...e per l'archivio accanto al codice dice perche' non viene spostato",
     "does not move an existing archive" in _cli._why(_paths.FROM_SOURCE), "True")
 
+# Il pannello della letteratura recente: c'e', e non ha ancora girato.
+at = AppTest.from_file(APP, default_timeout=60)
+at.run()
+is_("c'e' il menu dei gruppi editoriali", at.selectbox(key="recent_group").options, "['CNS']")
+is_("...col pulsante", "Fetch recent literature" in at.button(key="recent_go").label, "True")
+is_("...e dice che non ha mai girato",
+    any("Never run" in c.value for c in at.caption), "True")
+
 print(f"\n{checked} controlli, {failed} falliti")
 sys.exit(1 if failed else 0)

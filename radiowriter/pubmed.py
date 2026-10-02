@@ -208,9 +208,11 @@ def esearch(
     retstart = 0
 
     while True:
-        resp = session.get(
+        # In POST, non in GET: una query con duecento ISSN e un filtro ISSG
+        # passa i settemila caratteri, e nell'indirizzo non ci sta.
+        resp = session.post(
             ESEARCH_URL,
-            params={
+            data={
                 "db": "pubmed",
                 "term": query,
                 "retmax": min(batch_size, ESEARCH_CAP - retstart),

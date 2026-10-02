@@ -30,6 +30,7 @@ import streamlit as st
 from radiowriter import backup
 from radiowriter import db
 from radiowriter import draft_io
+from radiowriter import editorial
 from radiowriter import highlight
 from radiowriter import highlights as hl
 from radiowriter import issg
@@ -1564,6 +1565,184 @@ tab_search, tab_screen, tab_library, tab_write = st.tabs(
 # ---------------------------------------------------------------------------
 
 with tab_search:
+    def run_search(label: str, query: str, *, highlight_terms: str,
+                   limit: int, skip: str) -> list[dict] | None:
+        """Manda una query a PubMed e mette i record fra i risultati.
+
+        La usano la ricerca normale e "Fetch recent literature": cambia come
+        nasce la query, non quello che le succede dopo. `label` e' la riga che
+        resta nello storico, `highlight_terms` le parole da evidenziare nei
+        risultati (nessuna, per una ricerca fatta di ISSN). Ritorna i record
+        nuovi, o None se la ricerca non e' andata."""
+        email = (settings.get("ncbi_email") or "").strip()
+        if not email:
+            st.error("Set the NCBI email in the sidebar first (⚙️ Settings).")
+            return None
+        api_key = (settings.get("ncbi_api_key") or "").strip()
+        params = pubmed.ncbi_params(email, api_key)
+        params["_pause"] = pubmed.pause(api_key)
+        session = http_session()
+        status = st.status("Querying PubMed...", expanded=True)
+        try:
+            already = db.known_pmids(skip)
+            unmatched: list[str] = []
+            total, pmids, n_excluded = pubmed.esearch(
+                query, session, params,
+                max_results=limit,
+                exclude=already,
+                progress=lambda n, exc, seen, tot: status.write(
+                    f"PMIDs examined {seen}/{tot}: {n} new, {exc} already known and skipped"),
+                warn=unmatched.extend)
+            if unmatched:
+                # non e' un errore: PubMed le nomina solo quando il totale e'
+                # zero, e le stringhe pubblicate dell'ISSG ne contengono
+                status.write(
+                    "ℹ️ Nothing in PubMed matches these pieces of the query: "
+                    + ", ".join(f"`{u}`" for u in dict.fromkeys(unmatched))
+                    + ". The rest of the query ran normally.")
+            status.write(
+                f"PubMed reports **{total}** results. "
+                f"Skipped **{n_excluded}** already in the database, "
+                f"downloading **{len(pmids)}**."
+            )
+            if total > pubmed.ESEARCH_CAP:
+                status.write(
+                    f"⚠️ PubMed returns at most {pubmed.ESEARCH_CAP:,} "
+                    "records per search, the most recent first. To get the "
+                    "older ones, narrow the search, for example by years.")
+            records = pubmed.efetch(
+                pmids, session, params,
+                progress=lambda n, t: status.write(f"Details downloaded: {n}/{t}"))
+            status.write(f"Complete records: {len(records)}.")
+
+            if use_s2 and records:
+                status.write("Fetching citation data from Semantic Scholar...")
+                try:
+                    enrich = s2.enrich(
+                        [r["pmid"] for r in records],
+                        api_key=(settings.get("s2_api_key") or "").strip(),
+                        progress=lambda n, t: status.write(f"Semantic Scholar: {n}/{t}"))
+                except s2.SemanticScholarError as exc:
+                    enrich = {}
+                    status.write(f"⚠️ Semantic Scholar unavailable: {exc}")
+                for rec in records:
+                    rec.update(enrich.get(rec["pmid"], {}))
+                found = sum(1 for v in enrich.values() if v.get("s2_paper_id"))
+                status.write(
+                    f"Citation data found for {found} of {len(enrich)} records.")
+
+            if use_oa and records:
+                email = unpaywall_email()
+                with_doi = {clean(r.get("doi")).lower(): r for r in records
+                            if clean(r.get("doi"))}
+                if not email:
+                    status.write("⚠️ Unpaywall skipped: no email set in the "
+                                 "sidebar settings.")
+                elif not with_doi:
+                    status.write("No DOIs among these records: nothing to "
+                                 "ask Unpaywall.")
+                else:
+                    status.write(f"Asking Unpaywall about {len(with_doi)} DOIs…")
+                    oa = upw.enrich(
+                        list(with_doi), email, session,
+                        progress=lambda n, t: status.write(f"Unpaywall: {n}/{t}"))
+                    for doi, found in oa.items():
+                        rec = with_doi.get(doi)
+                        if rec:
+                            rec["oa_status"] = found["oa_status"]
+                            rec["oa_url"] = found["oa_url"]
+                            rec["oa_fetched_at"] = found["oa_fetched_at"]
+                    free = sum(1 for v in oa.values()
+                               if v["oa_status"] not in ("closed", "unknown"))
+                    status.write(f"{free} of {len(oa)} have a free full text.")
+
+            for rec in records:
+                rec["source_query"] = query
+
+            search_id = db.log_search(label, query, total, len(records))
+            st.session_state.search_results = records
+            # i termini della ricerca FATTA, non di quella che si sta
+            # scrivendo: sono loro che si evidenziano nei risultati
+            st.session_state.search_terms_used = highlight_terms
+            st.session_state.search_id = search_id
+            st.session_state.search_total = total
+            st.session_state.search_excluded = n_excluded
+            st.session_state.search_selection = {}
+            st.session_state.search_gen = st.session_state.get("search_gen", 0) + 1
+            status.update(
+                label=(f"Search complete: {len(records)} new records."
+                       if records else
+                       f"No new results: all {n_excluded} matches found are "
+                       f"already in the database."),
+                state="complete", expanded=not records)
+            return records
+        except (pubmed.PubMedError, requests.RequestException) as exc:
+            status.update(label="Search failed", state="error", expanded=True)
+            st.error(f"Error during the search: {exc}")
+            return None
+
+    # ----------------------------------------------------------------------
+    # la letteratura recente di un gruppo editoriale
+    # ----------------------------------------------------------------------
+    # Non parte dai termini ma dalle riviste: quelle del gruppo, prese dal file
+    # SCImago. Quello che trova si salva da solo in una lista col nome del
+    # gruppo, perche' e' una rassegna da sfogliare nello screening e non una
+    # ricerca da cui scegliere.
+    with st.container(border=True):
+        g_pick, g_go, g_info = st.columns([1, 1.5, 3.2], vertical_alignment="bottom")
+        group = editorial.GROUPS[g_pick.selectbox(
+            "Editorial group", list(editorial.GROUPS), key="recent_group",
+            format_func=lambda k: editorial.GROUPS[k].label,
+            help="A Radiopaedia editorial group. Each group has its own set of "
+                 "journals, taken from the SCImago file: the Q1 journals of "
+                 "its categories, and the journals of its field found by "
+                 "title.")]
+        last_run = (settings.get(editorial.setting_key(group)) or "")[:10]
+        recent_since = editorial.since_for(last_run)
+        fetch_recent = g_go.button(
+            "📰 Fetch recent literature", key="recent_go", width="stretch",
+            help="Searches the journals of the group for reviews, "
+                 "meta-analyses and guidelines in English. The first run "
+                 f"covers the last {editorial.FIRST_RUN_DAYS} days. Later runs "
+                 f"start {editorial.OVERLAP_DAYS} days before the previous "
+                 "run, because PubMed adds the publication type to some "
+                 "records a few days after they appear.")
+        g_info.caption(
+            (f"Last run: {last_run}. " if last_run else "Never run. ")
+            + f"Fetches what PubMed added since {recent_since:%Y-%m-%d} and "
+              f"saves it in the list “{group.list_name}”.")
+
+    if fetch_recent:
+        recent_query = editorial.build_query(group, db.journal_rows(), recent_since)
+        if not recent_query:
+            st.error("No journals found for this group. Open 📊 Journal metrics "
+                     "in the sidebar and reload the SCImago file.")
+        else:
+            got = run_search(
+                f"Recent literature: {group.label}, since {recent_since:%Y-%m-%d}",
+                recent_query, highlight_terms="", limit=pubmed.ESEARCH_CAP,
+                skip="db")
+            if got is not None:
+                added, _, _ = db.insert_articles(got)
+                list_id = db.create_list(
+                    group.list_name, "Filled by Fetch recent literature")
+                if list_id is None:
+                    list_id = next(r["id"] for r in db.list_lists()
+                                   if r["name"] == group.list_name)
+                in_list = db.add_to_list(
+                    list_id, [r["pmid"] for r in got],
+                    note=f"fetched {date.today():%Y-%m-%d}")
+                db.bump_search_saved(st.session_state.get("search_id"), added)
+                # La data si scrive solo a ricerca riuscita: se PubMed non
+                # risponde, la prossima volta si riparte dallo stesso giorno.
+                db.save_settings(
+                    {editorial.setting_key(group): date.today().isoformat()})
+                st.session_state.settings = db.get_settings()
+                st.success(
+                    f"{added} article(s) saved in the archive, {in_list} added "
+                    f"to the list “{group.list_name}”. Screen them in the "
+                    "Screening tab, with that list selected under In list.")
+
     how = st.segmented_control(
         "How to search", ["✎ One line", "⛁ Blocks"], default="✎ One line",
         key="search_how", label_visibility="collapsed",
@@ -1670,110 +1849,8 @@ with tab_search:
                 st.code(query_preview, language="text")
 
     if st.button("🔎 Search PubMed", type="primary", disabled=not query_preview):
-        email = (settings.get("ncbi_email") or "").strip()
-        if not email:
-            st.error("Set the NCBI email in the sidebar first (⚙️ Settings).")
-        else:
-            api_key = (settings.get("ncbi_api_key") or "").strip()
-            params = pubmed.ncbi_params(email, api_key)
-            params["_pause"] = pubmed.pause(api_key)
-            session = http_session()
-            status = st.status("Querying PubMed...", expanded=True)
-            try:
-                already = db.known_pmids(exclude_mode)
-                unmatched: list[str] = []
-                total, pmids, n_excluded = pubmed.esearch(
-                    query_preview, session, params,
-                    max_results=int(max_results) or pubmed.ESEARCH_CAP,
-                    exclude=already,
-                    progress=lambda n, exc, seen, tot: status.write(
-                        f"PMIDs examined {seen}/{tot}: {n} new, {exc} already known and skipped"),
-                    warn=unmatched.extend)
-                if unmatched:
-                    # non e' un errore: PubMed le nomina solo quando il totale e'
-                    # zero, e le stringhe pubblicate dell'ISSG ne contengono
-                    status.write(
-                        "ℹ️ Nothing in PubMed matches these pieces of the query: "
-                        + ", ".join(f"`{u}`" for u in dict.fromkeys(unmatched))
-                        + ". The rest of the query ran normally.")
-                status.write(
-                    f"PubMed reports **{total}** results. "
-                    f"Skipped **{n_excluded}** already in the database, "
-                    f"downloading **{len(pmids)}**."
-                )
-                if total > pubmed.ESEARCH_CAP:
-                    status.write(
-                        f"⚠️ PubMed returns at most {pubmed.ESEARCH_CAP:,} "
-                        "records per search, the most recent first. To get the "
-                        "older ones, narrow the search, for example by years.")
-                records = pubmed.efetch(
-                    pmids, session, params,
-                    progress=lambda n, t: status.write(f"Details downloaded: {n}/{t}"))
-                status.write(f"Complete records: {len(records)}.")
-
-                if use_s2 and records:
-                    status.write("Fetching citation data from Semantic Scholar...")
-                    try:
-                        enrich = s2.enrich(
-                            [r["pmid"] for r in records],
-                            api_key=(settings.get("s2_api_key") or "").strip(),
-                            progress=lambda n, t: status.write(f"Semantic Scholar: {n}/{t}"))
-                    except s2.SemanticScholarError as exc:
-                        enrich = {}
-                        status.write(f"⚠️ Semantic Scholar unavailable: {exc}")
-                    for rec in records:
-                        rec.update(enrich.get(rec["pmid"], {}))
-                    found = sum(1 for v in enrich.values() if v.get("s2_paper_id"))
-                    status.write(
-                        f"Citation data found for {found} of {len(enrich)} records.")
-
-                if use_oa and records:
-                    email = unpaywall_email()
-                    with_doi = {clean(r.get("doi")).lower(): r for r in records
-                                if clean(r.get("doi"))}
-                    if not email:
-                        status.write("⚠️ Unpaywall skipped: no email set in the "
-                                     "sidebar settings.")
-                    elif not with_doi:
-                        status.write("No DOIs among these records: nothing to "
-                                     "ask Unpaywall.")
-                    else:
-                        status.write(f"Asking Unpaywall about {len(with_doi)} DOIs…")
-                        oa = upw.enrich(
-                            list(with_doi), email, session,
-                            progress=lambda n, t: status.write(f"Unpaywall: {n}/{t}"))
-                        for doi, found in oa.items():
-                            rec = with_doi.get(doi)
-                            if rec:
-                                rec["oa_status"] = found["oa_status"]
-                                rec["oa_url"] = found["oa_url"]
-                                rec["oa_fetched_at"] = found["oa_fetched_at"]
-                        free = sum(1 for v in oa.values()
-                                   if v["oa_status"] not in ("closed", "unknown"))
-                        status.write(f"{free} of {len(oa)} have a free full text.")
-
-                for rec in records:
-                    rec["source_query"] = query_preview
-
-                search_id = db.log_search(terms.strip(), query_preview, total, len(records))
-                st.session_state.search_results = records
-                # i termini della ricerca FATTA, non di quella che si sta
-                # scrivendo: sono loro che si evidenziano nei risultati
-                st.session_state.search_terms_used = terms.strip()
-                st.session_state.search_id = search_id
-                st.session_state.search_total = total
-                st.session_state.search_excluded = n_excluded
-                st.session_state.search_selection = {}
-                st.session_state.search_gen = st.session_state.get("search_gen", 0) + 1
-                status.update(
-                    label=(f"Search complete: {len(records)} new records."
-                           if records else
-                           f"No new results: all {n_excluded} matches found are "
-                           f"already in the database."),
-                    state="complete", expanded=not records)
-            except (pubmed.PubMedError, requests.RequestException) as exc:
-                status.update(label="Search failed", state="error", expanded=True)
-                st.error(f"Error during the search: {exc}")
+        run_search(terms.strip(), query_preview, highlight_terms=terms.strip(),
+                   limit=int(max_results) or pubmed.ESEARCH_CAP, skip=exclude_mode)
 
     results = st.session_state.get("search_results") or []
 

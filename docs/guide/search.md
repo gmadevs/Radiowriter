@@ -7,6 +7,44 @@ query one concept at a time, and is described in
 
 ![The search tab](/shots/01-search.png)
 
+## Recent literature of an editorial group
+
+The panel at the top of the tab fetches the recent reviews and guidelines of
+a Radiopaedia editorial group. It searches by journal and does not use the
+search terms or the filters below it.
+
+1. Choose the group under **Editorial group**. CNS is the only group for now.
+2. Click **📰 Fetch recent literature**.
+
+The first run covers the last 30 days. Later runs start 7 days before the
+previous run, because PubMed adds the publication type to some records a few
+days after they appear. Articles already in the archive are skipped, so the
+overlap does not create duplicates. The date of the last run is shown next to
+the button.
+
+The search uses the date an article was added to PubMed, and returns reviews,
+systematic reviews, meta-analyses and guidelines in English. Guidelines are
+found with the ISSG filter *Guidelines (standard)*.
+
+The journals come from the SCImago file. For CNS they are:
+
+| Journals | How they are chosen | Articles kept |
+|---|---|---|
+| Neuroradiology, neuroimaging and spine | Title contains "neuroradiol", "neuroimag", "spine" or "spinal", and best quartile Q1 or Q2 (32 journals) | All |
+| Radiology | Q1 in the category *Radiology, Nuclear Medicine and Imaging* (84 journals) | All |
+| Neurology | Q1 in the category *Neurology (clinical)* (91 journals) | All |
+
+The numbers are for the SCImago table of 2025. A run covering 30 days
+returned about 600 articles on 2 October 2026.
+
+Every article found is saved in the archive and added to the reading list
+**Editorial group: CNS**. To screen them, open the Screening tab and choose
+that list under **In list:**. An article in a list is not deleted at startup
+when it is marked read, so the list keeps the articles you have screened
+until you remove them from it or delete the list.
+
+The run is recorded in **🕘 Recent searches**.
+
 ## The filters
 
 The filter panel is always shown, below the search terms.

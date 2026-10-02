@@ -19,6 +19,15 @@
   over OR. The block builder puts each block in brackets. In a query typed on
   one line, you have to add the brackets yourself.
 
+- **📰 Fetch recent literature** takes its journals from the SCImago file.
+  A journal that SCImago does not list, or lists in another category, is not
+  searched. The journals are not limited by topic, so the results include
+  radiology reviews on other body regions and neurology reviews that are not
+  about imaging.
+- The date of the last run of **📰 Fetch recent literature** is a setting.
+  It is not in the `.json` backup, so after a restore on another computer the
+  first run covers the last 30 days again.
+
 ## Journals
 
 - SJR is not the Journal Impact Factor. The Impact Factor is published by

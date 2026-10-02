@@ -193,7 +193,7 @@ class FakeSession:
     def __init__(self, payload):
         self.payload = payload
 
-    def get(self, url, params=None, timeout=None):
+    def post(self, url, data=None, timeout=None):
         return FakeResponse({"esearchresult": self.payload})
 
 
@@ -233,8 +233,8 @@ class PagedSession:
     def __init__(self):
         self.calls = []
 
-    def get(self, url, params=None, timeout=None):
-        start, size = params["retstart"], params["retmax"]
+    def post(self, url, data=None, timeout=None):
+        start, size = data["retstart"], data["retmax"]
         self.calls.append((start, size))
         if start + size > pubmed.ESEARCH_CAP:
             raise AssertionError(f"retstart {start} + retmax {size} oltre il tetto")
@@ -472,6 +472,61 @@ is_("...solo a parola intera", hl.mark("preabscess", rx), "preabscess")
 is_("...e l'HTML resta escapato, anche accanto a un termine",
     hl.mark("abscess <b> & co", rx), "<mark>abscess</mark> &lt;b&gt; &amp; co")
 is_("senza termini si escapa e basta", hl.mark("a < b", None), "a &lt; b")
+
+# ---------------------------------------------------------------------------
+print("\n--- gruppi editoriali ---")
+from datetime import date as _date           # noqa: E402
+from radiowriter import editorial as ed       # noqa: E402
+
+_RAD = "Radiology, Nuclear Medicine and Imaging"
+_J = [
+    {"id": 1, "title": "American Journal of Neuroradiology", "sjr": 1.2, "quartile": "Q1",
+     "categories": f"{_RAD} (Q1); Neurology (clinical) (Q1)", "issns": ["01956108"]},
+    {"id": 2, "title": "Radiology", "sjr": 4.4, "quartile": "Q1",
+     "categories": f"{_RAD} (Q1)", "issns": ["00338419", "15271315"]},
+    {"id": 3, "title": "The Lancet Neurology", "sjr": 12.4, "quartile": "Q1",
+     "categories": "Neurology (clinical) (Q1)", "issns": ["14744422"]},
+    {"id": 4, "title": "Cancer Treatment Reviews", "sjr": 3.7, "quartile": "Q1",
+     "categories": f"Oncology (Q1); {_RAD} (Q2)", "issns": ["03057372"]},
+    {"id": 5, "title": "Spine Deformity", "sjr": 0.7, "quartile": "Q2",
+     "categories": "Orthopedics and Sports Medicine (Q2)", "issns": ["2212134X"]},
+    {"id": 6, "title": "Indian Spine Journal", "sjr": 0.1, "quartile": "Q4",
+     "categories": "Neurology (clinical) (Q4)", "issns": ["25895079"]},
+    {"id": 7, "title": "Senza ISSN di Neuroradiol", "sjr": 1.0, "quartile": "Q1",
+     "categories": f"{_RAD} (Q1)", "issns": []},
+]
+cns = ed.GROUPS["cns"]
+rings = ed.journals_of(cns, _J)
+by_ring = [[j["id"] for j in js] for _, js in rings]
+is_("le riviste del mestiere si riconoscono dal titolo, fino a Q2", by_ring[0], "[1, 5]")
+is_("la radiologia e' solo quella Q1 NELLA categoria", by_ring[1], "[2]")
+is_("la neurologia clinica Q1, senza chi sta gia' in un altro anello", by_ring[2], "[3]")
+is_("una rivista sta in un anello solo",
+    len({i for ids in by_ring for i in ids}), sum(len(ids) for ids in by_ring))
+
+q = ed.build_query(cns, _J, _date(2026, 9, 2))
+is_("gli ISSN vanno a PubMed col trattino", '"0195-6108"[IS]' in q, "True")
+is_("...tutti quelli della rivista", '"1527-1315"[IS]' in q, "True")
+is_("la neurologia entra intera, come la radiologia", '"1474-4422"[IS]' in q, "True")
+_topic = ed.Group("x", "X", (ed.Ring("r", category=_RAD, topic="brain[tiab]"),))
+is_("un anello col filtro di argomento lo mette accanto alle sue riviste",
+    '"1527-1315"[IS]) AND brain[tiab])' in
+    ed.build_query(_topic, _J, _date(2026, 9, 2)), "True")
+is_("chi non e' Q1 nella categoria resta fuori", "0305-7372" in q, "False")
+is_("si chiedono le revisioni", "Review[pt]" in q and "systematic[sb]" in q, "True")
+is_("...e le linee guida col filtro ISSG", ed.issg.clause(["guidelines_standard"]) in q, "True")
+is_("per data di ingresso in PubMed", '("2026/09/02"[edat] : "3000"[edat])' in q, "True")
+is_("le parentesi tornano", q.count("(") == q.count(")"), "True")
+is_("senza riviste non c'e' query", ed.build_query(cns, [], _date(2026, 9, 2)), "")
+
+today = _date(2026, 10, 2)
+is_("la prima volta si parte da un mese fa", ed.since_for("", today), "2026-09-02")
+is_("poi dall'ultima volta, meno la sovrapposizione",
+    ed.since_for("2026-09-20", today), "2026-09-13")
+is_("una data illeggibile vale come mai", ed.since_for("ieri", today), "2026-09-02")
+is_("una data nel futuro non allunga la finestra",
+    ed.since_for("2027-01-01", today), "2026-09-25")
+is_("la lista porta il nome del gruppo", cns.list_name, "Editorial group: CNS")
 
 print(f"\n{checked} controlli, {failed} falliti")
 sys.exit(1 if failed else 0)

@@ -784,6 +784,24 @@ def match_journals(pmids: list[str] | None = None) -> tuple[int, int]:
     return db_retry(_run)
 
 
+def journal_rows() -> list[dict]:
+    """Le riviste del file SCImago, ognuna con i propri ISSN.
+
+    Serve a chi sceglie le riviste per categoria e quartile (i gruppi
+    editoriali): trentamila righe, lette una volta quando si preme il pulsante."""
+    conn = get_connection()
+    try:
+        rows = conn.execute(
+            "SELECT m.id, m.title, m.sjr, m.quartile, m.categories, "
+            "GROUP_CONCAT(i.issn) AS issns "
+            "FROM journal_metrics m LEFT JOIN journal_issns i ON i.metric_id = m.id "
+            "GROUP BY m.id").fetchall()
+    finally:
+        conn.close()
+    return [{**dict(r), "issns": (r["issns"] or "").split(",") if r["issns"] else []}
+            for r in rows]
+
+
 def journal_metric(metric_id: int | None) -> sqlite3.Row | None:
     if metric_id is None:
         return None
