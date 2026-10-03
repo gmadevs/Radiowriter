@@ -159,6 +159,41 @@ is_("humans toglie gli studi solo animali, in fondo e con NOT",
     q, "(abscess) AND english[la] NOT (animals[mh] NOT humans[mh])")
 is_("...e le parentesi restano bilanciate", q.count("("), q.count(")"))
 
+none = dict(type_labels=[], years=0, full_text=False, english=False,
+            humans=False, today=TODAY)
+is_("l'elenco dei tipi e' quello di PubMed", len(pubmed.ARTICLE_TYPES), 66)
+is_("...con le lingue e le eta'", (len(pubmed.LANGUAGES), len(pubmed.AGES)), (58, 14))
+is_("i dodici tipi di prima hanno il frammento di prima",
+    dict(pubmed.ARTICLE_TYPES)["Review"], '"Review"[pt]')
+is_("...e i nuovi la sigla di PubMed",
+    dict(pubmed.ARTICLE_TYPES)["Case Reports"], "casereports[Filter]")
+is_("le tre disponibilita' del testo vanno in AND",
+    pubmed.build_query("x", **{**none, "full_text": True}, abstract=True,
+                       free_full_text=True),
+    "(x) AND fha[Filter] AND ffrft[Filter] AND fft[Filter]")
+is_("piu' lingue vanno in OR",
+    pubmed.build_query("x", **none, languages=["Italian", "English"]),
+    "(x) AND (english[la] OR italian[Filter])")
+is_("...e una sola non prende parentesi",
+    pubmed.build_query("x", **none, languages=["English"]), "(x) AND english[la]")
+is_("sesso ed eta' sono due gruppi: OR dentro, AND fra loro",
+    pubmed.build_query("x", **none, sexes=["Female", "Male"],
+                       ages=["Aged: 65+ years"]),
+    "(x) AND (female[Filter] OR male[Filter]) AND aged[Filter]")
+is_("altri animali da solo usa il filtro di PubMed",
+    pubmed.build_query("x", **none, other_animals=True), "(x) AND animal[Filter]")
+is_("umani e altri animali insieme vanno in OR, senza il NOT",
+    pubmed.build_query("x", **{**none, "humans": True}, other_animals=True),
+    "(x) AND (humans[Filter] OR animal[Filter])")
+is_("i preprint si tolgono con NOT, in fondo, prima degli animali",
+    pubmed.build_query("x", **{**none, "humans": True}, exclude_preprints=True,
+                       medline=True, associated_data=True),
+    "(x) AND data[Filter] AND medline[Filter] NOT preprint[pt] "
+    "NOT (animals[mh] NOT humans[mh])")
+is_("un intervallo di anni",
+    pubmed.build_query("x", **none, year_from=2010, year_to=2015),
+    '(x) AND ("2010/01/01"[Date - Publication] : "2015/12/31"[Date - Publication])')
+
 is_("il fascio delle review non contiene trial ne' libri",
     [t for t in pubmed.REVIEW_TYPE_LABELS
      if t in ("Books and Documents", "Clinical Trial, Phase IV", "Multicenter Study")], [])

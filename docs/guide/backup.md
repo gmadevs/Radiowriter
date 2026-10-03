@@ -44,9 +44,15 @@ the format **PubMed** (a `.txt` file), or click **Send to**, then **Citation
 manager** (a `.nbib` file). The Summary, Abstract, PMID and CSV formats
 cannot be imported.
 
+**Add to list** chooses the reading list the imported articles are added to:
+an existing list, or **＋ New list…**, which asks for a name. With **No list**,
+the default, the articles are saved in the archive only. Articles already in
+the archive are added to the list too. Articles you had read and deleted are
+not.
+
 After the import, the app reports how many articles were added, how many were
-already in the archive, and how many were skipped because you had read and
-deleted them.
+already in the archive, how many were skipped because you had read and
+deleted them, and how many were added to the list.
 
 ### The `.json` file: the archive
 

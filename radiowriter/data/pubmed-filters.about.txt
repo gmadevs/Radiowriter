@@ -1,0 +1,29 @@
+pubmed-filters.json - da dove viene e cosa gli e' stato fatto
+=============================================================
+
+LORO. Le voci sono quelle dei filtri di PubMed
+(https://pubmed.ncbi.nlm.nih.gov/), della National Library of Medicine:
+i tipi di articolo, le lingue e le fasce d'eta' della finestra
+"Additional filters" di una pagina di risultati.
+
+Trascritto il 2026-10-03 dall'HTML di
+https://pubmed.ncbi.nlm.nih.gov/?term=glioma
+
+Ogni voce e' [etichetta, sigla]. L'etichetta e' il testo che PubMed mostra
+accanto alla casella. La sigla e' la parte dopo il punto nel valore della
+casella: "pubt.review" diventa "review". L'ordine e' quello della finestra.
+
+- article_types: 66 voci
+- languages: 58 voci
+- ages: 14 voci
+
+NOSTRO. Niente nel file. Il frammento di query `sigla[Filter]` lo compone
+`radiowriter/pubmed.py`, che per dodici tipi di articolo e per l'inglese
+tiene il frammento che l'app usava gia' (`"Review"[pt]`, `english[la]`).
+
+Il 2026-10-03 ogni sigla e' stata mandata a esearch come `sigla[Filter]` e
+ha restituito un conteggio sopra zero, senza avvisi.
+
+Gli altri filtri di PubMed (Abstract, Free full text, Full text, Associated
+data, Humans, Other animals, Female, Male, Exclude preprints, MEDLINE) sono
+pochi e stanno scritti in `pubmed.py`.

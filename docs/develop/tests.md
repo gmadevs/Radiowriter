@@ -49,9 +49,9 @@ widgets by key, so the test runs the same `app.py` that is installed:
 ```python
 at = AppTest.from_file(APP, default_timeout=60)
 at.run()
-at = at.checkbox(key="sf_english").check().run()
-is_("changing a filter by hand moves the control to Custom",
-    next(b for b in at.get("button_group") if b.key == "sf_mode").value, "custom")
+at = at.button(key="recent_open_btn").click().run()
+is_("the button opens the panel with the editorial groups",
+    at.selectbox(key="recent_group").options, "['CNS']")
 ```
 
 Two kinds of error are found only by this script:

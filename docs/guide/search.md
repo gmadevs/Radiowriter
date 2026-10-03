@@ -9,18 +9,23 @@ query one concept at a time, and is described in
 
 ## Recent literature of an editorial group
 
-The panel at the top of the tab fetches the recent reviews and guidelines of
-a Radiopaedia editorial group. It searches by journal and does not use the
-search terms or the filters below it.
+The button **📰 Fetch recent literature** at the top of the tab opens a panel
+that fetches the recent reviews and guidelines of a Radiopaedia editorial
+group. It searches by journal and does not use the search terms or the
+filters below it.
 
-1. Choose the group under **Editorial group**. CNS is the only group for now.
-2. Click **📰 Fetch recent literature**.
+1. Click **📰 Fetch recent literature**. Click it again to close the panel.
+2. Choose the group under **Editorial group**. CNS is the only group for now.
+3. Choose the reading list under **Save in list**. The first choice is the
+   list of the group, **Editorial group: CNS**. The others are your existing
+   lists and **＋ New list…**, which asks for a name.
+4. Click **Fetch**.
 
 The first run covers the last 30 days. Later runs start 7 days before the
 previous run, because PubMed adds the publication type to some records a few
 days after they appear. Articles already in the archive are skipped, so the
-overlap does not create duplicates. The date of the last run is shown next to
-the button.
+overlap does not create duplicates. The date of the last run is shown in the
+panel.
 
 The search uses the date an article was added to PubMed, and returns reviews,
 systematic reviews, meta-analyses and guidelines in English. Guidelines are
@@ -37,8 +42,8 @@ The journals come from the SCImago file. For CNS they are:
 The numbers are for the SCImago table of 2025. A run covering 30 days
 returned about 600 articles on 2 October 2026.
 
-Every article found is saved in the archive and added to the reading list
-**Editorial group: CNS**. To screen them, open the Screening tab and choose
+Every article found is saved in the archive and added to the list chosen
+under **Save in list**. To screen them, open the Screening tab and choose
 that list under **In list:**. An article in a list is not deleted at startup
 when it is marked read, so the list keeps the articles you have screened
 until you remove them from it or delete the list.
@@ -47,41 +52,80 @@ The run is recorded in **🕘 Recent searches**.
 
 ## The filters
 
-The filter panel is always shown, below the search terms.
+The filter control is below the search terms. It has three positions, and the
+position decides which filters are sent to PubMed.
 
 ### Recent reviews, No filters, Custom
 
-The control at the top of the panel has three positions.
-
-- **★ Recent reviews** sets the last 10 years, full text, English, humans, and
-  these NLM publication types: Review, Systematic Review, Scoping Review,
+- **★ Recent reviews** applies the last 10 years, full text, English, humans,
+  and these NLM publication types: Review, Systematic Review, Scoping Review,
   Meta-Analysis, Network Meta-Analysis, Evidence Synthesis, Guideline,
-  Practice Guideline, Consensus Statement.
-- **No filters** turns every filter off, including the date limit. Only the
-  search terms are sent to PubMed.
-- **Custom** is selected automatically when you change any control by hand.
-  If you set the controls back to the values of a preset, that preset is
-  selected again.
+  Practice Guideline, Consensus Statement. No controls are shown. The **?**
+  button next to the control lists these filters.
+- **No filters** applies no filter, including the date limit. Only the search
+  terms are sent to PubMed. No controls are shown.
+- **Custom** shows the controls described below. The first time, they hold
+  the values of **★ Recent reviews**. After that they keep the values you
+  left, also while another position is selected.
 
-The line under the controls describes the filters that the query will apply.
-It is written from the same values as the query.
+In **Custom**, the line under the controls describes the filters that the
+query will apply. It is written from the same values as the query.
 
-### Last N years
+The controls below are shown in **Custom** only. They are the filters of the
+left column of a PubMed results page. Choices within one group are joined
+with OR, and the groups are joined with AND, as on PubMed.
 
-0 means no date limit.
+### Publication date
 
-### Humans
+**Last N years** limits the search to the last N years. 0 means no date
+limit. **Between two years** shows **From year** and **To year**, and limits
+the search to publication dates from 1 January of the first to 31 December of
+the second.
 
-This filter excludes records indexed as animal studies and not as human
-studies: `NOT (animals[mh] NOT humans[mh])`. It does not use `humans[mh]`,
-because that would also exclude every record NLM has not indexed yet, which
-includes most papers from the last few months.
+### Text availability and article attribute
+
+- **Abstract**: records that have an abstract.
+- **Free full text**: records that link to a full text free to read.
+- **Full text**: records that link to a full text, free or not.
+- **Associated data**: records that link to data, for example a data
+  repository or a trial registry.
+
+These four are joined with AND. With **Abstract** and **Full text** ticked,
+a record must have both.
+
+### Article language and Age
+
+**Article language** lists the 58 languages of PubMed. **Age** lists its 14
+age groups.
+
+### Species, sex and other
+
+- **Humans** excludes records indexed as animal studies and not as human
+  studies: `NOT (animals[mh] NOT humans[mh])`. It does not use `humans[mh]`,
+  because that would also exclude every record NLM has not indexed yet, which
+  includes most papers from the last few months.
+- **Other animals** keeps records indexed as animal studies.
+- With **Humans** and **Other animals** both ticked, the query uses the two
+  PubMed filters joined with OR: `(humans[Filter] OR animal[Filter])`.
+- **Female** and **Male** keep records indexed with female or male subjects.
+- **Exclude preprints** adds `NOT preprint[pt]`.
+- **MEDLINE** keeps records with the status MEDLINE.
+
+PubMed joins **Exclude preprints** and **MEDLINE** with OR. Radiowriter joins
+them with AND.
+
+::: warning
+**Age**, **Other animals**, **Female**, **Male** and **MEDLINE** use MeSH
+indexing. Records NLM has not indexed yet are left out, which includes most
+papers from the last few months.
+:::
 
 ### Kind of publication
 
 Choose **Any** or one of two methods:
 
 - **Publication type (NLM)** uses the labels an NLM indexer gave the record.
+  The list has the 66 article types of PubMed.
 - **Search filter (ISSG)** uses published search filters from the InterTASC
   Information Specialists' Sub-Group. They find a kind of publication by the
   words it uses. Four are available: guidelines (broad), guidelines

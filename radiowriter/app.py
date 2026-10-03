@@ -64,18 +64,21 @@ TODAY = date.today()
 MAX_RESULTS_OPTIONS = [0, 100, 200, 500, 1000, 2000, 5000]
 SEARCH_PAGE_SIZE_OPTIONS = [10, 25, 50, 100]
 
-# I filtri di ricerca hanno UN interruttore a tre posizioni, non un interruttore
-# piu' un pulsante "azzera". Con due comandi separati la schermata poteva dire
-# "Recent reviews: On" mentre "azzera" aveva gia' tolto tutto, e la query
-# partiva nuda sotto una scritta che diceva il contrario. Adesso la posizione e'
-# ricavata dai valori (`matching_mode`): se i filtri sono quelli del fascio dice
-# il fascio, se sono tutti spenti dice "No filters", altrimenti "Custom". Non
-# puo' piu' mentire, perche' non e' uno stato a parte.
+# I filtri di ricerca hanno UN interruttore a tre posizioni, ed e' la posizione
+# a decidere cosa va a PubMed (`effective_filters`): "Recent reviews" e "No
+# filters" mandano il loro fascio e non disegnano nessun controllo, "Custom"
+# disegna i controlli e manda quello che c'e' scritto. Prima i controlli erano
+# sempre a schermo e la posizione era ricavata dai valori; adesso i valori dei
+# controlli contano solo in "Custom", e una posizione non puo' dire una cosa
+# mentre la query ne chiede un'altra.
 SEARCH_MODES = {
     "reviews": "★ Recent reviews",
     "open": "No filters",
     "custom": "Custom",
 }
+
+# La voce del menu delle liste che ne fa nascere una nuova.
+NEW_LIST = "＋ New list…"
 
 # Il tipo di pubblicazione si chiede in UN modo solo. Le etichette NLM e i
 # filtri ISSG sono due modi di chiedere la stessa cosa, e messi insieme non
@@ -91,11 +94,32 @@ TYPE_METHODS = {
 # PubMed. Quanti record scaricare, cosa saltare, se arricchire con le citazioni
 # e con l'open access sono preferenze dell'app: stanno nella sidebar e non le
 # tocca ne' il fascio ne' "No filters".
+# I filtri che nessuno dei due fasci accende: stanno in tutt'e due spenti, cosi'
+# `effective_filters` trova ogni chiave anche quando legge un fascio.
+DATE_METHODS = {
+    "years": "Last N years",
+    "range": "Between two years",
+}
+_FILTERS_OFF = {
+    "sf_date_by": "years",
+    "sf_year_from": TODAY.year - 10,
+    "sf_year_to": TODAY.year,
+    "sf_abstract": False,
+    "sf_freefulltext": False,
+    "sf_data": False,
+    "sf_animals": False,
+    "sf_female": False,
+    "sf_male": False,
+    "sf_ages": [],
+    "sf_nopreprints": False,
+    "sf_medline": False,
+}
 SEARCH_FILTER_PRESETS = {
     "reviews": {
+        **_FILTERS_OFF,
         "sf_years": 10,
         "sf_fulltext": True,
-        "sf_english": True,
+        "sf_languages": ["English"],
         "sf_humans": True,
         "sf_type_by": "pt",
         "sf_types": list(pubmed.REVIEW_TYPE_LABELS),
@@ -105,15 +129,22 @@ SEARCH_FILTER_PRESETS = {
     # "azzera" lasciava gli ultimi cinquant'anni, che e' un filtro travestito
     # da assenza di filtro.
     "open": {
+        **_FILTERS_OFF,
         "sf_years": 0,
         "sf_fulltext": False,
-        "sf_english": False,
+        "sf_languages": [],
         "sf_humans": False,
         "sf_type_by": "none",
         "sf_types": [],
         "sf_issg": [],
     },
 }
+
+# Detto nell'aiuto dei filtri che leggono i MeSH: eta', sesso, altri animali,
+# MEDLINE. Per "Humans" l'app ha una forma che non ha questo difetto; per
+# questi non esiste, e allora va scritto.
+MESH_WARNING = (" Uses MeSH indexing: records NLM has not indexed yet, which "
+                "includes most papers of the last few months, are left out.")
 
 # L'interruttore "Abstracts open", disegnato in tutt'e due le schede.
 ABSTRACT_TOGGLES = ("abs_open_search", "abs_open_screen")
@@ -303,6 +334,27 @@ def on_pick(pmid: str, widget_key: str) -> None:
         st.session_state[widget_key])
 
 
+def on_screen_pick(pmid: str, widget_key: str) -> None:
+    """La spunta 'Select' di una scheda dello Screening, per le azioni di
+    gruppo. La selezione e' un insieme di PMID e non lo stato dei widget:
+    cosi' regge il cambio di pagina."""
+    picked = st.session_state.setdefault("screen_selection", set())
+    (picked.add if st.session_state[widget_key] else picked.discard)(pmid)
+
+
+def delete_from_archive(pmids: list[str]) -> None:
+    """Elimina dall'archivio e lo dice. Chi ha un PDF resta, e si dice anche
+    quello."""
+    try:
+        deleted, kept = db.delete_articles(pmids)
+    except sqlite3.Error as e:
+        st.error(f"Could not delete: {e}")
+        return
+    st.session_state.setdefault("screen_selection", set()).difference_update(pmids)
+    st.toast(f"Deleted {deleted} article(s) from the archive."
+             + (f" {kept} kept: they have a PDF in the library." if kept else ""))
+
+
 def on_list_toggle(pmid: str, list_id: int, widget_key: str) -> None:
     """Callback della spunta di una lista: scrive subito, come le altre."""
     value = st.session_state[widget_key]
@@ -334,47 +386,51 @@ def on_list_rename(list_id: int, widget_key: str, previous: str, field: str) -> 
 def effective_filters(state) -> dict:
     """I filtri come arrivano davvero a PubMed.
 
-    La lista del metodo non scelto resta in sessione (chi torna indietro la
-    ritrova), ma non conta: qui sparisce. E' da questo dizionario che nascono
-    sia la query sia la posizione dell'interruttore, cosi' le due cose non
-    possono dire cose diverse."""
+    Con l'interruttore su un fascio contano i valori del fascio, e quelli dei
+    controlli di "Custom" restano in sessione per quando ci si torna. La lista
+    del metodo di pubblicazione non scelto resta anche lei in sessione, ma non
+    conta: qui sparisce."""
+    state = SEARCH_FILTER_PRESETS.get(state.get("sf_mode"), state)
     by = state.get("sf_type_by", "none")
     types = list(state.get("sf_types") or []) if by == "pt" else []
+    in_range = state.get("sf_date_by") == "range"
     return {
-        "years": int(state.get("sf_years") or 0),
+        "years": 0 if in_range else int(state.get("sf_years") or 0),
+        "year_from": int(state.get("sf_year_from") or 0) if in_range else 0,
+        "year_to": int(state.get("sf_year_to") or 0) if in_range else 0,
+        "abstract": bool(state.get("sf_abstract")),
+        "free_full_text": bool(state.get("sf_freefulltext")),
         "full_text": bool(state.get("sf_fulltext")),
-        "english": bool(state.get("sf_english")),
+        "associated_data": bool(state.get("sf_data")),
+        "languages": sorted(state.get("sf_languages") or []),
         "humans": bool(state.get("sf_humans")),
+        "other_animals": bool(state.get("sf_animals")),
+        "sexes": [label for label, key in (("Female", "sf_female"), ("Male", "sf_male"))
+                  if state.get(key)],
+        "ages": [a for a in pubmed.AGE_LABELS if a in (state.get("sf_ages") or [])],
+        "exclude_preprints": bool(state.get("sf_nopreprints")),
+        "medline": bool(state.get("sf_medline")),
         "types": sorted(types),
         "issg": sorted(state.get("sf_issg") or []) if by == "issg" else [],
     }
 
 
-def matching_mode(state) -> str:
-    """Il fascio che i filtri di adesso riproducono, o "custom"."""
-    now = effective_filters(state)
-    for name, preset in SEARCH_FILTER_PRESETS.items():
-        if effective_filters(preset) == now:
-            return name
-    return "custom"
-
-
-def on_search_mode() -> None:
-    """Scegliere un fascio lo applica; "Custom" non tocca niente e lascia
-    solo cambiare a mano. Ricliccare la posizione scelta la deseleziona, e
-    allora si torna a quella che i valori dicono."""
-    mode = st.session_state.get("sf_mode")
-    if mode in SEARCH_FILTER_PRESETS:
-        st.session_state.update(SEARCH_FILTER_PRESETS[mode])
-    elif mode is None:
-        st.session_state.sf_mode = matching_mode(st.session_state)
-
-
-def on_filter_change() -> None:
-    """Toccato un filtro a mano, l'interruttore si rimette dove i valori
-    dicono: di solito "Custom", ma se uno rimette tutto com'era torna il
-    fascio."""
-    st.session_state.sf_mode = matching_mode(st.session_state)
+def reviews_help() -> str:
+    """Cosa aggiunge "Recent reviews" alla query, scritto dai valori del
+    fascio: se il fascio cambia, il riquadro del punto di domanda lo segue."""
+    preset = SEARCH_FILTER_PRESETS["reviews"]
+    return (
+        f"**{SEARCH_MODES['reviews']}** adds these filters to your search "
+        "terms:\n\n"
+        f"- published in the last {preset['sf_years']} years "
+        f"(since {TODAY.year - preset['sf_years']})\n"
+        "- with a link to a full text\n"
+        f"- in {' or '.join(preset['sf_languages'])}\n"
+        "- without the records indexed as animal studies and not as human "
+        "ones. Records too recent to be indexed are kept.\n"
+        "- with one of these NLM publication types: "
+        + ", ".join(preset["sf_types"]) + "\n\n"
+        f"To change any of them, choose **{SEARCH_MODES['custom']}**.")
 
 
 def describe_filters(f: dict) -> str:
@@ -384,12 +440,32 @@ def describe_filters(f: dict) -> str:
     bits = []
     if f["years"]:
         bits.append(f"since {TODAY.year - f['years']}")
+    if f["year_from"] or f["year_to"]:
+        bits.append(f"published {f['year_from']}–{f['year_to']}")
+    if f["abstract"]:
+        bits.append("abstract")
+    if f["free_full_text"]:
+        bits.append("free full text")
     if f["full_text"]:
         bits.append("full text")
-    if f["english"]:
-        bits.append("English")
-    if f["humans"]:
+    if f["associated_data"]:
+        bits.append("associated data")
+    if f["languages"]:
+        bits.append(" or ".join(f["languages"]))
+    if f["humans"] and f["other_animals"]:
+        bits.append("humans or other animals")
+    elif f["humans"]:
         bits.append("no animal-only studies")
+    elif f["other_animals"]:
+        bits.append("other animals")
+    if f["sexes"]:
+        bits.append(" or ".join(f["sexes"]).lower())
+    if f["ages"]:
+        bits.append("age: " + " or ".join(f["ages"]))
+    if f["medline"]:
+        bits.append("MEDLINE")
+    if f["exclude_preprints"]:
+        bits.append("no preprints")
     if f["types"]:
         shown = ", ".join(f["types"][:4]) + ("…" if len(f["types"]) > 4 else "")
         bits.append(f"{len(f['types'])} publication types ({shown})")
@@ -1032,15 +1108,44 @@ with st.sidebar:
         else:
             input_text = st.text_area("PubMed text (MEDLINE format):", height=200)
 
-        if st.button("Import into database", width="stretch"):
+        # La lista si sceglie PRIMA di importare: dopo, i record di questo file
+        # sono mescolati agli altri dell'archivio e non si ritrovano piu'.
+        NO_LIST = "No list"
+        import_list = st.selectbox(
+            "Add to list",
+            [NO_LIST] + [r["name"] for r in db.list_lists()] + [NEW_LIST],
+            key="import_list",
+            help="The reading list the imported articles are added to. With "
+                 "No list they are saved in the archive only.")
+        if import_list == NEW_LIST:
+            import_list = " ".join(st.text_input(
+                "New list name", key="import_list_new",
+                label_visibility="collapsed",
+                placeholder="Name of the new list").split())
+
+        if st.button("Import into database", width="stretch", key="import_go",
+                     disabled=not import_list):
             if input_text.strip():
                 parsed = pubmed.parse_medline_text(input_text)
                 added, skipped_screened, already = db.insert_articles(parsed)
-                st.success(
+                message = (
                     f"Found {len(parsed)} articles. Imported {added} new ones "
                     f"({already} already in the archive, {skipped_screened} read and "
-                    f"discarded in the past)."
-                )
+                    f"discarded in the past).")
+                if import_list != NO_LIST:
+                    list_id = db.create_list(import_list, "Filled by Import PubMed export")
+                    if list_id is None:
+                        list_id = next(r["id"] for r in db.list_lists()
+                                       if r["name"] == import_list)
+                    # solo quelli che in archivio ci sono: un lavoro letto e
+                    # scartato in passato non rientra, e in lista sarebbe un
+                    # PMID di cui non si sa piu' niente
+                    in_db, _ = db.classify_pmids([r["pmid"] for r in parsed])
+                    in_list = db.add_to_list(
+                        list_id, [r["pmid"] for r in parsed if r["pmid"] in in_db],
+                        note=f"imported {date.today():%Y-%m-%d}")
+                    message += f" {in_list} added to the list “{import_list}”."
+                st.success(message)
             else:
                 st.warning("Nothing to import.")
 
@@ -1685,32 +1790,55 @@ with tab_search:
     # la letteratura recente di un gruppo editoriale
     # ----------------------------------------------------------------------
     # Non parte dai termini ma dalle riviste: quelle del gruppo, prese dal file
-    # SCImago. Quello che trova si salva da solo in una lista col nome del
-    # gruppo, perche' e' una rassegna da sfogliare nello screening e non una
-    # ricerca da cui scegliere.
-    with st.container(border=True):
-        g_pick, g_go, g_info = st.columns([1, 1.5, 3.2], vertical_alignment="bottom")
-        group = editorial.GROUPS[g_pick.selectbox(
-            "Editorial group", list(editorial.GROUPS), key="recent_group",
-            format_func=lambda k: editorial.GROUPS[k].label,
-            help="A Radiopaedia editorial group. Each group has its own set of "
-                 "journals, taken from the SCImago file: the Q1 journals of "
-                 "its categories, and the journals of its field found by "
-                 "title.")]
-        last_run = (settings.get(editorial.setting_key(group)) or "")[:10]
-        recent_since = editorial.since_for(last_run)
-        fetch_recent = g_go.button(
-            "📰 Fetch recent literature", key="recent_go", width="stretch",
-            help="Searches the journals of the group for reviews, "
-                 "meta-analyses and guidelines in English. The first run "
-                 f"covers the last {editorial.FIRST_RUN_DAYS} days. Later runs "
-                 f"start {editorial.OVERLAP_DAYS} days before the previous "
-                 "run, because PubMed adds the publication type to some "
-                 "records a few days after they appear.")
-        g_info.caption(
-            (f"Last run: {last_run}. " if last_run else "Never run. ")
-            + f"Fetches what PubMed added since {recent_since:%Y-%m-%d} and "
-              f"saves it in the list “{group.list_name}”.")
+    # SCImago. Quello che trova si salva da solo in una lista, perche' e' una
+    # rassegna da sfogliare nello screening e non una ricerca da cui scegliere.
+    # Il pannello si apre col pulsante: chi viene per cercare non lo vede.
+    if st.button("📰 Fetch recent literature", key="recent_open_btn",
+                 help="Fetches the recent reviews, meta-analyses and guidelines "
+                      "from the journals of a Radiopaedia editorial group. "
+                      "Click to choose the group and the list they are saved in."):
+        st.session_state.recent_open = not st.session_state.get("recent_open", False)
+
+    fetch_recent = False
+    if st.session_state.get("recent_open", False):
+        with st.container(border=True):
+            g_pick, g_list, g_go = st.columns([1, 1.6, 1], vertical_alignment="bottom")
+            group = editorial.GROUPS[g_pick.selectbox(
+                "Editorial group", list(editorial.GROUPS), key="recent_group",
+                format_func=lambda k: editorial.GROUPS[k].label,
+                help="A Radiopaedia editorial group. Each group has its own set of "
+                     "journals, taken from the SCImago file: the Q1 journals of "
+                     "its categories, and the journals of its field found by "
+                     "title.")]
+            # la lista del gruppo per prima, cosi' chi non sceglie finisce li'
+            other_lists = [r["name"] for r in db.list_lists()
+                           if r["name"] != group.list_name]
+            recent_list = g_list.selectbox(
+                "Save in list", [group.list_name] + other_lists + [NEW_LIST],
+                key=f"recent_list_{group.key}",
+                help="The reading list the articles are added to. The first "
+                     "choice is the list of the group, created at the first run.")
+            if recent_list == NEW_LIST:
+                recent_list = " ".join(st.text_input(
+                    "New list name", key="recent_list_new",
+                    label_visibility="collapsed",
+                    placeholder="Name of the new list").split())
+            last_run = (settings.get(editorial.setting_key(group)) or "")[:10]
+            recent_since = editorial.since_for(last_run)
+            fetch_recent = g_go.button(
+                "Fetch", key="recent_go", type="primary", width="stretch",
+                disabled=not recent_list,
+                help="Searches the journals of the group for reviews, "
+                     "meta-analyses and guidelines in English. The first run "
+                     f"covers the last {editorial.FIRST_RUN_DAYS} days. Later runs "
+                     f"start {editorial.OVERLAP_DAYS} days before the previous "
+                     "run, because PubMed adds the publication type to some "
+                     "records a few days after they appear.")
+            st.caption(
+                (f"Last run: {last_run}. " if last_run else "Never run. ")
+                + f"Fetches what PubMed added since {recent_since:%Y-%m-%d}"
+                + (f" and saves it in the list “{recent_list}”."
+                   if recent_list else ". Give the new list a name."))
 
     if fetch_recent:
         recent_query = editorial.build_query(group, db.journal_rows(), recent_since)
@@ -1725,10 +1853,10 @@ with tab_search:
             if got is not None:
                 added, _, _ = db.insert_articles(got)
                 list_id = db.create_list(
-                    group.list_name, "Filled by Fetch recent literature")
+                    recent_list, "Filled by Fetch recent literature")
                 if list_id is None:
                     list_id = next(r["id"] for r in db.list_lists()
-                                   if r["name"] == group.list_name)
+                                   if r["name"] == recent_list)
                 in_list = db.add_to_list(
                     list_id, [r["pmid"] for r in got],
                     note=f"fetched {date.today():%Y-%m-%d}")
@@ -1740,7 +1868,7 @@ with tab_search:
                 st.session_state.settings = db.get_settings()
                 st.success(
                     f"{added} article(s) saved in the archive, {in_list} added "
-                    f"to the list “{group.list_name}”. Screen them in the "
+                    f"to the list “{recent_list}”. Screen them in the "
                     "Screening tab, with that list selected under In list.")
 
     how = st.segmented_control(
@@ -1763,78 +1891,122 @@ with tab_search:
             help="Accepts native PubMed syntax (AND/OR/NOT, [Title/Abstract], [MeSH Terms]...).",
         )
 
-    # I filtri stanno SEMPRE a schermo, senza expander. Non e' una scelta di
-    # gusto: un widget dentro un `st.expander` fa ripartire lo script e
-    # l'expander si ridisegna col proprio `expanded=` di default, cioe' si
-    # richiude a ogni spunta. E non si puo' nemmeno smettere di disegnarli
-    # quando il pannello e' chiuso, perche' Streamlit butta via lo stato dei
-    # widget che non disegna: il numero di anni tornerebbe al suo default senza
-    # che nessuno l'abbia toccato. Sempre visibili, e compatti.
-    with st.container(border=True):
-        st.segmented_control(
-            "Filters", list(SEARCH_MODES), key="sf_mode",
-            format_func=SEARCH_MODES.get, on_change=on_search_mode,
-            label_visibility="collapsed",
-            help="Recent reviews and No filters set every control below. If you "
-                 "change a control by hand, Custom is selected.")
+    # I controlli si disegnano solo in "Custom". Streamlit butta via lo stato
+    # dei widget che non disegna, ma i valori `sf_*` vengono riscritti in
+    # sessione a ogni giro (vedi `_defaults`), quindi chi torna a "Custom"
+    # ritrova quello che aveva lasciato.
+    with st.container(horizontal=True, vertical_alignment="center"):
+        mode = st.segmented_control(
+            "Filters", list(SEARCH_MODES), key="sf_mode", required=True,
+            format_func=SEARCH_MODES.get, label_visibility="collapsed")
+        if mode == "reviews":
+            with st.popover("?", help="What Recent reviews filters"):
+                st.markdown(reviews_help())
+    filters_now = effective_filters(st.session_state)
 
-        fc1, fc2, fc3, fc4 = st.columns([1.1, 1, 1, 1], vertical_alignment="center")
-        # zero e' un valore legittimo e vuol dire "nessun limite di data".
-        # Prima il minimo era 1: non c'era modo di dire "tutta la
-        # letteratura", e cinquant'anni sembravano quello senza esserlo.
-        fc1.number_input(
-            "Last N years", 0, 100, step=1, key="sf_years",
-            on_change=on_filter_change, help="0 = no date limit at all.")
-        fc2.checkbox("Full text", key="sf_fulltext", on_change=on_filter_change,
-                     help="Only records that link to a full text.")
-        fc3.checkbox("English", key="sf_english", on_change=on_filter_change)
-        fc4.checkbox("Humans", key="sf_humans", on_change=on_filter_change,
-                     help="Leaves out what is indexed as an animal study and "
-                          "not as a human one. Papers too recent to be "
-                          "indexed yet are kept.")
+    if mode == "custom":
+        with st.container(border=True):
+            # I gruppi sono quelli della colonna dei filtri di PubMed, nello
+            # stesso ordine. Dentro un gruppo le scelte vanno in OR, i gruppi
+            # fra loro in AND.
+            d_by, d_a, d_b = st.columns([2, 1, 1], vertical_alignment="bottom")
+            date_by = d_by.radio(
+                "Publication date", list(DATE_METHODS), key="sf_date_by",
+                format_func=DATE_METHODS.get, horizontal=True)
+            if date_by == "range":
+                d_a.number_input("From year", 1800, TODAY.year, step=1,
+                                 key="sf_year_from")
+                d_b.number_input("To year", 1800, TODAY.year, step=1,
+                                 key="sf_year_to")
+            else:
+                # zero e' un valore legittimo e vuol dire "nessun limite di
+                # data". Prima il minimo era 1: non c'era modo di dire "tutta
+                # la letteratura", e cinquant'anni sembravano quello senza
+                # esserlo.
+                d_a.number_input(
+                    "Last N years", 0, 100, step=1, key="sf_years",
+                    help="0 = no date limit at all.")
 
-        type_by = st.radio(
-            "Kind of publication", list(TYPE_METHODS), key="sf_type_by",
-            format_func=TYPE_METHODS.get, horizontal=True,
-            on_change=on_filter_change,
-            help="One way or the other, not both. NLM publication types are "
-                 "the labels an indexer gave the record; ISSG filters catch a "
-                 "kind of publication by the words the paper uses. Combined "
-                 "they would be joined with AND and keep far fewer papers "
-                 "than either.")
-        if type_by == "pt":
-            st.multiselect(
-                "Publication types", pubmed.DEFAULT_TYPE_LABELS, key="sf_types",
-                on_change=on_filter_change, label_visibility="collapsed",
-                placeholder="Choose publication types (several are joined by OR)",
-                help="PubMed's own publication types, as NLM assigned them.")
-        elif type_by == "issg":
-            # I filtri ISSG non dicono DI COSA parla un lavoro, dicono CHE
-            # GENERE di lavoro e': sono le stringhe con cui gli information
-            # specialist intercettano linee guida e revisioni sistematiche.
-            issg_picked = st.multiselect(
-                "Study design filters (ISSG)", list(issg.LABELS.values()),
-                key="sf_issg", on_change=on_filter_change,
-                label_visibility="collapsed",
-                placeholder="Choose ISSG filters (several are joined by OR)",
-                help="Published search filters from the InterTASC Information "
-                     "Specialists' Sub-Group. They catch a kind of publication "
-                     "by the words it uses, not by a subject.")
-            for label in issg_picked:
-                st.caption(f"· **{label}**: {issg.FILTERS[issg.BY_LABEL[label]][2]}")
+            st.caption("Text availability and article attribute")
+            t1, t2, t3, t4 = st.columns(4)
+            t1.checkbox("Abstract", key="sf_abstract",
+                        help="Only records that have an abstract.")
+            t2.checkbox("Free full text", key="sf_freefulltext",
+                        help="Only records that link to a full text free to read.")
+            t3.checkbox("Full text", key="sf_fulltext",
+                        help="Only records that link to a full text, free or not.")
+            t4.checkbox("Associated data", key="sf_data",
+                        help="Only records that link to data, for example a "
+                             "data repository or a trial registry.")
 
-        filters_now = effective_filters(st.session_state)
-        st.caption(describe_filters(filters_now))
+            l_lang, l_age = st.columns(2)
+            l_lang.multiselect(
+                "Article language", pubmed.LANGUAGE_LABELS, key="sf_languages",
+                placeholder="Any language (several are joined by OR)")
+            l_age.multiselect(
+                "Age", pubmed.AGE_LABELS, key="sf_ages",
+                placeholder="Any age (several are joined by OR)",
+                help="The age groups of the people studied." + MESH_WARNING)
+
+            st.caption("Species, sex and other")
+            s1, s2, s3, s4 = st.columns(4)
+            s1.checkbox("Humans", key="sf_humans",
+                        help="Leaves out what is indexed as an animal study and "
+                             "not as a human one. Papers too recent to be "
+                             "indexed yet are kept. With Other animals also "
+                             "ticked, PubMed's own two filters are used, joined "
+                             "by OR, and papers not yet indexed are left out.")
+            s2.checkbox("Other animals", key="sf_animals",
+                        help="Only records indexed as animal studies." + MESH_WARNING)
+            s3.checkbox("Female", key="sf_female",
+                        help="Only records indexed with female subjects." + MESH_WARNING)
+            s4.checkbox("Male", key="sf_male",
+                        help="Only records indexed with male subjects." + MESH_WARNING)
+            o1, o2, _, _ = st.columns(4)
+            o1.checkbox("Exclude preprints", key="sf_nopreprints")
+            o2.checkbox("MEDLINE", key="sf_medline",
+                        help="Only records with the status MEDLINE, that is, "
+                             "indexed by NLM." + MESH_WARNING)
+
+            type_by = st.radio(
+                "Kind of publication", list(TYPE_METHODS), key="sf_type_by",
+                format_func=TYPE_METHODS.get, horizontal=True,
+                help="One way or the other, not both. NLM publication types are "
+                     "the labels an indexer gave the record; ISSG filters catch a "
+                     "kind of publication by the words the paper uses. Combined "
+                     "they would be joined with AND and keep far fewer papers "
+                     "than either.")
+            if type_by == "pt":
+                st.multiselect(
+                    "Article type", pubmed.DEFAULT_TYPE_LABELS, key="sf_types",
+                    label_visibility="collapsed",
+                    placeholder="Choose publication types (several are joined by OR)",
+                    help="PubMed's own publication types, as NLM assigned them.")
+            elif type_by == "issg":
+                # I filtri ISSG non dicono DI COSA parla un lavoro, dicono CHE
+                # GENERE di lavoro e': sono le stringhe con cui gli information
+                # specialist intercettano linee guida e revisioni sistematiche.
+                issg_picked = st.multiselect(
+                    "Study design filters (ISSG)", list(issg.LABELS.values()),
+                    key="sf_issg", label_visibility="collapsed",
+                    placeholder="Choose ISSG filters (several are joined by OR)",
+                    help="Published search filters from the InterTASC Information "
+                         "Specialists' Sub-Group. They catch a kind of publication "
+                         "by the words it uses, not by a subject.")
+                for label in issg_picked:
+                    st.caption(f"· **{label}**: {issg.FILTERS[issg.BY_LABEL[label]][2]}")
+
+            st.caption(describe_filters(filters_now))
 
     issg_clause = issg.clause(filters_now["issg"])
     query_preview = ""
     if terms.strip():
         try:
             query_preview = pubmed.build_query(
-                terms, type_labels=filters_now["types"],
-                years=filters_now["years"], full_text=filters_now["full_text"],
-                english=filters_now["english"], humans=filters_now["humans"],
-                filters=[issg_clause])
+                terms, type_labels=filters_now["types"], english=False,
+                filters=[issg_clause],
+                **{k: v for k, v in filters_now.items()
+                   if k not in ("types", "issg")})
         except pubmed.PubMedError as exc:
             st.warning(str(exc))
         else:
@@ -2124,7 +2296,7 @@ with tab_search:
             # un gesto solo.
             existing = db.list_lists()
             names = [r["name"] for r in existing]
-            NEW = "＋ New list…"
+            NEW = NEW_LIST
             target_name = st.selectbox(
                 "Add to list", [NEW] + names, index=None,
                 label_visibility="collapsed",
@@ -2207,7 +2379,8 @@ with tab_screen:
         st.caption(
             "A list is a named group of articles, for example the papers for "
             "one section. An article can be in several lists. **An article in "
-            "a list is not deleted at startup**, even when it is marked read."
+            "a list is not deleted at startup**, even when it is marked read. "
+            "To delete it, use 🗑 Delete on its card."
         )
 
         with st.form("new_list_form", clear_on_submit=True):
@@ -2450,6 +2623,53 @@ with tab_screen:
                            f"full text.")
                 st.rerun()
 
+    # Le azioni di gruppo. La selezione puo' contenere articoli di altre
+    # pagine, o tutti quelli che i filtri trovano: per svuotare una lista da
+    # seicento articoli non si devono sfogliare sei pagine.
+    selection = st.session_state.setdefault("screen_selection", set())
+    sel_gen = st.session_state.get("screen_sel_gen", 0)
+    g1, g2, g3, g4 = st.columns([1.3, 1.5, 1, 1.6], vertical_alignment="center")
+    if g1.button("Select this page", key="screen_sel_page", width="stretch",
+                 disabled=df.empty):
+        selection.update(str(p) for p in df["pmid"])
+        st.session_state.screen_sel_gen = sel_gen + 1
+        st.rerun()
+    if g2.button(f"Select all {total} found", key="screen_sel_all", width="stretch",
+                 disabled=total == 0,
+                 help="Selects every article that matches the filters above, "
+                      "on every page."):
+        conn = db.get_connection()
+        try:
+            selection.update(str(r[0]) for r in conn.execute(
+                f"SELECT a.pmid {FROM}{where}", params))
+        finally:
+            conn.close()
+        st.session_state.screen_sel_gen = sel_gen + 1
+        st.rerun()
+    if g3.button("Clear", key="screen_sel_clear", width="stretch",
+                 disabled=not selection):
+        selection.clear()
+        st.session_state.screen_sel_gen = sel_gen + 1
+        st.rerun()
+    if g4.button(f"🗑 Delete {len(selection)} selected", key="screen_del_many",
+                 width="stretch", disabled=not selection):
+        st.session_state.screen_confirm_delete = True
+        st.rerun()
+
+    if st.session_state.get("screen_confirm_delete") and selection:
+        st.warning(
+            f"Delete {len(selection)} article(s) from the archive? They are "
+            "removed from every list. Their PMIDs are kept, so later searches "
+            "skip them. Articles with a PDF in the library are not deleted.")
+        y, n = st.columns([1, 5])
+        if y.button("Yes, delete them", type="primary", key="screen_del_yes"):
+            delete_from_archive(sorted(selection))
+            st.session_state.screen_confirm_delete = False
+            st.rerun()
+        if n.button("Cancel", key="screen_del_no"):
+            st.session_state.screen_confirm_delete = False
+            st.rerun()
+
     # In quali liste stanno gli articoli di QUESTA pagina, in una query sola:
     # chiederlo scheda per scheda sarebbe una query per articolo, e la pagina
     # ne mostra fino a cento.
@@ -2547,6 +2767,13 @@ with tab_screen:
                 key_flag = f"flag_{pmid}_{int(is_flagged)}"
                 st.checkbox("★ Flagged", value=is_flagged, key=key_flag,
                             on_change=on_toggle, args=(pmid, "is_flagged", key_flag))
+                # `sel_gen` nella chiave: i pulsanti di gruppo lo incrementano,
+                # e la spunta si ricrea col valore della selezione.
+                key_sel = f"sel_{sel_gen}_{pmid}"
+                st.checkbox("Select", value=pmid in selection, key=key_sel,
+                            on_change=on_screen_pick, args=(pmid, key_sel),
+                            help="Selects the article for 🗑 Delete selected, "
+                                 "above the cards.")
                 if all_lists:
                     # La chiave porta dentro l'appartenenza letta dal database,
                     # per la stessa ragione delle due spunte qui sopra: se la
@@ -2593,6 +2820,18 @@ with tab_screen:
                             st.error(problem)
                         else:
                             st.rerun()
+
+                # Un clic e basta, come la spunta Read seguita da un riavvio.
+                # Con un PDF no: resterebbe un file senza citazione.
+                if st.button("🗑 Delete", key=f"del_{pmid}", width="stretch",
+                             disabled=pdf is not None,
+                             help=("Remove the PDF in the Library tab first."
+                                   if pdf is not None else
+                                   "Deletes the article from the archive and "
+                                   "from every list. Its PMID is kept, so "
+                                   "later searches skip it.")):
+                    delete_from_archive([pmid])
+                    st.rerun()
 
             with st.expander("Abstract", expanded=st.session_state.abs_open_screen):
                 st.html(abstract_html(row["abstract"], screen_rx))

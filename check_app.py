@@ -364,6 +364,36 @@ try:
     at = box.set_value(False).run()
     is_("e toglierla lo toglie", db.list_pmids(list_id), "[]")
 
+    # eliminare dall'archivio un articolo che sta in una lista
+    db.insert_articles([{"pmid": "9002", "title": "Secondo", "abstract": "x"},
+                        {"pmid": "9003", "title": "Terzo", "abstract": "x"}])
+    db.add_to_list(list_id, ["9001", "9002", "9003"])
+    is_("la pulizia all'avvio non tocca chi sta in una lista",
+        db.article_row("9001") is not None, "True")
+    at = AppTest.from_file(APP, default_timeout=60)
+    at.run()
+    at = at.button(key="del_9001").click().run()
+    is_("il pulsante sulla scheda elimina l'articolo", db.article_row("9001"), None)
+    is_("...lo toglie dalla lista", db.list_pmids(list_id), "['9002', '9003']")
+    is_("...e ne ricorda il PMID", "9001" in db.classify_pmids(["9001"])[1], "True")
+    at = at.checkbox(key="sel_0_9002").check().run()
+    at = at.checkbox(key="sel_0_9003").check().run()
+    is_("le spunte contano i selezionati",
+        at.button(key="screen_del_many").label, "🗑 Delete 2 selected")
+    at = at.button(key="screen_del_many").click().run()
+    is_("eliminare in gruppo chiede conferma",
+        db.article_row("9002") is not None, "True")
+    at = at.button(key="screen_del_yes").click().run()
+    is_("...e confermato li elimina tutti",
+        (db.article_row("9002"), db.article_row("9003")), "(None, None)")
+    is_("...svuotando la selezione",
+        at.button(key="screen_del_many").label, "🗑 Delete 0 selected")
+    is_("...senza sollevare", exceptions(at), "[]")
+    conn = db.get_connection()
+    conn.execute("DELETE FROM screened_pmids WHERE pmid IN ('9001','9002','9003')")
+    conn.commit()
+    conn.close()
+
     names = [i.value for i in at.text_input if i.key == "lname_%d" % list_id]
     is_("la lista si puo' rinominare dalla sua casella", names, "['Prova']")
 finally:
@@ -553,10 +583,16 @@ def query_of(app):
     return [c.value for c in app.code][-1]
 
 
+def drawn(app, key):
+    return any(w.key == key for kind in ("number_input", "checkbox", "radio",
+                                         "multiselect", "text_input", "selectbox")
+               for w in app.get(kind))
+
+
 is_("il fascio parte acceso", mode_of(at).value, "reviews")
-is_("...sugli ultimi dieci anni", at.session_state["sf_years"], 10)
-is_("...e i controlli si possono toccare subito",
-    next(n for n in at.number_input if n.key == "sf_years").disabled, "False")
+is_("...e non disegna nessun controllo", drawn(at, "sf_years"), "False")
+is_("...ma il punto di domanda che lo spiega si'",
+    any("adds these filters" in m.value for m in at.markdown), "True")
 
 at = at.text_input(key="search_terms").set_value("glioma").run()
 is_("il fascio chiede solo review e sintesi",
@@ -566,27 +602,57 @@ is_("...e humans non scarta i lavori non ancora indicizzati",
 
 at = mode_of(at).set_value("open").run()
 is_("No filters lascia solo i termini", query_of(at), "(glioma)")
-is_("...e toglie anche il limite di data", at.session_state["sf_years"], 0)
-is_("...e la posizione dice No filters", mode_of(at).value, "open")
+is_("...non disegna nessun controllo", drawn(at, "sf_years"), "False")
+is_("...e nemmeno il punto di domanda",
+    any("adds these filters" in m.value for m in at.markdown), "False")
 
-at = at.checkbox(key="sf_english").check().run()
-is_("toccare un filtro a mano porta a Custom", mode_of(at).value, "custom")
+at = mode_of(at).set_value("custom").run()
+is_("Custom disegna i controlli", drawn(at, "sf_years"), "True")
+is_("...che partono dai valori di Recent reviews", at.session_state["sf_years"], 10)
+at = at.number_input(key="sf_years").set_value(0).run()
+at = at.checkbox(key="sf_fulltext").uncheck().run()
+at = at.checkbox(key="sf_humans").uncheck().run()
+at = at.radio(key="sf_type_by").set_value("none").run()
 is_("...e la query e' quella che si vede", query_of(at), "(glioma) AND english[la]")
+is_("...senza cambiare posizione da sola", mode_of(at).value, "custom")
 
-at = at.checkbox(key="sf_english").uncheck().run()
-is_("rimettere tutto com'era riporta a No filters", mode_of(at).value, "open")
-
-at = mode_of(at).set_value("reviews").run()
 at = at.radio(key="sf_type_by").set_value("issg").run()
 issg_box = at.multiselect(key="sf_issg")
 at = issg_box.set_value([issg_box.options[0]]).run()
-is_("con l'ISSG le etichette NLM escono dalla query",
-    '"Review"[pt]' in query_of(at), "False")
+is_("con l'ISSG il filtro entra nella query", len(query_of(at)) > 200, "True")
 at = at.radio(key="sf_type_by").set_value("pt").run()
 is_("...e tornando a NLM l'ISSG esce", "Clinical protocols" in query_of(at), "False")
 is_("...ma la scelta ISSG resta per quando si torna",
     at.session_state["sf_issg"], [issg_box.options[0]])
-is_("...e i valori sono di nuovo quelli del fascio", mode_of(at).value, "reviews")
+
+at = mode_of(at).set_value("open").run()
+is_("da Custom a No filters la query torna nuda", query_of(at), "(glioma)")
+at = mode_of(at).set_value("custom").run()
+is_("...e tornando a Custom si ritrova quello che si era lasciato",
+    (at.session_state["sf_years"], at.session_state["sf_languages"],
+     at.session_state["sf_type_by"]), "(0, ['English'], 'pt')")
+
+# tutti i filtri di PubMed, in Custom
+at = at.radio(key="sf_type_by").set_value("none").run()
+at = at.multiselect(key="sf_languages").set_value(["English", "Italian"]).run()
+at = at.checkbox(key="sf_abstract").check().run()
+at = at.multiselect(key="sf_ages").set_value(["Aged: 65+ years"]).run()
+at = at.checkbox(key="sf_female").check().run()
+at = at.checkbox(key="sf_nopreprints").check().run()
+is_("i filtri di PubMed entrano nella query nell'ordine dei gruppi", query_of(at),
+    "(glioma) AND fha[Filter] AND (english[la] OR italian[Filter]) "
+    "AND female[Filter] AND aged[Filter] NOT preprint[pt]")
+at = at.radio(key="sf_date_by").set_value("range").run()
+at = at.number_input(key="sf_year_from").set_value(2010).run()
+at = at.number_input(key="sf_year_to").set_value(2015).run()
+is_("l'intervallo di anni prende il posto degli ultimi N anni",
+    '("2010/01/01"[Date - Publication] : "2015/12/31"[Date - Publication])'
+    in query_of(at), "True")
+is_("...e la riga sotto i controlli lo dice",
+    any("Published 2010–2015" in c.value for c in at.caption), "True")
+at = mode_of(at).set_value("reviews").run()
+is_("Recent reviews non si porta dietro i filtri di Custom",
+    "fha[Filter]" in query_of(at) or "italian" in query_of(at), "False")
 is_("...senza sollevare", exceptions(at), "[]")
 
 # zero anni = nessuna clausola di data nella query
@@ -692,13 +758,49 @@ for origin in (_paths.FROM_ENV, _paths.FROM_SOURCE, _paths.FROM_DATA_DIR):
 is_("...e per l'archivio accanto al codice dice perche' non viene spostato",
     "does not move an existing archive" in _cli._why(_paths.FROM_SOURCE), "True")
 
-# Il pannello della letteratura recente: c'e', e non ha ancora girato.
+# Il pannello della letteratura recente: chiuso finche' non si preme il pulsante.
 at = AppTest.from_file(APP, default_timeout=60)
 at.run()
-is_("c'e' il menu dei gruppi editoriali", at.selectbox(key="recent_group").options, "['CNS']")
-is_("...col pulsante", "Fetch recent literature" in at.button(key="recent_go").label, "True")
+is_("il pulsante della letteratura recente c'e'",
+    "Fetch recent literature" in at.button(key="recent_open_btn").label, "True")
+is_("...e il pannello parte chiuso",
+    any(w.key == "recent_group" for w in at.selectbox), "False")
+at = at.button(key="recent_open_btn").click().run()
+is_("premuto, mostra il menu dei gruppi editoriali",
+    at.selectbox(key="recent_group").options, "['CNS']")
+is_("...la lista in cui salvare, con quella del gruppo per prima",
+    at.selectbox(key="recent_list_cns").value, "Editorial group: CNS")
+is_("...che puo' anche essere una lista nuova",
+    at.selectbox(key="recent_list_cns").options[-1], "＋ New list…")
+is_("...il pulsante che parte", at.button(key="recent_go").disabled, "False")
 is_("...e dice che non ha mai girato",
     any("Never run" in c.value for c in at.caption), "True")
+at = at.selectbox(key="recent_list_cns").set_value("＋ New list…").run()
+is_("una lista nuova senza nome non fa partire niente",
+    at.button(key="recent_go").disabled, "True")
+at = at.text_input(key="recent_list_new").set_value("  Da  leggere ").run()
+is_("...col nome si'", at.button(key="recent_go").disabled, "False")
+is_("...e il nome e' quello ripulito",
+    any("“Da leggere”" in c.value for c in at.caption), "True")
+is_("...senza sollevare", exceptions(at), "[]")
+
+# L'import dalla barra laterale: la lista si sceglie prima di importare.
+is_("l'import chiede in che lista mettere i record",
+    at.selectbox(key="import_list").options[0], "No list")
+is_("...e di default in nessuna", at.selectbox(key="import_list").value, "No list")
+at = at.selectbox(key="import_list").set_value("＋ New list…").run()
+is_("una lista nuova senza nome non importa",
+    at.button(key="import_go").disabled, "True")
+at = next(r for r in at.radio if r.label == "Method:").set_value("Paste raw text").run()
+at = next(t for t in at.text_area if t.label.startswith("PubMed text")).set_value(
+    "PMID- 990001\nTI  - Un lavoro importato\nDP  - 2026\n").run()
+at = at.text_input(key="import_list_new").set_value("Importati").run()
+at = at.button(key="import_go").click().run()
+_imported = {r["name"]: r for r in db.list_lists()}.get("Importati")
+is_("importando, la lista nasce", _imported is not None, "True")
+is_("...con dentro il record importato",
+    db.list_pmids(_imported["id"]) if _imported else None, "['990001']")
+is_("...senza sollevare", exceptions(at), "[]")
 
 print(f"\n{checked} controlli, {failed} falliti")
 sys.exit(1 if failed else 0)

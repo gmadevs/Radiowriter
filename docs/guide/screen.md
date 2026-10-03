@@ -28,6 +28,26 @@ Their PMIDs are kept, so that later searches can skip them. An article is not
 deleted if it is in a reading list or has a PDF in the library.
 :::
 
+## Deleting articles
+
+**🗑 Delete** on a card deletes the article from the archive at once. It is
+also removed from every list it is in. Its PMID is kept, so later searches
+skip it, as for a read article deleted at startup.
+
+To delete several articles:
+
+1. Tick **Select** on each card, or click **Select this page** or
+   **Select all N found**. **Select all N found** selects every article that
+   matches the filters, on every page. To empty a list, choose it under
+   **In list:** first.
+2. Click **🗑 Delete N selected**.
+3. Click **Yes, delete them**.
+
+**Clear** empties the selection.
+
+An article with a PDF in the library is not deleted. Remove the PDF in the
+Library tab first.
+
 ## Reading the abstracts
 
 Abstracts are set in a serif typeface, in lines of at most 70 characters.
@@ -88,7 +108,7 @@ Each article is shown as a card:
    ▎Q1 · SJR 0.95   3.4 cites/doc (2y)   🔓 gold OA   79 cites · 6 infl · 8.8/yr
    in Medicine (miscellaneous) (Q1); Neurology (Q2)
    PubMed · 🔓 LibKey full text · DOI · Free full text
-   ▸ Abstract                          ☐ ✅ Read  ☐ ★ Flagged  🗂 Add to a list
+   ▸ Abstract         ☐ ✅ Read  ☐ ★ Flagged  ☐ Select  🗂 Add to a list  🗑 Delete
 ```
 
 The lines are, in order:

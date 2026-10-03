@@ -12,10 +12,12 @@ senza finire in "phrases not found".
 
 from __future__ import annotations
 
+import json
 import re
 import time
 import xml.etree.ElementTree as ET
 from datetime import date
+from pathlib import Path
 
 import requests
 
@@ -29,21 +31,34 @@ TOOL_NAME = "radiopaedia-lit-screener"
 PAUSE_NO_KEY = 0.34
 PAUSE_WITH_KEY = 0.11
 
+# LORO: le voci dei filtri di PubMed, trascritte dalla finestra "Additional
+# filters" in `data/pubmed-filters.json` (la data e' dentro il file). Ogni voce
+# e' [etichetta, sigla] e il frammento di query e' `sigla[Filter]`.
+_FILTERS = json.loads(
+    (Path(__file__).parent / "data" / "pubmed-filters.json").read_text(encoding="utf-8"))
+
+# NOSTRO: per questi dodici tipi il frammento e' quello che l'app usava prima
+# che l'elenco fosse completo. Restano cosi' perche' la query di "Recent
+# reviews" non cambi sotto chi la usa gia'.
+_OWN_TYPE_FRAGMENTS = {
+    "Books and Documents": "booksdocs[Filter]",
+    "Clinical Trial, Phase IV": '"Clinical Trial, Phase IV"[pt]',
+    "Consensus Statement": '"Consensus Statement"[pt]',
+    "Evidence Synthesis": '"Evidence Synthesis"[pt]',
+    "Guideline": '"Guideline"[pt]',
+    "Meta-Analysis": '"Meta-Analysis"[pt]',
+    "Multicenter Study": '"Multicenter Study"[pt]',
+    "Network Meta-Analysis": '"Network Meta-Analysis"[pt]',
+    "Practice Guideline": '"Practice Guideline"[pt]',
+    "Review": '"Review"[pt]',
+    "Scoping Review": '"Scoping Review"[pt]',
+    "Systematic Review": '"Systematic Review"[pt]',
+}
+
 # (etichetta mostrata, frammento di query) - l'ordine e' quello della schermata PubMed
 ARTICLE_TYPES: list[tuple[str, str]] = [
-    ("Books and Documents", "booksdocs[Filter]"),
-    ("Clinical Trial, Phase IV", '"Clinical Trial, Phase IV"[pt]'),
-    ("Consensus Statement", '"Consensus Statement"[pt]'),
-    ("Evidence Synthesis", '"Evidence Synthesis"[pt]'),
-    ("Guideline", '"Guideline"[pt]'),
-    ("Meta-Analysis", '"Meta-Analysis"[pt]'),
-    ("Multicenter Study", '"Multicenter Study"[pt]'),
-    ("Network Meta-Analysis", '"Network Meta-Analysis"[pt]'),
-    ("Practice Guideline", '"Practice Guideline"[pt]'),
-    ("Review", '"Review"[pt]'),
-    ("Scoping Review", '"Scoping Review"[pt]'),
-    ("Systematic Review", '"Systematic Review"[pt]'),
-]
+    (label, _OWN_TYPE_FRAGMENTS.get(label, f"{token}[Filter]"))
+    for label, token in _FILTERS["article_types"]]
 
 DEFAULT_TYPE_LABELS = [label for label, _ in ARTICLE_TYPES]
 
@@ -59,6 +74,27 @@ REVIEW_TYPE_LABELS = [
 
 FULLTEXT_CLAUSE = "fft[Filter]"
 ENGLISH_CLAUSE = "english[la]"
+ABSTRACT_CLAUSE = "fha[Filter]"
+FREE_FULLTEXT_CLAUSE = "ffrft[Filter]"
+DATA_CLAUSE = "data[Filter]"
+MEDLINE_CLAUSE = "medline[Filter]"
+PREPRINT_EXCLUDE = "preprint[pt]"
+
+LANGUAGES: list[tuple[str, str]] = [
+    (label, ENGLISH_CLAUSE if label == "English" else f"{token}[Filter]")
+    for label, token in _FILTERS["languages"]]
+LANGUAGE_LABELS = [label for label, _ in LANGUAGES]
+AGES: list[tuple[str, str]] = [
+    (label, f"{token}[Filter]") for label, token in _FILTERS["ages"]]
+AGE_LABELS = [label for label, _ in AGES]
+SEXES: list[tuple[str, str]] = [("Female", "female[Filter]"), ("Male", "male[Filter]")]
+SEX_LABELS = [label for label, _ in SEXES]
+
+# I filtri "Humans" e "Other Animals" di PubMed, che leggono i MeSH. "Humans" da
+# solo NON usa il suo (vedi sotto): questi servono quando sono scelti tutti e
+# due, e PubMed li mette in OR.
+HUMANS_FILTER = "humans[Filter]"
+ANIMALS_FILTER = "animal[Filter]"
 # Non `"humans"[MeSH Terms]`. Quello chiede che un indicizzatore NLM abbia gia'
 # scritto "Humans" sul record, e per i lavori degli ultimi mesi non l'ha ancora
 # fatto nessuno: sparivano proprio i piu' recenti, in una ricerca che si chiama
@@ -118,11 +154,27 @@ def build_query(
     humans: bool = True,
     filters: list[str] | None = None,
     today: date | None = None,
+    abstract: bool = False,
+    free_full_text: bool = False,
+    associated_data: bool = False,
+    languages: list[str] | None = None,
+    other_animals: bool = False,
+    sexes: list[str] | None = None,
+    ages: list[str] | None = None,
+    exclude_preprints: bool = False,
+    medline: bool = False,
+    year_from: int = 0,
+    year_to: int = 0,
 ) -> str:
     """Compone la query completa. `terms` accetta la sintassi PubMed nativa.
 
     `filters` sono clausole gia' scritte da mettere in AND - i filtri ISSG per
-    linee guida e revisioni sistematiche arrivano di li'."""
+    linee guida e revisioni sistematiche arrivano di li'.
+
+    Gli altri argomenti sono i filtri della colonna di PubMed, e si combinano
+    come li combina PubMed: le scelte dentro un gruppo (tipi, lingue, sesso,
+    eta', specie) in OR, i gruppi fra loro in AND. `languages`, `sexes` e
+    `ages` sono etichette, come `type_labels`."""
     terms = (terms or "").strip()
     if not terms:
         raise PubMedError("No search terms given.")
@@ -140,10 +192,38 @@ def build_query(
         if extra:
             clauses.append(extra if wrapped(extra) else f"({extra})")
 
+    def any_of(table: list[tuple[str, str]], picked) -> None:
+        found = [frag for label, frag in table if label in (picked or [])]
+        if found:
+            clauses.append(found[0] if len(found) == 1
+                           else "(" + " OR ".join(found) + ")")
+
+    # Le tre voci di "Text availability" su PubMed sono tre gruppi diversi, e
+    # quindi vanno in AND: "Abstract" piu' "Full text" vuol dire tutt'e due.
+    if abstract:
+        clauses.append(ABSTRACT_CLAUSE)
+    if free_full_text:
+        clauses.append(FREE_FULLTEXT_CLAUSE)
     if full_text:
         clauses.append(FULLTEXT_CLAUSE)
-    if english:
-        clauses.append(ENGLISH_CLAUSE)
+    if associated_data:
+        clauses.append(DATA_CLAUSE)
+    any_of(LANGUAGES, list(languages or []) + (["English"] if english else []))
+    if humans and other_animals:
+        clauses.append(f"({HUMANS_FILTER} OR {ANIMALS_FILTER})")
+    elif other_animals:
+        clauses.append(ANIMALS_FILTER)
+    any_of(SEXES, sexes)
+    any_of(AGES, ages)
+    # Qui NON come PubMed, che mette "MEDLINE" ed "Exclude preprints" in OR:
+    # scelti insieme li' resta in pratica solo il secondo. In AND fanno quello
+    # che dicono tutti e due.
+    if medline:
+        clauses.append(MEDLINE_CLAUSE)
+    if year_from or year_to:
+        clauses.append(
+            f'("{year_from or 1000}/01/01"[Date - Publication] : '
+            f'"{year_to or 3000}/12/31"[Date - Publication])')
 
     if years and years > 0:
         ref = today or date.today()
@@ -156,7 +236,9 @@ def build_query(
         )
 
     query = " AND ".join(clauses)
-    if humans:
+    if exclude_preprints:
+        query += f" NOT {PREPRINT_EXCLUDE}"
+    if humans and not other_animals:
         # In fondo, e con NOT: PubMed legge gli operatori da sinistra a destra,
         # quindi `A AND B NOT X` e' `(A AND B) NOT X`, che e' quello che si
         # vuole. `AND NOT` invece non e' sintassi PubMed.

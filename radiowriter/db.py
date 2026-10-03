@@ -435,6 +435,39 @@ def cleanup_read_articles() -> int:
     return db_retry(_run)
 
 
+def delete_articles(pmids: list[str]) -> tuple[int, int]:
+    """Elimina degli articoli dall'archivio per scelta, anche se stanno in una
+    lista. Ritorna (eliminati, lasciati perche' hanno un PDF).
+
+    Fa quello che fa la pulizia all'avvio - il PMID resta in screened_pmids,
+    cosi' le ricerche dopo lo saltano - ma senza l'eccezione delle liste: li'
+    la lista protegge da una cancellazione che nessuno ha chiesto, qui la
+    cancellazione e' chiesta. L'eccezione del PDF invece resta, perche' il
+    file resterebbe in libreria senza nome ne' citazione: prima si toglie il
+    PDF dalla scheda Library."""
+    pmids = [str(p).strip() for p in pmids if str(p or "").strip()]
+
+    def _run():
+        conn = get_connection()
+        try:
+            deleted = kept = 0
+            for pmid in pmids:
+                if conn.execute("SELECT 1 FROM pdfs WHERE pmid = ?", (pmid,)).fetchone():
+                    kept += 1
+                    continue
+                conn.execute("INSERT OR IGNORE INTO screened_pmids (pmid) "
+                             "SELECT pmid FROM articles WHERE pmid = ?", (pmid,))
+                conn.execute("DELETE FROM list_items WHERE pmid = ?", (pmid,))
+                deleted += conn.execute(
+                    "DELETE FROM articles WHERE pmid = ?", (pmid,)).rowcount
+            conn.commit()
+            return deleted, kept
+        finally:
+            conn.close()
+
+    return db_retry(_run)
+
+
 ARTICLE_FIELDS = (
     "pmid", "title", "abstract", "journal", "pub_date", "doi", "raw_text",
     "authors", "year", "pub_types", "source_query",

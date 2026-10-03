@@ -1,0 +1,563 @@
+{
+ "transcribed": "2026-10-03",
+ "source": "https://pubmed.ncbi.nlm.nih.gov/ (the Additional filters dialog of a results page)",
+ "note": "Each entry is [label, token]. label is the text PubMed shows, token is the part after the dot in the value of its checkbox (pubt.review -> review). The query fragment is token[Filter]. On 2026-10-03 every token was sent to esearch as token[Filter] and returned a count above zero.",
+ "article_types": [
+  [
+   "Adaptive Clinical Trial",
+   "adaptiveclinicaltrial"
+  ],
+  [
+   "Address",
+   "address"
+  ],
+  [
+   "Biography",
+   "biography"
+  ],
+  [
+   "Books and Documents",
+   "booksdocs"
+  ],
+  [
+   "Case Reports",
+   "casereports"
+  ],
+  [
+   "Clinical Study",
+   "clinicalstudy"
+  ],
+  [
+   "Clinical Trial",
+   "clinicaltrial"
+  ],
+  [
+   "Clinical Trial Protocol",
+   "clinicaltrialprotocol"
+  ],
+  [
+   "Clinical Trial, Phase I",
+   "clinicaltrialphasei"
+  ],
+  [
+   "Clinical Trial, Phase II",
+   "clinicaltrialphaseii"
+  ],
+  [
+   "Clinical Trial, Phase III",
+   "clinicaltrialphaseiii"
+  ],
+  [
+   "Clinical Trial, Phase IV",
+   "clinicaltrialphaseiv"
+  ],
+  [
+   "Clinical Trial, Veterinary",
+   "veterinaryclinicaltrial"
+  ],
+  [
+   "Collected Work",
+   "collectedwork"
+  ],
+  [
+   "Comment",
+   "comment"
+  ],
+  [
+   "Comparative Study",
+   "comparativestudy"
+  ],
+  [
+   "Conference Proceedings",
+   "conferenceproceedings"
+  ],
+  [
+   "Consensus Statement",
+   "consensusstatement"
+  ],
+  [
+   "Controlled Clinical Trial",
+   "controlledclinicaltrial"
+  ],
+  [
+   "Corrected and Republished Article",
+   "correctedandrepublishedarticle"
+  ],
+  [
+   "Dataset",
+   "dataset"
+  ],
+  [
+   "Duplicate Publication",
+   "duplicatepublication"
+  ],
+  [
+   "Editorial",
+   "editorial"
+  ],
+  [
+   "Electronic Supplementary Materials",
+   "electronicsupplementarymaterials"
+  ],
+  [
+   "English Abstract",
+   "englishabstract"
+  ],
+  [
+   "Equivalence Trial",
+   "equivalencetrial"
+  ],
+  [
+   "Evaluation Study",
+   "evaluationstudy"
+  ],
+  [
+   "Evidence Synthesis",
+   "evidencesynthesis"
+  ],
+  [
+   "Expression of Concern",
+   "expressionofconcern"
+  ],
+  [
+   "Festschrift",
+   "festschrift"
+  ],
+  [
+   "Guideline",
+   "guideline"
+  ],
+  [
+   "Historical Article",
+   "historicalarticle"
+  ],
+  [
+   "Interview",
+   "interview"
+  ],
+  [
+   "Introductory Journal Article",
+   "introductoryjournalarticle"
+  ],
+  [
+   "Lecture",
+   "lecture"
+  ],
+  [
+   "Letter",
+   "letter"
+  ],
+  [
+   "Meta-Analysis",
+   "meta-analysis"
+  ],
+  [
+   "Multicenter Study",
+   "multicenterstudy"
+  ],
+  [
+   "Network Meta-Analysis",
+   "networkmetaanalysis"
+  ],
+  [
+   "News",
+   "news"
+  ],
+  [
+   "Observational Study",
+   "observationalstudy"
+  ],
+  [
+   "Observational Study, Veterinary",
+   "veterinaryobservationalstudy"
+  ],
+  [
+   "Patient Education Handout",
+   "patienteducationhandout"
+  ],
+  [
+   "Personal Narrative",
+   "personalnarrative"
+  ],
+  [
+   "Practice Guideline",
+   "practiceguideline"
+  ],
+  [
+   "Pragmatic Clinical Trial",
+   "pragmaticclinicaltrial"
+  ],
+  [
+   "Preprint",
+   "preprint"
+  ],
+  [
+   "Published Erratum",
+   "publishederratum"
+  ],
+  [
+   "Randomized Controlled Trial",
+   "randomizedcontrolledtrial"
+  ],
+  [
+   "Randomized Controlled Trial, Veterinary",
+   "randomizedcontrolledtrialveterinary"
+  ],
+  [
+   "Research Support, American Recovery and Reinvestment Act",
+   "researchsupportamericanrecoveryandreinvestmentact"
+  ],
+  [
+   "Research Support, N.I.H., Extramural",
+   "researchsupportnihextramural"
+  ],
+  [
+   "Research Support, N.I.H., Intramural",
+   "researchsupportnihintramural"
+  ],
+  [
+   "Research Support, Non-U.S. Gov't",
+   "researchsupportnonusgovt"
+  ],
+  [
+   "Research Support, U.S. Gov't, Non-P.H.S.",
+   "researchsupportusgovtnonphs"
+  ],
+  [
+   "Research Support, U.S. Gov't, P.H.S.",
+   "researchsupportusgovtphs"
+  ],
+  [
+   "Research Support, U.S. Gov't",
+   "researchsupportusgovernment"
+  ],
+  [
+   "Retracted Publication",
+   "retractedpublication"
+  ],
+  [
+   "Retraction Notice",
+   "retractionnotice"
+  ],
+  [
+   "Review",
+   "review"
+  ],
+  [
+   "Scoping Review",
+   "scopingreview"
+  ],
+  [
+   "Systematic Review",
+   "systematicreview"
+  ],
+  [
+   "Twin Study",
+   "twinstudy"
+  ],
+  [
+   "Validation Study",
+   "validationstudy"
+  ],
+  [
+   "Video-Audio Media",
+   "videoaudiomedia"
+  ],
+  [
+   "Webcast",
+   "webcast"
+  ]
+ ],
+ "languages": [
+  [
+   "Afrikaans",
+   "afrikaans"
+  ],
+  [
+   "Albanian",
+   "albanian"
+  ],
+  [
+   "Arabic",
+   "arabic"
+  ],
+  [
+   "Armenian",
+   "armenian"
+  ],
+  [
+   "Azerbaijani",
+   "azerbaijani"
+  ],
+  [
+   "Bosnian",
+   "bosnian"
+  ],
+  [
+   "Bulgarian",
+   "bulgarian"
+  ],
+  [
+   "Catalan",
+   "catalan"
+  ],
+  [
+   "Chinese",
+   "chinese"
+  ],
+  [
+   "Croatian",
+   "croatian"
+  ],
+  [
+   "Czech",
+   "czech"
+  ],
+  [
+   "Danish",
+   "danish"
+  ],
+  [
+   "Dutch",
+   "dutch"
+  ],
+  [
+   "English",
+   "english"
+  ],
+  [
+   "Esperanto",
+   "esperanto"
+  ],
+  [
+   "Estonian",
+   "estonian"
+  ],
+  [
+   "Finnish",
+   "finnish"
+  ],
+  [
+   "French",
+   "french"
+  ],
+  [
+   "Georgian",
+   "georgian"
+  ],
+  [
+   "German",
+   "german"
+  ],
+  [
+   "Greek, Modern",
+   "greekmodern"
+  ],
+  [
+   "Hebrew",
+   "hebrew"
+  ],
+  [
+   "Hindi",
+   "hindi"
+  ],
+  [
+   "Hungarian",
+   "hungarian"
+  ],
+  [
+   "Icelandic",
+   "icelandic"
+  ],
+  [
+   "Indonesian",
+   "indonesian"
+  ],
+  [
+   "Italian",
+   "italian"
+  ],
+  [
+   "Japanese",
+   "japanese"
+  ],
+  [
+   "Kinyarwanda",
+   "kinyarwanda"
+  ],
+  [
+   "Korean",
+   "korean"
+  ],
+  [
+   "Latin",
+   "latin"
+  ],
+  [
+   "Latvian",
+   "latvian"
+  ],
+  [
+   "Lithuanian",
+   "lithuanian"
+  ],
+  [
+   "Macedonian",
+   "macedonian"
+  ],
+  [
+   "Malay",
+   "malay"
+  ],
+  [
+   "Malayalam",
+   "malayalam"
+  ],
+  [
+   "Maori",
+   "maori"
+  ],
+  [
+   "Multiple Languages",
+   "multiplelanguages"
+  ],
+  [
+   "Norwegian",
+   "norwegian"
+  ],
+  [
+   "Persian",
+   "persian"
+  ],
+  [
+   "Polish",
+   "polish"
+  ],
+  [
+   "Portuguese",
+   "portuguese"
+  ],
+  [
+   "Pushto",
+   "pushto"
+  ],
+  [
+   "Romanian",
+   "romanian"
+  ],
+  [
+   "Russian",
+   "russian"
+  ],
+  [
+   "Sanskrit",
+   "sanskrit"
+  ],
+  [
+   "Scottish gaelic",
+   "scottishgaelic"
+  ],
+  [
+   "Serbian",
+   "serbian"
+  ],
+  [
+   "Slovak",
+   "slovak"
+  ],
+  [
+   "Slovenian",
+   "slovenian"
+  ],
+  [
+   "Spanish",
+   "spanish"
+  ],
+  [
+   "Swedish",
+   "swedish"
+  ],
+  [
+   "Thai",
+   "thai"
+  ],
+  [
+   "Turkish",
+   "turkish"
+  ],
+  [
+   "Ukrainian",
+   "ukrainian"
+  ],
+  [
+   "Undetermined",
+   "undetermined"
+  ],
+  [
+   "Vietnamese",
+   "vietnamese"
+  ],
+  [
+   "Welsh",
+   "welsh"
+  ]
+ ],
+ "ages": [
+  [
+   "Child: birth-18 years",
+   "allchild"
+  ],
+  [
+   "Newborn: birth-1 month",
+   "newborn"
+  ],
+  [
+   "Infant: birth-23 months",
+   "allinfant"
+  ],
+  [
+   "Infant: 1-23 months",
+   "infant"
+  ],
+  [
+   "Preschool Child: 2-5 years",
+   "preschoolchild"
+  ],
+  [
+   "Child: 6-12 years",
+   "child"
+  ],
+  [
+   "Adolescent: 13-18 years",
+   "adolescent"
+  ],
+  [
+   "Adult: 19+ years",
+   "alladult"
+  ],
+  [
+   "Young Adult: 19-24 years",
+   "youngadult"
+  ],
+  [
+   "Adult: 19-44 years",
+   "adult"
+  ],
+  [
+   "Middle Aged + Aged: 45+ years",
+   "middleagedaged"
+  ],
+  [
+   "Middle Aged: 45-64 years",
+   "middleaged"
+  ],
+  [
+   "Aged: 65+ years",
+   "aged"
+  ],
+  [
+   "80 and over: 80+ years",
+   "80andover"
+  ]
+ ]
+}
