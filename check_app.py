@@ -551,13 +551,16 @@ try:
 
     # un indirizzo che non e' un indirizzo non deve essere salvato: PubMed
     # rifiuta la richiesta, e lo si scoprirebbe molto piu' tardi
-    at2 = email.set_value("non-una-email").run()
-    at2 = at2.button[0].click().run()
+    # Il valore e l'invio nello stesso giro, come fa il browser con un form:
+    # da Streamlit 1.65 un giro senza invio butta via quello che c'e' scritto
+    # nei campi del form, e l'indirizzo arriverebbe vuoto.
+    email.set_value("non-una-email")
+    at2 = at.button[0].click().run()
     is_("un indirizzo malfatto viene rifiutato", len(at2.error) >= 1, "True")
     is_("...e non viene salvato", db.get_settings().get("ncbi_email"), "")
 
-    at3 = at2.text_input[0].set_value("io@ospedale.it").run()
-    at3 = at3.button[0].click().run()
+    at2.text_input[0].set_value("io@ospedale.it")
+    at3 = at2.button[0].click().run()
     is_("un indirizzo buono si salva", db.get_settings().get("ncbi_email"),
         "io@ospedale.it")
     is_("...e vale anche per Unpaywall",
