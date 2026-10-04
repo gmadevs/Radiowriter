@@ -194,6 +194,16 @@ is_("un intervallo di anni",
     pubmed.build_query("x", **none, year_from=2010, year_to=2015),
     '(x) AND ("2010/01/01"[Date - Publication] : "2015/12/31"[Date - Publication])')
 
+is_("un titolo solo come filtro e' la sua strategia",
+    stg.clause(["Epidemiology"], "keywords"),
+    stg.fragment("Epidemiology", "keywords"))
+is_("piu' titoli vanno in OR dentro una parentesi sola",
+    stg.clause(["Epidemiology", "Aetiology"], "mesh"),
+    "(" + stg.fragment("Epidemiology", "mesh") + " OR "
+    + stg.fragment("Aetiology", "mesh") + ")")
+is_("...e un titolo senza strategia non lascia niente",
+    stg.clause(["See also"]), "")
+
 is_("il fascio delle review non contiene trial ne' libri",
     [t for t in pubmed.REVIEW_TYPE_LABELS
      if t in ("Books and Documents", "Clinical Trial, Phase IV", "Multicenter Study")], [])

@@ -76,6 +76,10 @@ OR. If you put them in separate blocks they would be joined by AND, and the
 query would ask for papers that cover epidemiology, MRI and prognosis
 together. That usually returns very few results.
 
+The same terms are available as a filter for any search, including a search
+typed on one line. See
+[Radiopaedia headings as a filter](/guide/search#radiopaedia-headings-as-a-filter).
+
 ::: tip The MeSH terms are checked against PubMed
 A MeSH descriptor that does not exist matches nothing. `check_mesh_live.py`
 asks the PubMed API whether every descriptor used for the headings and the

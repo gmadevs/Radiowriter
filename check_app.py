@@ -658,6 +658,38 @@ is_("Recent reviews non si porta dietro i filtri di Custom",
     "fha[Filter]" in query_of(at) or "italian" in query_of(at), "False")
 is_("...senza sollevare", exceptions(at), "[]")
 
+# i titoli di Radiopaedia come filtro
+is_("la riga dei titoli parte chiusa", drawn(at, "hd_picked"), "False")
+at = at.button(key="hd_open_btn").click().run()
+is_("...e il pulsante la apre", drawn(at, "hd_picked"), "True")
+is_("i titoli offerti sono quelli del tipo di articolo",
+    "Epidemiology" in at.multiselect(key="hd_picked").options, "True")
+before = query_of(at)
+at = at.multiselect(key="hd_picked").set_value(
+    ["Epidemiology", "Treatment and prognosis"]).run()
+is_("i titoli scelti entrano nella query, in OR fra loro",
+    '"Prevalence"[Mesh]' in query_of(at) and "prognos" in query_of(at), "True")
+is_("...come un gruppo in piu', in AND col resto",
+    query_of(at).count(" AND "), before.count(" AND ") + 1)
+at = at.radio(key="hd_mode").set_value("keywords").run()
+is_("Keywords only toglie i MeSH", "[Mesh]" in query_of(at), "False")
+at = at.button(key="hd_open_btn").click().run()
+is_("chiusa la riga, i titoli restano nella query", "prevalence[tiab]" in query_of(at), "True")
+is_("...e il pulsante dice quanti sono",
+    at.button(key="hd_open_btn").label, "⌗ Radiopaedia headings (2)")
+is_("...con i loro nomi sotto",
+    any("Headings in the query: Epidemiology, Treatment and prognosis." == c.value
+        for c in at.caption), "True")
+at = mode_of(at).set_value("open").run()
+is_("No filters toglie anche i titoli", query_of(at), "(glioma)")
+at = mode_of(at).set_value("custom").run()
+is_("...che tornano con Custom", "prevalence[tiab]" in query_of(at), "True")
+at = at.button(key="hd_open_btn").click().run()
+at = at.selectbox(key="hd_profile").set_value("anatomy").run()
+is_("cambiare tipo di articolo svuota i titoli scelti",
+    at.session_state["hd_picked"], [])
+is_("...senza sollevare", exceptions(at), "[]")
+
 # zero anni = nessuna clausola di data nella query
 from radiowriter import pubmed as _pm             # noqa: E402
 from datetime import date as _date   # noqa: E402

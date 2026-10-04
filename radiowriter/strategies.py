@@ -765,6 +765,16 @@ def suggest(titles: list[str], mode: str = "both") -> list[tuple[str, str]]:
     return out
 
 
+def clause(titles: list[str], mode: str = "both") -> str:
+    """I titoli scelti come UN filtro, da mettere in AND col resto della
+    query: le loro strategie in OR fra loro, per la stessa ragione per cui nei
+    blocchi vanno in un blocco solo. "" se nessun titolo ha una strategia."""
+    parts = [frag for _, frag in suggest(titles, mode)]
+    if not parts:
+        return ""
+    return parts[0] if len(parts) == 1 else "(" + " OR ".join(parts) + ")"
+
+
 def covered() -> list[str]:
     """I titoli per cui una strategia c'e'."""
     return sorted(STRATEGIES)

@@ -228,7 +228,16 @@ settings = st.session_state.settings
 # riquadro ne mostrava zero. Riscriverli costa niente e tiene anche le liste del
 # metodo di pubblicazione non scelto, che Streamlit altrimenti butterebbe via
 # nel giro in cui non sono disegnate.
+# I titoli di Radiopaedia usati come filtro (`hd_*`) stanno qui per la stessa
+# ragione: la loro riga e' chiusa finche' non la si apre, e quello che c'e'
+# scelto deve restare in sessione anche mentre non e' disegnato.
+try:
+    _first_profile = next(iter(sx.profile_labels()), "")
+except sx.StructureError:
+    _first_profile = ""
 _defaults = {**SEARCH_FILTER_PRESETS["reviews"], **SEARCH_PREFS, "sf_mode": "reviews",
+             "hd_open": False, "hd_profile": _first_profile, "hd_picked": [],
+             "hd_mode": "both",
              **{k: settings.get("abstracts_open") == "1" for k in ABSTRACT_TOGGLES}}
 for _key, _value in _defaults.items():
     st.session_state[_key] = st.session_state.get(_key, _value)
@@ -431,6 +440,13 @@ def reviews_help() -> str:
         "- with one of these NLM publication types: "
         + ", ".join(preset["sf_types"]) + "\n\n"
         f"To change any of them, choose **{SEARCH_MODES['custom']}**.")
+
+
+def on_heading_profile() -> None:
+    """Cambiato il tipo di articolo, i titoli scelti si svuotano: quelli di
+    prima possono non esistere nel tipo nuovo, e un multiselect con un valore
+    che non e' fra le sue opzioni va in errore."""
+    st.session_state.hd_picked = []
 
 
 def describe_filters(f: dict) -> str:
@@ -1904,6 +1920,62 @@ with tab_search:
                 st.markdown(reviews_help())
     filters_now = effective_filters(st.session_state)
 
+    # I titoli che Radiopaedia chiede per un tipo di articolo, come filtro. Sono
+    # le stesse strategie del pannello nei blocchi, ma qui valgono anche per la
+    # ricerca su una riga: i titoli scelti vanno in OR fra loro e il gruppo in
+    # AND col resto. La riga e' chiusa finche' non la si apre; il numero sul
+    # pulsante dice quanti titoli sono nella query anche da chiusa.
+    heading_clause = ""
+    if mode != "open":
+        n_headings = len(st.session_state.hd_picked)
+        if st.button(
+                "⌗ Radiopaedia headings"
+                + (f" ({n_headings})" if n_headings else ""), key="hd_open_btn",
+                help="Limits the search to the topics of the headings "
+                     "Radiopaedia asks for in an article, for example "
+                     "Epidemiology or Treatment and prognosis. Each heading "
+                     "adds its MeSH terms and its title and abstract words."):
+            st.session_state.hd_open = not st.session_state.hd_open
+        if st.session_state.hd_open:
+            with st.container(border=True):
+                try:
+                    kinds = sx.profile_labels()
+                except sx.StructureError as exc:
+                    kinds = {}
+                    st.warning(str(exc))
+                if kinds:
+                    h_kind, h_terms = st.columns([1.4, 2], vertical_alignment="bottom")
+                    kind = h_kind.selectbox(
+                        "Kind of article", list(kinds), key="hd_profile",
+                        format_func=lambda n: kinds[n],
+                        on_change=on_heading_profile,
+                        help="The headings offered are the ones Radiopaedia "
+                             "asks for in this kind of article. Changing it "
+                             "clears the headings chosen.")
+                    h_terms.radio(
+                        "Terms", list(stg.MODES), key="hd_mode", horizontal=True,
+                        format_func=lambda k: stg.MODES[k],
+                        help="MeSH terms find only the records NLM has "
+                             "indexed. Keywords are words in the title and "
+                             "abstract, and also find recent records.")
+                    st.multiselect(
+                        "Headings",
+                        [name for name, _ in stg.suggest(
+                            [r.title for r in sx.rows_for(kind)])],
+                        key="hd_picked",
+                        placeholder="Choose headings (several are joined by OR)")
+                    chosen = stg.suggest(st.session_state.hd_picked,
+                                         st.session_state.hd_mode)
+                    if chosen:
+                        with st.container(height=150, border=True):
+                            for name, frag in chosen:
+                                st.caption(f"**{name}** → `{frag}`")
+        heading_clause = stg.clause(st.session_state.hd_picked,
+                                    st.session_state.hd_mode)
+        if heading_clause and not st.session_state.hd_open:
+            st.caption("Headings in the query: "
+                       + ", ".join(st.session_state.hd_picked) + ".")
+
     if mode == "custom":
         with st.container(border=True):
             # I gruppi sono quelli della colonna dei filtri di PubMed, nello
@@ -2004,7 +2076,7 @@ with tab_search:
         try:
             query_preview = pubmed.build_query(
                 terms, type_labels=filters_now["types"], english=False,
-                filters=[issg_clause],
+                filters=[issg_clause, heading_clause],
                 **{k: v for k, v in filters_now.items()
                    if k not in ("types", "issg")})
         except pubmed.PubMedError as exc:

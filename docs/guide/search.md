@@ -136,6 +136,37 @@ only records matching both would be returned. Several choices within one
 method are joined with OR. If you switch method, the choices you made in the
 other one are kept for when you switch back.
 
+## Radiopaedia headings as a filter
+
+**⌗ Radiopaedia headings**, below the filter control, limits the search to
+the topics of the headings Radiopaedia asks for in an article. For example,
+*Epidemiology* adds terms for prevalence and incidence. It is shown with
+**★ Recent reviews** and **Custom**, and works with **✎ One line** and
+**⛁ Blocks**.
+
+1. Click **⌗ Radiopaedia headings** to open the panel.
+2. Choose the **Kind of article**. The headings offered are the ones of that
+   kind. Changing it clears the headings chosen.
+3. Under **Terms**, choose **MeSH + keywords**, **MeSH only** or
+   **Keywords only**. The table in
+   [Build a query in blocks](/guide/blocks#terms-from-the-radiopaedia-headings)
+   describes the three.
+4. Choose the headings under **Headings**. The terms of each one are listed
+   below.
+
+The headings chosen are joined with OR, and the group is joined with AND to
+the search terms and the other filters.
+
+Click the button again to close the panel. The headings stay in the query:
+the button shows how many, and the line below it names them. To remove them,
+open the panel and clear **Headings**. **No filters** leaves them out of the
+query and keeps the choice for when you go back.
+
+The list of headings is the one the Radiopaedia lint userscript uses
+(`article-structure.json`). To put the headings of one of your drafts in a
+block, use **⌗ Terms from the Radiopaedia headings** in
+[Build a query in blocks](/guide/blocks#terms-from-the-radiopaedia-headings).
+
 ## Settings in the sidebar
 
 Four settings under **⚙ Search behaviour** in the sidebar apply to every
