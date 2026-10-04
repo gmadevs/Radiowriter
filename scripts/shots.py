@@ -101,6 +101,9 @@ def take(page) -> None:
     # Un filo piu' in basso: la query composta e' il punto di tutta la
     # schermata, e tagliata a meta' non spiega niente.
     page.mouse.wheel(0, 150)
+    # Il mouse via dai pulsanti: fermo su "Another wording" ne apre l'aiuto,
+    # che copre il termine appena scritto.
+    page.mouse.move(WIDTH - 40, HEIGHT // 2)
     settle(page)
     shoot(page, "02-blocks")
 
@@ -173,7 +176,9 @@ def take(page) -> None:
     shoot(page, "05-write")
 
     # --- la struttura dei titoli -------------------------------------------
-    page.get_by_text("Headings", exact=False).first.click()
+    # Il nome intero: "Headings" da solo trova prima il pulsante
+    # "Radiopaedia headings" della scheda di ricerca, che qui non si vede.
+    page.get_by_text("Headings for this kind of article", exact=False).first.click()
     settle(page, 3)
     page.mouse.wheel(0, 420)
     settle(page, 2)
