@@ -29,8 +29,14 @@ dependencies = [
   # Non 1.40: `st.html(unsafe_allow_javascript=...)`, che tiene in vita la barra
   # del markdown e il pulsante di copia, c'e' dalla 1.52, e `width=` sui
   # pulsanti dalla 1.48. Con una versione piu' vecchia gia' installata pip non
-  # aggiorna niente, e l'app si ferma alla prima schermata. Provato su 1.52.
-  "streamlit>=1.52",
+  # aggiorna niente, e l'app si ferma alla prima schermata.
+  # Dalla 0.1.8 serve la 1.61. `st.segmented_control(required=...)`, che tiene
+  # sempre scelta una posizione dell'interruttore dei filtri, c'e' dalla 1.56,
+  # e le versioni dalla 0.1.5 alla 0.1.7 lo usavano dichiarando 1.52. Sulla
+  # 1.56 l'app si apre, ma `check_app.py` gira per intero solo dalla 1.61
+  # (prima AppTest non conosce `st.download_button`): si dichiara la versione
+  # su cui tutti i controlli passano. Provato su 1.61 e 1.65.
+  "streamlit>=1.61",
   "pandas>=2.0",
   "requests>=2.31",
   "markdown-it-py>=3.0",

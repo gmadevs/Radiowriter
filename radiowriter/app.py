@@ -239,8 +239,25 @@ _defaults = {**SEARCH_FILTER_PRESETS["reviews"], **SEARCH_PREFS, "sf_mode": "rev
              "hd_open": False, "hd_profile": _first_profile, "hd_picked": [],
              "hd_mode": "both",
              **{k: settings.get("abstracts_open") == "1" for k in ABSTRACT_TOGGLES}}
-for _key, _value in _defaults.items():
-    st.session_state[_key] = st.session_state.get(_key, _value)
+
+
+def keep_defaults(only: tuple[str, ...] | None = None) -> None:
+    """Riscrive in sessione i valori qui sopra, per le ragioni dette sopra.
+    E' una funzione perche' va chiamata due volte: qui, a ogni giro intero, e
+    in testa alla scheda di ricerca, che da frammento gira anche da sola. Li'
+    con `only`: le preferenze della barra laterale a quel punto sono widget
+    gia' nati, e Streamlit non lascia riscrivere la voce di un widget nato."""
+    for key, value in _defaults.items():
+        if only is None or key in only:
+            st.session_state[key] = st.session_state.get(key, value)
+
+
+# Le voci che appartengono alla scheda di ricerca: i filtri, i titoli di
+# Radiopaedia e l'interruttore degli abstract dei risultati.
+SEARCH_TAB_KEYS = tuple(k for k in _defaults
+                        if k not in SEARCH_PREFS and k != "abs_open_screen")
+
+keep_defaults()
 
 
 # ---------------------------------------------------------------------------
@@ -1055,21 +1072,22 @@ with st.sidebar:
             scopes[f"List: {row['name']}"] = ("list", row["id"])
         picked = st.selectbox("What to export", list(scopes), key="exp_scope")
         scope, scope_list = scopes[picked]
-        to_export = db.articles_for_export(scope, scope_list)
+        # `data` e' una funzione: i file si costruiscono al clic, non a ogni
+        # giro dell'app. Qui serve solo il numero per l'etichetta.
+        n_export = db.count_for_export(scope, scope_list)
         st.download_button(
-            f"⤓ {len(to_export)} article(s) as .nbib",
-            data=backup.to_medline(to_export),
+            f"⤓ {n_export} article(s) as .nbib",
+            data=lambda: backup.to_medline(db.articles_for_export(scope, scope_list)),
             file_name=backup.medline_filename(picked.replace("List: ", "")),
-            mime="text/plain", width="stretch", disabled=not to_export,
+            mime="text/plain", width="stretch", disabled=not n_export,
             key="exp_medline")
         st.caption("Read, flagged, lists and drafts are not in a `.nbib`: "
                    "MEDLINE has no field for them.")
 
         st.divider()
-        whole = backup.bundle()
-        n = backup.counts(whole)
+        n = backup.quick_counts()
         st.download_button(
-            "⤓ Full backup (.json)", data=backup.to_json(whole),
+            "⤓ Full backup (.json)", data=lambda: backup.to_json(backup.bundle()),
             file_name=backup.json_filename(), mime="application/json",
             width="stretch", key="exp_json")
         st.caption(
@@ -1677,15 +1695,22 @@ def search_builder() -> str:
     return qb.compose(qb_model(blocks))
 
 
-tab_search, tab_screen, tab_library, tab_write = st.tabs(
-    ["1  PubMed search", "2  Screening", "3  Library", "4  Write"])
+# Le quattro schede sono definite qui sotto come frammenti e disegnate in fondo
+# al file. Un clic dentro una scheda fa rigirare solo quella: senza, ogni
+# spunta rieseguiva tutto il file e ridisegnava la barra laterale e le altre
+# tre schede, circa un secondo per clic su un archivio di quattromila
+# articoli. Un `st.rerun()` dentro una scheda fa ancora un giro intero, ed e'
+# giusto: lo chiamano le azioni che cambiano l'archivio, e i numeri della barra
+# laterale e delle altre schede devono seguirle.
 
 
 # ---------------------------------------------------------------------------
 # TAB 1 - ricerca
 # ---------------------------------------------------------------------------
 
-with tab_search:
+@st.fragment
+def search_tab() -> None:
+    keep_defaults(SEARCH_TAB_KEYS)
     def run_search(label: str, query: str, *, highlight_terms: str,
                    limit: int, skip: str) -> list[dict] | None:
         """Manda una query a PubMed e mette i record fra i risultati.
@@ -2021,18 +2046,20 @@ with tab_search:
                 help="The age groups of the people studied." + MESH_WARNING)
 
             st.caption("Species, sex and other")
-            s1, s2, s3, s4 = st.columns(4)
-            s1.checkbox("Humans", key="sf_humans",
+            # Non `s1..s4`: `s2` e' il modulo di Semantic Scholar, e una colonna
+            # con quel nome lo copriva per il resto del giro.
+            sp1, sp2, sp3, sp4 = st.columns(4)
+            sp1.checkbox("Humans", key="sf_humans",
                         help="Leaves out what is indexed as an animal study and "
                              "not as a human one. Papers too recent to be "
                              "indexed yet are kept. With Other animals also "
                              "ticked, PubMed's own two filters are used, joined "
                              "by OR, and papers not yet indexed are left out.")
-            s2.checkbox("Other animals", key="sf_animals",
+            sp2.checkbox("Other animals", key="sf_animals",
                         help="Only records indexed as animal studies." + MESH_WARNING)
-            s3.checkbox("Female", key="sf_female",
+            sp3.checkbox("Female", key="sf_female",
                         help="Only records indexed with female subjects." + MESH_WARNING)
-            s4.checkbox("Male", key="sf_male",
+            sp4.checkbox("Male", key="sf_male",
                         help="Only records indexed with male subjects." + MESH_WARNING)
             o1, o2, _, _ = st.columns(4)
             o1.checkbox("Exclude preprints", key="sf_nopreprints")
@@ -2439,7 +2466,8 @@ with tab_search:
 # TAB 2 - screening
 # ---------------------------------------------------------------------------
 
-with tab_screen:
+@st.fragment
+def screen_tab() -> None:
     st.subheader("📚 Articles in the archive")
 
     all_lists = db.list_lists()
@@ -3085,7 +3113,8 @@ def incoming_pdfs() -> None:
                             done()
 
 
-with tab_library:
+@st.fragment
+def library_tab() -> None:
     st.subheader("📄 PDF library")
     folder = lib_folder()
     top_l, top_r = st.columns([4, 1])
@@ -3867,7 +3896,8 @@ def study_panel(draft) -> None:
                "there after you save the file.")
 
 
-with tab_write:
+@st.fragment
+def write_tab() -> None:
     drafts = db.list_drafts()
 
     head, new_col, del_col = st.columns([3, 1, 1])
@@ -4223,3 +4253,15 @@ with tab_write:
         st.divider()
         st.subheader("Lint the draft")
         lint_panel(draft, body_md, numbers)
+
+
+tab_search, tab_screen, tab_library, tab_write = st.tabs(
+    ["1  PubMed search", "2  Screening", "3  Library", "4  Write"])
+with tab_search:
+    search_tab()
+with tab_screen:
+    screen_tab()
+with tab_library:
+    library_tab()
+with tab_write:
+    write_tab()

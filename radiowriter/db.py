@@ -678,9 +678,7 @@ def archive_summary() -> dict:
         conn.close()
 
 
-def articles_for_export(scope: str = "all", list_id: int | None = None) -> list[sqlite3.Row]:
-    """I record grezzi da mandare in un file MEDLINE, nell'ordine in cui sono
-    entrati. `scope`: 'all', 'flagged', 'unread', 'read' o 'list'."""
+def _export_where(scope: str, list_id: int | None) -> tuple[str, list]:
     where, params = "", []
     if scope == "flagged":
         where = " WHERE is_flagged = 1"
@@ -691,11 +689,29 @@ def articles_for_export(scope: str = "all", list_id: int | None = None) -> list[
     elif scope == "list" and list_id is not None:
         where = " WHERE pmid IN (SELECT pmid FROM list_items WHERE list_id = ?)"
         params.append(list_id)
+    return where, params
+
+
+def articles_for_export(scope: str = "all", list_id: int | None = None) -> list[sqlite3.Row]:
+    """I record grezzi da mandare in un file MEDLINE, nell'ordine in cui sono
+    entrati. `scope`: 'all', 'flagged', 'unread', 'read' o 'list'."""
+    where, params = _export_where(scope, list_id)
     conn = get_connection()
     try:
         return list(conn.execute(
             f"SELECT pmid, raw_text FROM articles{where} ORDER BY created_at, pmid",
             params))
+    finally:
+        conn.close()
+
+
+def count_for_export(scope: str = "all", list_id: int | None = None) -> int:
+    """Quanti ne manderebbe `articles_for_export`, senza caricarli: serve
+    all'etichetta del pulsante, che si disegna a ogni giro dell'app."""
+    where, params = _export_where(scope, list_id)
+    conn = get_connection()
+    try:
+        return conn.execute(f"SELECT COUNT(*) FROM articles{where}", params).fetchone()[0]
     finally:
         conn.close()
 

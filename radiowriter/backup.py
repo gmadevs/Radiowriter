@@ -135,6 +135,22 @@ def counts(data: dict) -> dict:
     }
 
 
+def quick_counts() -> dict:
+    """Gli stessi numeri di `counts(bundle())`, chiesti al database con dei
+    COUNT. Il fascio intero serve solo a chi scarica il file: costruirlo a
+    ogni giro dell'app, per scrivere quattro numeri sotto un pulsante, era un
+    terzo del tempo di ogni clic."""
+    conn = db.get_connection()
+    try:
+        def count(table: str) -> int:
+            return conn.execute(f"SELECT COUNT(*) FROM {table}").fetchone()[0]
+        return {"articles": count("articles"), "lists": count("lists"),
+                "drafts": count("drafts"), "searches": count("searches"),
+                "citations": count("citation_cache")}
+    finally:
+        conn.close()
+
+
 def read_bundle(raw: bytes | str) -> dict:
     try:
         data = json.loads(raw.decode("utf-8") if isinstance(raw, bytes) else raw)

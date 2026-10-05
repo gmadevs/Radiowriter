@@ -67,9 +67,11 @@ impossible.
 
 ## Two Streamlit behaviours the code works around
 
-Streamlit discards the state of a widget that is not drawn. A control inside
-a collapsed panel goes back to its default value. For this reason the search
-filters are always drawn, outside any expander.
+Streamlit discards the state of a widget that is not drawn, so a control
+that is hidden goes back to its default value. The search filters are drawn
+only in **Custom**, and the Radiopaedia headings only when their panel is
+open. To keep their values, `keep_defaults()` in `app.py` writes them back
+into the session state on every run.
 
 Streamlit does not allow writing to a widget's `key` after the widget has
 been created. Code that changes the value of a control uses one of two
@@ -81,6 +83,29 @@ methods:
   again.
 
 Both are used, with a comment at each place.
+
+## What runs on a click
+
+Streamlit runs a script again from the top on every click. Each of the four
+tabs is a function decorated with `st.fragment` (`search_tab`, `screen_tab`,
+`library_tab`, `write_tab`). A click inside a tab runs only that function.
+The sidebar and the other three tabs are not run.
+
+A call to `st.rerun()` inside a tab runs the whole script. The actions that
+change the archive call it, so that the counts in the sidebar and the other
+tabs are updated.
+
+The export files are built when their download button is clicked:
+`st.download_button` receives a function as `data`. The numbers under the
+buttons come from `COUNT` queries.
+
+On an archive of 4,126 articles, ticking **Select** on a card in Screening
+took about 1.15 seconds before these two changes and about 0.46 seconds
+after, measured in the browser. A click that runs the whole script went from
+about 1.15 to about 0.75 seconds.
+
+`check_app.py` does not cover a tab running alone: `AppTest` runs the whole
+script on every interaction.
 
 ## The reader and the study window
 

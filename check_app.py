@@ -819,6 +819,18 @@ is_("...e il nome e' quello ripulito",
     any("“Da leggere”" in c.value for c in at.caption), "True")
 is_("...senza sollevare", exceptions(at), "[]")
 
+# Nessun nome importato in testa all'app viene riassegnato piu' sotto. E'
+# successo con `s2`: quattro colonne chiamate `s1..s4` coprivano il modulo di
+# Semantic Scholar, e con i filtri su Custom la ricerca andava in errore.
+import ast as _ast                                # noqa: E402
+_tree = _ast.parse(pathlib.Path(APP).read_text(encoding="utf-8"))
+_imported = {(a.asname or a.name).split(".")[0] for n in _tree.body
+             if isinstance(n, (_ast.Import, _ast.ImportFrom)) for a in n.names}
+_rebound = sorted({x.id for x in _ast.walk(_tree)
+                   if isinstance(x, _ast.Name) and isinstance(x.ctx, _ast.Store)
+                   and x.id in _imported})
+is_("nessun modulo importato dall'app viene coperto da una variabile", _rebound, "[]")
+
 # L'import dalla barra laterale: la lista si sceglie prima di importare.
 is_("l'import chiede in che lista mettere i record",
     at.selectbox(key="import_list").options[0], "No list")
