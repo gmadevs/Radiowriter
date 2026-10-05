@@ -24,6 +24,12 @@
   searched. The journals are not limited by topic, so the results include
   radiology reviews on other body regions and neurology reviews that are not
   about imaging.
+- The article counts at the top of the sidebar are read again every 5
+  seconds. After you save or delete articles they can show the old number for
+  that long.
+- The Screening tab needs a second local port, which the system chooses at
+  start. A browser extension or a policy that blocks pages on `127.0.0.1`
+  leaves the tab empty.
 - The date of the last run of **📰 Fetch recent literature** is a setting.
   It is not in the `.json` backup, so after a restore on another computer the
   first run covers the last 30 days again.

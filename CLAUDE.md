@@ -33,5 +33,5 @@ node ~/.claude/skills/plain-docs/scripts/prose.mjs README.md
 The README, every page in `docs/` and the interface text were rewritten to
 these rules between `b2287cb` and the commit "Rewrite the interface text in
 plain prose". New text follows the same rules. Run the measuring script on
-any page you change, and run the six `check_*.py` scripts after changing
+any page you change, and run the seven `check_*.py` scripts after changing
 interface text, because some checks match it.

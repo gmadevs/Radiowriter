@@ -17,7 +17,6 @@ import hashlib
 import html
 import math
 import os
-import re
 import sqlite3
 import time
 from datetime import date
@@ -28,6 +27,8 @@ import requests
 import streamlit as st
 
 from radiowriter import backup
+from radiowriter import bench
+from radiowriter import cards
 from radiowriter import db
 from radiowriter import draft_io
 from radiowriter import editorial
@@ -48,8 +49,9 @@ from radiowriter import structure as sx
 from radiowriter import study
 from radiowriter import theme
 from radiowriter import unpaywall as upw
+from radiowriter.cards import (abstract_html, citation_badge, clean, journal_badges,
+                               number, oa_badge, useful_types)
 
-PAGE_SIZE_OPTIONS = [10, 20, 50, 100]
 SORT_OPTIONS = {
     "Influential citations (S2)": "influential_citations",
     "Total citations (S2)": "citation_count",
@@ -146,8 +148,12 @@ SEARCH_FILTER_PRESETS = {
 MESH_WARNING = (" Uses MeSH indexing: records NLM has not indexed yet, which "
                 "includes most papers of the last few months, are left out.")
 
-# L'interruttore "Abstracts open", disegnato in tutt'e due le schede.
-ABSTRACT_TOGGLES = ("abs_open_search", "abs_open_screen")
+# L'altezza dell'iframe dello Screening quando il CSS qui sotto non arriva:
+# di norma lo porta all'altezza della finestra.
+BENCH_HEIGHT = 900
+
+# Ogni quanto la barra laterale rilegge i numeri dell'archivio.
+ARCHIVE_REFRESH_SECONDS = 5
 
 # Le preferenze, col loro valore di partenza.
 SEARCH_PREFS = {
@@ -238,7 +244,7 @@ except sx.StructureError:
 _defaults = {**SEARCH_FILTER_PRESETS["reviews"], **SEARCH_PREFS, "sf_mode": "reviews",
              "hd_open": False, "hd_profile": _first_profile, "hd_picked": [],
              "hd_mode": "both",
-             **{k: settings.get("abstracts_open") == "1" for k in ABSTRACT_TOGGLES}}
+             "abs_open_search": settings.get("abstracts_open") == "1"}
 
 
 def keep_defaults(only: tuple[str, ...] | None = None) -> None:
@@ -254,8 +260,15 @@ def keep_defaults(only: tuple[str, ...] | None = None) -> None:
 
 # Le voci che appartengono alla scheda di ricerca: i filtri, i titoli di
 # Radiopaedia e l'interruttore degli abstract dei risultati.
-SEARCH_TAB_KEYS = tuple(k for k in _defaults
-                        if k not in SEARCH_PREFS and k != "abs_open_screen")
+SEARCH_TAB_KEYS = tuple(k for k in _defaults if k not in SEARCH_PREFS)
+
+# "Abstracts open" e' una scelta sola per i risultati di ricerca e per lo
+# Screening, e lo Screening la scrive nel database per conto suo (e' una pagina
+# a parte: vedi `bench.py`). A ogni giro intero si guarda se e' cambiata la'.
+_abstracts_now = db.get_settings().get("abstracts_open")
+if _abstracts_now != settings.get("abstracts_open"):
+    settings["abstracts_open"] = _abstracts_now
+    st.session_state["abs_open_search"] = _abstracts_now == "1"
 
 keep_defaults()
 
@@ -293,29 +306,10 @@ def lib_folder() -> Path:
 
 def attach_pdf(pmid: str, *, path: Path | None = None, data: bytes | None = None,
                source: str, move: bool = False) -> str | None:
-    """Mette un PDF in libreria col nome della citazione. Ritorna l'errore da
-    mostrare, o None se e' andata.
-
-    Se l'articolo aveva gia' un PDF con un altro nome, il vecchio file si
-    toglie: un articolo ha un PDF solo, e due copie nella cartella direbbero il
-    contrario."""
-    rec = db.article_row(pmid)
-    if rec is None:
-        return f"PMID {pmid} is not in the archive."
-    folder = lib_folder()
-    name = library.filename_for(rec)
-    old = db.pdfs_for([pmid]).get(str(pmid))
-    try:
-        if data is not None:
-            name, digest, size = library.store_bytes(data, folder, name)
-        else:
-            name, digest, size = library.store(path, folder, name, move=move)
-    except (library.LibraryError, OSError) as exc:
-        return str(exc)
-    if old and old["filename"] != name:
-        (folder / old["filename"]).unlink(missing_ok=True)
-    db.save_pdf(pmid, name, digest, size, source)
-    return None
+    """Mette un PDF in libreria col nome della citazione, nella cartella
+    scelta nelle impostazioni. Ritorna l'errore da mostrare, o None."""
+    return bench.attach_pdf(pmid, lib_folder(), path=path, data=data,
+                            source=source, move=move)
 
 
 @st.cache_data(show_spinner=False, max_entries=500)
@@ -332,18 +326,6 @@ def radiopaedia_index(path: str, mtime: float) -> list[dict]:
     return study.read_index(Path(path))
 
 
-def on_toggle(pmid: str, field: str, widget_key: str) -> None:
-    """Callback della checkbox: salva subito il nuovo valore nel DB."""
-    value = st.session_state[widget_key]
-    try:
-        db.set_status(pmid, field, value)
-    except sqlite3.Error as e:
-        # Senza questo l'app va in crash e la spunta resta girata pur non
-        # essendo stata salvata: si riporta la checkbox allo stato reale.
-        st.session_state[widget_key] = not value
-        st.error(f"Could not save the change for PMID {pmid}: {e}")
-
-
 def on_highlight_toggle(highlight_id: int, widget_key: str) -> None:
     """La spunta di un'evidenziazione, dalla scheda Library. E' la stessa
     della finestra di studio: quella la rilegge da sola entro pochi secondi."""
@@ -358,55 +340,6 @@ def on_pick(pmid: str, widget_key: str) -> None:
     """Riporta la spunta 'Save' di una scheda dei risultati nella selezione."""
     st.session_state.setdefault("search_selection", {})[pmid] = bool(
         st.session_state[widget_key])
-
-
-def on_screen_pick(pmid: str, widget_key: str) -> None:
-    """La spunta 'Select' di una scheda dello Screening, per le azioni di
-    gruppo. La selezione e' un insieme di PMID e non lo stato dei widget:
-    cosi' regge il cambio di pagina."""
-    picked = st.session_state.setdefault("screen_selection", set())
-    (picked.add if st.session_state[widget_key] else picked.discard)(pmid)
-
-
-def delete_from_archive(pmids: list[str]) -> None:
-    """Elimina dall'archivio e lo dice. Chi ha un PDF resta, e si dice anche
-    quello."""
-    try:
-        deleted, kept = db.delete_articles(pmids)
-    except sqlite3.Error as e:
-        st.error(f"Could not delete: {e}")
-        return
-    st.session_state.setdefault("screen_selection", set()).difference_update(pmids)
-    st.toast(f"Deleted {deleted} article(s) from the archive."
-             + (f" {kept} kept: they have a PDF in the library." if kept else ""))
-
-
-def on_list_toggle(pmid: str, list_id: int, widget_key: str) -> None:
-    """Callback della spunta di una lista: scrive subito, come le altre."""
-    value = st.session_state[widget_key]
-    try:
-        if value:
-            db.add_to_list(list_id, [pmid], note="from screening")
-        else:
-            db.remove_from_list(list_id, pmid)
-    except sqlite3.Error as e:
-        st.session_state[widget_key] = not value
-        st.error(f"Could not change the list for PMID {pmid}: {e}")
-
-
-def on_list_rename(list_id: int, widget_key: str, previous: str, field: str) -> None:
-    """Rinomina o cambia la nota quando il campo perde il fuoco.
-
-    Se il nome e' gia' di un'altra lista il database rifiuta, e la casella
-    tornerebbe a mostrare un nome che non e' stato salvato: si rimette quello
-    di prima. Qui si puo', perche' i callback girano prima che i widget di
-    questo giro esistano."""
-    value = st.session_state[widget_key]
-    ok = (db.rename_list(list_id, name=value) if field == "name"
-          else db.rename_list(list_id, note=value))
-    if not ok:
-        st.session_state[widget_key] = previous
-        st.toast(f"“{value}” is already the name of another list.")
 
 
 def effective_filters(state) -> dict:
@@ -512,141 +445,11 @@ def describe_filters(f: dict) -> str:
 
 def on_abstracts_open(key: str) -> None:
     """Abstract aperti o chiusi: un'abitudine di lettura, quindi una scelta
-    sola che vale per le due schede e resta al riavvio. I due interruttori sono
-    lo stesso interruttore disegnato in due posti."""
+    sola che vale per i risultati e per lo Screening e resta al riavvio. Lo
+    Screening la legge dal database ogni volta che torna in vista."""
     value = bool(st.session_state[key])
-    for other in ABSTRACT_TOGGLES:
-        st.session_state[other] = value
     db.save_settings({"abstracts_open": "1" if value else "0"})
     st.session_state.settings = db.get_settings()
-
-
-def number(value) -> float | None:
-    """Un numero da una cella, o None. Le colonne che arrivano da una LEFT JOIN
-    senza corrispondenza tornano come NaN, non come None, e NaN e' un float che
-    passa qualsiasi controllo di verita': senza questo una rivista non
-    agganciata si stamperebbe addosso un badge che dice `nan`."""
-    if value is None:
-        return None
-    try:
-        out = float(value)
-    except (TypeError, ValueError):
-        return None
-    return None if math.isnan(out) else out
-
-
-# Tipi di pubblicazione che non dicono niente a chi sta screenando: "Journal
-# Article" ce l'hanno quasi tutti, e da chi era finanziato uno studio non e'
-# una cosa che si guarda scorrendo un elenco. Occupavano tre righe di badge per
-# scheda e coprivano quelli che contano - Review, Meta-Analysis, Guideline.
-NOISY_TYPES = {"journal article", "english abstract", "comparative study",
-               "validation study", "historical article"}
-
-
-def useful_types(text: str, limit: int = 3) -> list[str]:
-    out = []
-    for kind in (t.strip() for t in clean(text).split(";")):
-        low = kind.lower()
-        if not kind or low in NOISY_TYPES or low.startswith("research support"):
-            continue
-        if kind not in out:
-            out.append(kind)
-    return out[:limit]
-
-
-def citation_badge(total, influential, per_year) -> str:
-    """Un badge solo per le citazioni, invece di tre.
-
-    Tre numeri messi in fila su tre pillole diverse si leggono come tre fatti;
-    sono lo stesso fatto guardato da tre lati, e su una riga sola si confrontano
-    fra articoli molto piu' in fretta."""
-    total = number(total)
-    if total is None:
-        return ""
-    bits = [f"{int(total):,} cites"]
-    infl = number(influential)
-    if infl:
-        bits.append(f"{int(infl)} infl")
-    rate = number(per_year)
-    if rate:
-        bits.append(f"{rate:.1f}/yr")
-    return "<span>" + html.escape(" · ".join(bits)) + "</span>"
-
-
-def journal_badges(metric) -> list[str]:
-    """I badge della rivista, gia' in HTML: quartile colorato, SJR, citazioni.
-
-    Vuoto quando la rivista non e' agganciata. Una che in SCImago non c'e' -
-    Cureus, medRxiv, meta' dei giornali di case report - non ha un quartile, e
-    dargliene uno grigio direbbe che il dato e' scarso invece che assente."""
-    if metric is None:
-        return []
-    out = []
-    quartile = clean(metric["quartile"])
-    sjr = number(metric["sjr"])
-    cites = number(metric["cites_per_doc"])
-    if quartile:
-        text = f"{quartile} · SJR {sjr:.2f}" if sjr is not None else quartile
-        out.append(f'<span class="{quartile.lower()}">{html.escape(text)}</span>')
-    elif sjr is not None:
-        out.append(f"<span>SJR {sjr:.2f}</span>")
-    if cites is not None:
-        out.append(f"<span>{cites:.1f} cites/doc (2y)</span>")
-    return out
-
-
-def oa_badge(status) -> str:
-    """Il badge dell'open access. Verde solo quando il full text c'e' davvero."""
-    text = upw.label(status)
-    if not text:
-        return ""
-    css = "oa" if (status or "").lower() not in ("closed", "unknown") else "oa-closed"
-    return f'<span class="{css}">{html.escape(text)}</span>'
-
-
-def clean(value) -> str:
-    """Testo sicuro da una cella: le colonne aggiunte dopo sono NULL sui record
-    storici, e pandas le restituisce come NaN (che stampato diventa 'nan')."""
-    if value is None:
-        return ""
-    if isinstance(value, float) and math.isnan(value):
-        return ""
-    text = str(value).strip()
-    return "" if text.lower() in ("nan", "none", "<na>") else text
-
-
-# Un'etichetta di sezione dentro un abstract scritto tutto di seguito: parole
-# maiuscole e due punti subito dopo la fine di una frase. I record scaricati
-# adesso le hanno gia' su paragrafi separati; quelli importati da un `.nbib`
-# arrivano in un blocco solo, "...criteria. RESULTS: 56 incisors...".
-INLINE_LABEL = re.compile(r"(?<=[.!?])\s+(?=[A-Z][A-Z0-9 ,/&()-]{2,48}:\s)")
-LEADING_LABEL = re.compile(r"^([A-Z][A-Za-z0-9 ,/&()'-]{1,48}):\s+(.+)$", re.S)
-
-
-def abstract_html(text, rx=None) -> str:
-    """L'abstract come HTML da leggere: un paragrafo per sezione, l'etichetta
-    sopra, tutto il resto escapato, e i termini di `rx` evidenziati.
-
-    Prima passava da `st.write`, cioe' dal Markdown di Streamlit, che un
-    abstract lo interpreta: `$1 M ... $780,000` diventava una formula LaTeX e
-    `T2* ... L*/a*/b*` un corsivo a caso. Un abstract e' testo, non sintassi."""
-    text = clean(text)
-    if not text or text == "No abstract available.":
-        return '<div class="abstract"><p class="none">No abstract available.</p></div>'
-    paragraphs = []
-    for block in text.split("\n\n"):
-        paragraphs.extend(p for p in INLINE_LABEL.split(block.strip()) if p)
-    out = []
-    for para in paragraphs:
-        m = LEADING_LABEL.match(para)
-        # "Label: testo" solo se l'etichetta e' corta: una frase che contiene
-        # due punti non e' un'intestazione
-        if m and len(m.group(1).split()) <= 5:
-            out.append(f'<p><span class="lbl">{html.escape(m.group(1))}</span>'
-                       f'{highlight.mark(m.group(2), rx)}</p>')
-        else:
-            out.append(f"<p>{highlight.mark(para, rx)}</p>")
-    return '<div class="abstract">' + "".join(out) + "</div>"
 
 
 def fmt_int(value) -> str:
@@ -673,12 +476,6 @@ title_rem = setting_float("title_font_rem", 1.35)
 reading_rem = setting_float("reading_font_rem", 1.05)
 reading_font = theme.READING_FONTS.get(settings.get("reading_font") or "serif",
                                        theme.READING_FONTS["serif"])
-
-quartile_css = " ".join(
-    f".art-badges span.{q.lower()} {{ {theme.tinted(base)} "
-    f"border-color: transparent; font-weight: 600; }}"
-    for q, base in theme.QUARTILE_BASE.items()
-)
 
 # Tutto il CSS e' scritto per andare bene su tutt'e due i temi senza
 # sapere quale c'e': grigi fatti di trasparenza (`rgba(128,128,128,...)`) e
@@ -718,15 +515,6 @@ st.markdown(
         opacity: 1; background: rgba(128,128,128,.18);
       }}
       div[data-testid="stTab"] p {{ font-size: .95rem; }}
-      .art-title {{
-        font-size: {title_rem}rem;
-        font-weight: 650;
-        line-height: 1.3;
-        letter-spacing: -.005em;
-        margin: 0 0 .3rem 0;
-        max-width: 60rem;
-        text-wrap: pretty;
-      }}
       /* Denso apposta: si sfogliano centinaia di record, e ogni riga di aria
          in piu' e' un articolo in meno per schermata. Si stringe lo spazio fra
          i blocchi e dentro le schede, non il testo - quello resta leggibile. */
@@ -736,48 +524,13 @@ st.markdown(
       div[data-testid="stLayoutWrapper"] > div[data-testid="stVerticalBlock"] {{
         border-radius: 10px;
       }}
-      .art-meta {{ font-size: .86rem; opacity: .72; margin-bottom: .35rem;
-                   line-height: 1.45; max-width: 60rem; }}
-      .art-badges {{ font-size: .78rem; margin-bottom: .35rem;
-                     display: flex; flex-wrap: wrap; gap: .3rem; }}
-      .art-badges span {{
-        display: inline-block; padding: .05rem .5rem; margin: 0;
-        border-radius: 999px; background: rgba(128,128,128,.12);
-        border: 1px solid rgba(128,128,128,.22);
-        white-space: nowrap;
-      }}
-      /* Il quartile e' l'unica cosa in questa riga che si legge di colpo:
-         verde Q1, rosso Q4, come un semaforo. Gli altri badge restano grigi
-         apposta - se fossero colorati anche loro non si vedrebbe piu' niente. */
-      {quartile_css}
-      .art-badges span.oa {{ {theme.tinted(theme.QUARTILE_BASE["Q1"])}
-                             border-color: transparent; font-weight: 600; }}
-      .art-badges span.oa-closed {{ opacity: .75; }}
-      /* L'abstract e' il testo che si legge davvero, e per questo ha regole sue.
-         Una riga lunga al massimo una settantina di caratteri: oltre, l'occhio
-         che torna a capo perde la riga dopo - e nella pagina larga di
-         Streamlit una riga arrivava a duecento. Interlinea larga, carattere di
-         lettura, e ogni sezione (BACKGROUND, METHODS...) un paragrafo suo con
-         l'etichetta sopra, invece di un blocco unico da scandire a occhio. */
-      .abstract {{
-        font-family: {reading_font};
-        font-size: {reading_rem}rem; line-height: 1.65;
-        max-width: 70ch; text-wrap: pretty;
-        font-variant-numeric: lining-nums;
-      }}
-      .abstract p {{ margin: 0 0 .8em 0; }}
-      .abstract p:last-child {{ margin-bottom: .2em; }}
-      .abstract .lbl {{
-        display: block; font-family: {theme.UI_FONT};
-        font-size: .7rem; font-weight: 700; letter-spacing: .07em;
-        text-transform: uppercase; opacity: .6; margin-bottom: .1em;
-      }}
-      .abstract .none {{ opacity: .6; font-style: italic; }}
-      /* I termini cercati. Un giallo evidenziatore trasparente, cosi' sul
-         chiaro e sullo scuro il testo sotto resta il suo e resta leggibile. */
-      .abstract mark, .art-title mark {{
-        background: color-mix(in srgb, #f2c230 38%, transparent);
-        color: inherit; border-radius: 3px; padding: 0 .08em;
+      {cards.css(title_rem, reading_rem, reading_font)}
+      /* Lo Screening e' una pagina sua dentro un iframe (vedi `bench.py`), e
+         scorre li' dentro: l'iframe arriva al fondo della finestra, cosi' di
+         barre di scorrimento ce n'e' una sola. */
+      iframe[data-testid="stIFrame"] {{
+        height: calc(100vh - 13rem) !important; min-height: 28rem;
+        border: 0; border-radius: 10px;
       }}
       /* titolo degli expander (abstract) leggermente piu' grande del default */
       div[data-testid="stExpander"] summary p {{ font-size: {max(0.95, title_rem - 0.3):.2f}rem; }}
@@ -908,12 +661,21 @@ with st.sidebar:
     # aprire un terminale: chi si e' trovato davanti un archivio inatteso ha
     # dovuto chiedersi se fosse un residuo del pacchetto invece di leggerlo.
     _db_file, _db_origin = paths.db_origin()
-    _counts = db.archive_summary()
-    st.markdown(
-        f"**🗄 Archive** · {_counts['articles']:,} articles"
-        + (f" · {_counts['lists']} list(s)" if _counts["lists"] else "")
-        + (f" · {_counts['drafts']} draft(s)" if _counts["drafts"] else "")
-        + (f" · {_counts['pdfs']} PDF(s)" if _counts["pdfs"] else ""))
+
+    # I numeri si rileggono da soli ogni pochi secondi. Le schede girano
+    # ognuna per conto suo e lo Screening e' una pagina a parte: salvare o
+    # eliminare un articolo non fa piu' rigirare la barra laterale, e senza
+    # questo il conto restava quello dell'ultimo giro intero.
+    @st.fragment(run_every=ARCHIVE_REFRESH_SECONDS)
+    def archive_counts() -> None:
+        counts = db.archive_summary()
+        st.markdown(
+            f"**🗄 Archive** · {counts['articles']:,} articles"
+            + (f" · {counts['lists']} list(s)" if counts["lists"] else "")
+            + (f" · {counts['drafts']} draft(s)" if counts["drafts"] else "")
+            + (f" · {counts['pdfs']} PDF(s)" if counts["pdfs"] else ""))
+
+    archive_counts()
     st.caption(f"`{paths.short(_db_file)}`")
     # Il caso normale non si commenta; gli altri due si', in una riga sola. La
     # ragione per esteso sta nelle docs: qui serve solo che nessuno debba
@@ -2466,479 +2228,29 @@ def search_tab() -> None:
 # TAB 2 - screening
 # ---------------------------------------------------------------------------
 
-@st.fragment
+@st.cache_resource
+def screening_bench() -> bench.Bench:
+    """Il server del banco, avviato una volta per processo."""
+    return bench.start()
+
+
 def screen_tab() -> None:
-    st.subheader("📚 Articles in the archive")
+    """Lo Screening e' una pagina web servita da `bench.py`, mostrata qui in
+    un iframe. Non e' un frammento e non ha widget: Streamlit non rigira
+    quando si clicca la' dentro, ed e' il motivo per cui esiste.
 
-    all_lists = db.list_lists()
-
-    # ----------------------------------------------------------------------
-    # le liste
-    # ----------------------------------------------------------------------
-    with st.expander(f"🗂 Lists ({len(all_lists)})", expanded=False):
-        st.caption(
-            "A list is a named group of articles, for example the papers for "
-            "one section. An article can be in several lists. **An article in "
-            "a list is not deleted at startup**, even when it is marked read. "
-            "To delete it, use 🗑 Delete on its card."
-        )
-
-        with st.form("new_list_form", clear_on_submit=True):
-            n1, n2, n3 = st.columns([2, 3, 1])
-            new_name = n1.text_input("Name", label_visibility="collapsed",
-                                     placeholder="Name of a new list")
-            new_note = n2.text_input("Note", label_visibility="collapsed",
-                                     placeholder="What it is for (optional)")
-            n3.write("")
-            if n3.form_submit_button("＋ Create", width="stretch"):
-                if not new_name.strip():
-                    st.warning("A list needs a name.")
-                elif db.create_list(new_name, new_note) is None:
-                    st.error(f"“{new_name.strip()}” is already the name of a list.")
-                else:
-                    st.rerun()
-
-        if not all_lists:
-            st.caption("No lists yet. Create one here, or from the results of a "
-                       "search with “Add selected to a list…”.")
-
-        for lst in all_lists:
-            with st.container(border=True):
-                e1, e2, e3 = st.columns([2, 3, 0.6])
-                name_key = f"lname_{lst['id']}"
-                note_key = f"lnote_{lst['id']}"
-                e1.text_input(
-                    "Name", value=lst["name"], key=name_key,
-                    label_visibility="collapsed", on_change=on_list_rename,
-                    args=(lst["id"], name_key, lst["name"], "name"))
-                e2.text_input(
-                    "Note", value=lst["note"] or "", key=note_key,
-                    label_visibility="collapsed", placeholder="What it is for",
-                    on_change=on_list_rename,
-                    args=(lst["id"], note_key, lst["note"] or "", "note"))
-                e3.write("")
-                if e3.button("🗑", key=f"ldel_{lst['id']}",
-                             help="Delete this list"):
-                    st.session_state.confirm_list_delete = lst["id"]
-                    st.rerun()
-                st.caption(
-                    f"{lst['n_items']} article(s) · {lst['n_unread']} still to read"
-                    + (f" · last touched {str(lst['updated_at'])[:10]}"
-                       if lst["updated_at"] else ""))
-
-        if st.session_state.get("confirm_list_delete"):
-            doomed = db.get_list(st.session_state.confirm_list_delete)
-            if doomed:
-                st.warning(
-                    f"Delete the list “{doomed['name']}”? Its articles stay in "
-                    f"the archive.")
-                y, n = st.columns([1, 5])
-                if y.button("Yes, delete the list", type="primary",
-                            key="ldel_yes"):
-                    db.delete_list(st.session_state.confirm_list_delete)
-                    st.session_state.confirm_list_delete = None
-                    st.rerun()
-                if n.button("Cancel", key="ldel_no"):
-                    st.session_state.confirm_list_delete = None
-                    st.rerun()
-            else:
-                st.session_state.confirm_list_delete = None
-
-    f1, f2, f3, f4 = st.columns([1, 1.2, 2.2, 1])
-    with f1:
-        filter_status = st.selectbox("Show:", ["All", "To read", "Read", "Flagged ★"])
-    with f2:
-        ANY_LIST = "Any list"
-        list_choice = st.selectbox(
-            "In list:", [ANY_LIST] + [r["name"] for r in all_lists],
-            help="Only the articles in one list. Lists are managed above.")
-        list_filter_id = next(
-            (r["id"] for r in all_lists if r["name"] == list_choice), None)
-    with f3:
-        search_query = st.text_input("🔍 Search title, abstract or PMID:", "")
-    with f4:
-        try:
-            default_size = PAGE_SIZE_OPTIONS.index(int(settings.get("page_size") or 10))
-        except (ValueError, TypeError):
-            default_size = 0
-        page_size = st.selectbox("Articles per page:", PAGE_SIZE_OPTIONS, index=default_size)
-
-    NO_METRIC = "Not in SCImago"
-    quartiles = st.multiselect(
-        "Journal quartile:", jr.QUARTILES + [NO_METRIC],
-        help="SCImago's best quartile for the journal. “Not in SCImago” means "
-             "the journal is not in the file, for example Cureus, medRxiv "
-             "and most case-report journals.")
-
-    sort_cell, open_cell = st.columns([5, 1.3], vertical_alignment="bottom")
-    order_label = sort_cell.radio(
-        "Sort by:",
-        ["Recently added", "Influential citations", "Total citations",
-         "Citations per year", "Year", "Journal SJR"],
-        horizontal=True,
-    )
-    open_cell.toggle("Abstracts open", key="abs_open_screen",
-                    on_change=on_abstracts_open, args=("abs_open_screen",),
-                    help="Show every abstract already open. The same choice "
-                         "applies to the search results, and is remembered.")
-    # Nell'archivio si evidenzia quello che si cerca nella casella qui sopra.
-    # Un PMID non e' un termine: cercarne uno non accende niente.
-    screen_rx = (None if search_query.strip().isdigit() else
-                 highlight.pattern(highlight.terms_of(search_query)))
-    ORDER_SQL = {
-        "Recently added": "a.created_at DESC",
-        "Influential citations": "a.influential_citations DESC NULLS LAST, a.created_at DESC",
-        "Total citations": "a.citation_count DESC NULLS LAST, a.created_at DESC",
-        "Citations per year": "a.citations_per_year DESC NULLS LAST, a.created_at DESC",
-        "Year": "a.year DESC NULLS LAST, a.created_at DESC",
-        "Journal SJR": "m.sjr DESC NULLS LAST, a.created_at DESC",
-    }
-
-    # la combinazione filtri/ricerca cambia il numero di pagine: si riparte da 1
-    fingerprint = (filter_status, search_query.strip(), page_size, order_label,
-                   list_filter_id, tuple(quartiles))
-    if st.session_state.get("screen_fingerprint") != fingerprint:
-        st.session_state.screen_fingerprint = fingerprint
-        st.session_state.screen_page = 1
-    if str(page_size) != settings.get("page_size"):
-        db.save_settings({"page_size": str(page_size)})
-        st.session_state.settings["page_size"] = str(page_size)
-
-    # La JOIN sulle metriche e' LEFT: un articolo la cui rivista non sta in
-    # SCImago deve restare nell'elenco, senza quartile, non sparire.
-    FROM = ("FROM articles a "
-            "LEFT JOIN journal_metrics m ON m.id = a.journal_metric_id")
-    where = " WHERE 1=1"
-    params: list = []
-    if filter_status == "To read":
-        where += " AND a.is_read = 0"
-    elif filter_status == "Read":
-        where += " AND a.is_read = 1"
-    elif filter_status == "Flagged ★":
-        where += " AND a.is_flagged = 1"
-    if search_query.strip():
-        where += " AND (a.title LIKE ? OR a.abstract LIKE ? OR a.pmid LIKE ?)"
-        q = f"%{search_query.strip()}%"
-        params.extend([q, q, q])
-    if list_filter_id is not None:
-        where += " AND a.pmid IN (SELECT pmid FROM list_items WHERE list_id = ?)"
-        params.append(list_filter_id)
-    if quartiles:
-        picked = [q for q in quartiles if q in jr.QUARTILES]
-        bits = []
-        if picked:
-            bits.append(f"m.quartile IN ({', '.join('?' * len(picked))})")
-            params.extend(picked)
-        if NO_METRIC in quartiles:
-            # senza aggancio, oppure agganciata a una rivista che nel file non
-            # ha un quartile: per chi guarda sono la stessa cosa
-            bits.append("(a.journal_metric_id IS NULL OR m.quartile IS NULL)")
-        where += " AND (" + " OR ".join(bits) + ")"
-
-    conn = db.get_connection()
+    Nell'indirizzo vanno il tema e le misure del testo, che la pagina riceve
+    solo all'apertura: quando cambiano l'indirizzo cambia, e l'iframe si
+    ricarica da solo. A indirizzo uguale Streamlit lascia l'iframe com'e', e
+    la pagina tiene filtri e selezione."""
+    stamp = hashlib.sha256("|".join(
+        settings.get(k) or "" for k in
+        ("title_font_rem", "reading_font_rem", "reading_font")).encode()).hexdigest()[:8]
     try:
-        total = conn.execute(f"SELECT COUNT(*) {FROM}{where}", params).fetchone()[0]
-        n_pages = max(1, -(-total // page_size))
-        page = min(max(1, st.session_state.get("screen_page", 1)), n_pages)
-        st.session_state.screen_page = page
-
-        # NOTA: si carica una sola pagina per volta. Renderizzare migliaia di
-        # articoli insieme rende ogni rerun talmente lento da perdere i click.
-        df = pd.read_sql_query(
-            "SELECT a.pmid, a.title, a.abstract, a.journal, a.journal_title, "
-            "a.pub_date, a.year, a.doi, a.authors, a.pub_types, a.citation_count, "
-            "a.influential_citations, a.citations_per_year, a.oa_pdf_url, "
-            "a.s2_fetched_at, a.is_read, a.is_flagged, "
-            "a.oa_status, a.oa_url, a.oa_fetched_at, "
-            "m.quartile, m.sjr, m.cites_per_doc, m.categories, "
-            "m.title AS journal_scimago "
-            f"{FROM}{where} ORDER BY {ORDER_SQL[order_label]} LIMIT ? OFFSET ?",
-            conn,
-            params=params + [page_size, (page - 1) * page_size],
-        )
-    finally:
-        conn.close()
-
-    st.caption(f"**{total}** articles found. Page {page} of {n_pages} "
-               f"({len(df)} on this page).")
-
-    if n_pages > 1:
-        render_pager(n_pages, "top", compact=True)
-
-    # si guarda s2_fetched_at, non citation_count: un lavoro troppo recente per
-    # essere indicizzato da S2 resterebbe altrimenti "da recuperare" per sempre
-    missing_s2 = [str(p) for p, t in zip(df["pmid"], df["s2_fetched_at"]) if pd.isna(t)]
-    if missing_s2:
-        if st.button(f"📈 Fetch citations for {len(missing_s2)} articles on this page"):
-            try:
-                enrich = s2.enrich(missing_s2,
-                                   api_key=(settings.get("s2_api_key") or "").strip())
-            except s2.SemanticScholarError as exc:
-                st.error(f"Semantic Scholar unavailable: {exc}")
-            else:
-                conn = db.get_connection()
-                try:
-                    for pmid, vals in enrich.items():
-                        conn.execute(
-                            "UPDATE articles SET citation_count = ?, influential_citations = ?, "
-                            "citations_per_year = ?, s2_paper_id = ?, oa_pdf_url = ?, "
-                            "s2_fetched_at = ? WHERE pmid = ?",
-                            (vals["citation_count"], vals["influential_citations"],
-                             vals["citations_per_year"], vals["s2_paper_id"],
-                             vals["oa_pdf_url"], vals["s2_fetched_at"], pmid),
-                        )
-                    conn.commit()
-                finally:
-                    conn.close()
-                found = sum(1 for v in enrich.values() if v["s2_paper_id"])
-                st.success(
-                    f"Queried {len(enrich)} articles: {found} found on Semantic "
-                    f"Scholar, {len(enrich) - found} not indexed yet."
-                )
-                st.rerun()
-
-    # Open access: si chiede solo per chi ha un DOI e non e' mai stato chiesto.
-    # Unpaywall risponde per DOI, e un lavoro senza DOI non ha nulla da cercare.
-    need_oa = [str(d) for d, doi, when in
-               zip(df["pmid"], df["doi"], df["oa_fetched_at"])
-               if clean(doi) and pd.isna(when)]
-    if need_oa:
-        if st.button(f"🔓 Check open access for {len(need_oa)} articles on this page"):
-            email = unpaywall_email()
-            if not email:
-                st.error("Set an email in the sidebar first (⚙️ Settings): "
-                         "Unpaywall requires one in every request.")
-            else:
-                by_doi = {clean(doi).lower(): str(pmid)
-                          for pmid, doi in zip(df["pmid"], df["doi"])
-                          if clean(doi)}
-                bar = st.progress(0.0, "Asking Unpaywall…")
-                found = upw.enrich(
-                    list(by_doi), email, http_session(),
-                    progress=lambda n, t: bar.progress(n / t, f"{n}/{t}"))
-                written = db.store_oa(found, by_doi)
-                open_now = sum(1 for r in found.values()
-                               if r.get("oa_status") not in ("closed", "unknown"))
-                st.success(f"Checked {written} articles: {open_now} have a free "
-                           f"full text.")
-                st.rerun()
-
-    # Le azioni di gruppo. La selezione puo' contenere articoli di altre
-    # pagine, o tutti quelli che i filtri trovano: per svuotare una lista da
-    # seicento articoli non si devono sfogliare sei pagine.
-    selection = st.session_state.setdefault("screen_selection", set())
-    sel_gen = st.session_state.get("screen_sel_gen", 0)
-    g1, g2, g3, g4 = st.columns([1.3, 1.5, 1, 1.6], vertical_alignment="center")
-    if g1.button("Select this page", key="screen_sel_page", width="stretch",
-                 disabled=df.empty):
-        selection.update(str(p) for p in df["pmid"])
-        st.session_state.screen_sel_gen = sel_gen + 1
-        st.rerun()
-    if g2.button(f"Select all {total} found", key="screen_sel_all", width="stretch",
-                 disabled=total == 0,
-                 help="Selects every article that matches the filters above, "
-                      "on every page."):
-        conn = db.get_connection()
-        try:
-            selection.update(str(r[0]) for r in conn.execute(
-                f"SELECT a.pmid {FROM}{where}", params))
-        finally:
-            conn.close()
-        st.session_state.screen_sel_gen = sel_gen + 1
-        st.rerun()
-    if g3.button("Clear", key="screen_sel_clear", width="stretch",
-                 disabled=not selection):
-        selection.clear()
-        st.session_state.screen_sel_gen = sel_gen + 1
-        st.rerun()
-    if g4.button(f"🗑 Delete {len(selection)} selected", key="screen_del_many",
-                 width="stretch", disabled=not selection):
-        st.session_state.screen_confirm_delete = True
-        st.rerun()
-
-    if st.session_state.get("screen_confirm_delete") and selection:
-        st.warning(
-            f"Delete {len(selection)} article(s) from the archive? They are "
-            "removed from every list. Their PMIDs are kept, so later searches "
-            "skip them. Articles with a PDF in the library are not deleted.")
-        y, n = st.columns([1, 5])
-        if y.button("Yes, delete them", type="primary", key="screen_del_yes"):
-            delete_from_archive(sorted(selection))
-            st.session_state.screen_confirm_delete = False
-            st.rerun()
-        if n.button("Cancel", key="screen_del_no"):
-            st.session_state.screen_confirm_delete = False
-            st.rerun()
-
-    # In quali liste stanno gli articoli di QUESTA pagina, in una query sola:
-    # chiederlo scheda per scheda sarebbe una query per articolo, e la pagina
-    # ne mostra fino a cento.
-    membership = db.lists_for([str(p) for p in df["pmid"]])
-    pdf_rows = db.pdfs_for([str(p) for p in df["pmid"]])
-
-    for _, row in df.iterrows():
-        pmid = str(row["pmid"])
-        is_read = bool(row["is_read"])
-        is_flagged = bool(row["is_flagged"])
-        in_lists = membership.get(pmid, [])
-        in_list_ids = {i for i, _ in in_lists}
-
-        with st.container(border=True):
-            col_meta, col_actions = st.columns([5, 1.3])
-
-            with col_meta:
-                mark = ("★ " if is_flagged else "") + ("✅ " if is_read else "📖 ")
-                st.markdown(
-                    f'<div class="art-title">{mark}'
-                    f'{highlight.mark(clean(row["title"]) or "No title available", screen_rx)}</div>',
-                    unsafe_allow_html=True,
-                )
-                # Il nome della rivista: quello di SCImago se l'aggancio c'e',
-                # altrimenti il titolo pulito, altrimenti quello che c'e' in
-                # archivio - che nei record vecchi e' l'abbreviazione incollata
-                # al titolo esteso, "Eur J Radiol European journal of radiology".
-                journal_name = (clean(row["journal_scimago"])
-                                or clean(row["journal_title"])
-                                or clean(row["journal"]))
-                meta_bits = [b for b in [
-                    html.escape(clean(row["authors"])),
-                    html.escape(journal_name),
-                    html.escape(clean(row["pub_date"]) or clean(row["year"])),
-                    f"PMID {pmid}",
-                ] if b]
-                st.markdown(f'<div class="art-meta">{" · ".join(meta_bits)}</div>',
-                            unsafe_allow_html=True)
-
-                # il quartile per primo: e' quello che si cerca con l'occhio
-                badges = journal_badges(row)
-                oa = oa_badge(clean(row["oa_status"]))
-                if oa:
-                    badges.append(oa)
-                badges.extend(html.escape(t) for t in useful_types(row["pub_types"]))
-                cites = citation_badge(row["citation_count"],
-                                       row["influential_citations"],
-                                       row["citations_per_year"])
-                if cites:
-                    badges.append(cites)
-                for _, list_name in in_lists:
-                    badges.append("🗂 " + html.escape(list_name))
-                if pmid in pdf_rows:
-                    badges.append("📄 PDF")
-                if badges:
-                    st.markdown(
-                        '<div class="art-badges">'
-                        + "".join(b if b.startswith("<span") else f"<span>{b}</span>"
-                                  for b in badges)
-                        + "</div>",
-                        unsafe_allow_html=True,
-                    )
-                if clean(row["categories"]):
-                    # Il quartile del badge e' il migliore che la rivista ha in
-                    # una qualsiasi delle sue categorie. Qui c'e' il dettaglio,
-                    # che per un radiologo dice di piu': Q1 in "Medicine
-                    # (miscellaneous)" e Q3 in "Radiology" sono due cose diverse.
-                    st.caption(f"in {clean(row['categories'])}")
-
-                links = [f"[PubMed](https://pubmed.ncbi.nlm.nih.gov/{pmid}/)"]
-                lk = libkey_url(pmid)
-                if lk:
-                    links.append(f"[🔓 LibKey full text]({lk})")
-                doi = clean(row["doi"])
-                if doi:
-                    links.append(f"[DOI](https://doi.org/{doi})")
-                # Unpaywall prima di Semantic Scholar: e' il servizio che fa
-                # solo questo, e quando i due dissentono ha ragione lui
-                free = clean(row["oa_url"]) or clean(row["oa_pdf_url"])
-                if free:
-                    links.append(f"[Free full text]({free})")
-                st.markdown(" · ".join(links))
-
-            with col_actions:
-                # La chiave include lo stato letto dal DB. Streamlit ignora
-                # `value=` quando la `key=` esiste gia' in session_state: se il
-                # DB viene cambiato da fuori (un'altra scheda del browser, la
-                # pulizia all'avvio) la spunta continuerebbe a mostrare il
-                # valore vecchio, e il click successivo riscriverebbe quello.
-                # Legando la chiave allo stato, il widget si ricrea e riparte
-                # dal DB.
-                key_read = f"read_{pmid}_{int(is_read)}"
-                st.checkbox("✅ Read", value=is_read, key=key_read,
-                            on_change=on_toggle, args=(pmid, "is_read", key_read))
-                key_flag = f"flag_{pmid}_{int(is_flagged)}"
-                st.checkbox("★ Flagged", value=is_flagged, key=key_flag,
-                            on_change=on_toggle, args=(pmid, "is_flagged", key_flag))
-                # `sel_gen` nella chiave: i pulsanti di gruppo lo incrementano,
-                # e la spunta si ricrea col valore della selezione.
-                key_sel = f"sel_{sel_gen}_{pmid}"
-                st.checkbox("Select", value=pmid in selection, key=key_sel,
-                            on_change=on_screen_pick, args=(pmid, key_sel),
-                            help="Selects the article for 🗑 Delete selected, "
-                                 "above the cards.")
-                if all_lists:
-                    # La chiave porta dentro l'appartenenza letta dal database,
-                    # per la stessa ragione delle due spunte qui sopra: se la
-                    # lista cambia da un'altra parte - dalla scheda di ricerca,
-                    # da un'altra finestra - il widget si rifa' e riparte dal
-                    # dato vero invece di ripetere quello vecchio.
-                    label = (f"🗂 {len(in_lists)} list(s)" if in_lists
-                             else "🗂 Add to a list")
-                    with st.popover(label, width="stretch"):
-                        for lst in all_lists:
-                            here = lst["id"] in in_list_ids
-                            key_list = f"inlist_{pmid}_{lst['id']}_{int(here)}"
-                            st.checkbox(
-                                lst["name"], value=here, key=key_list,
-                                on_change=on_list_toggle,
-                                args=(pmid, lst["id"], key_list))
-
-                # Il PDF: aprirlo se c'e', scaricarlo se e' libero. Quelli via
-                # LibKey si scaricano dal browser e si trascinano nella scheda
-                # Library.
-                pdf = pdf_rows.get(pmid)
-                if pdf is not None:
-                    pdf_path = lib_folder() / pdf["filename"]
-                    if pdf_path.exists():
-                        if st.button("📖 Read PDF", key=f"pdfopen_{pmid}",
-                                     width="stretch", help=pdf["filename"]):
-                            read_pdf(pmid, pdf_path)
-                    else:
-                        st.caption("📄 PDF not in the folder any more.")
-                else:
-                    free_url = clean(row["oa_url"]) or clean(row["oa_pdf_url"])
-                    if free_url and st.button(
-                            "⤓ Save free PDF", key=f"pdfget_{pmid}", width="stretch",
-                            help="Downloads the open-access PDF into the library, "
-                                 "named after the citation."):
-                        with st.spinner("Downloading…"):
-                            try:
-                                got = library.download(free_url, http_session())
-                            except library.LibraryError as exc:
-                                problem = str(exc)
-                            else:
-                                problem = attach_pdf(pmid, data=got, source="open access")
-                        if problem:
-                            st.error(problem)
-                        else:
-                            st.rerun()
-
-                # Un clic e basta, come la spunta Read seguita da un riavvio.
-                # Con un PDF no: resterebbe un file senza citazione.
-                if st.button("🗑 Delete", key=f"del_{pmid}", width="stretch",
-                             disabled=pdf is not None,
-                             help=("Remove the PDF in the Library tab first."
-                                   if pdf is not None else
-                                   "Deletes the article from the archive and "
-                                   "from every list. Its PMID is kept, so "
-                                   "later searches skip it.")):
-                    delete_from_archive([pmid])
-                    st.rerun()
-
-            with st.expander("Abstract", expanded=st.session_state.abs_open_screen):
-                st.html(abstract_html(row["abstract"], screen_rx))
-
-    if n_pages > 1:
-        st.divider()
-        render_pager(n_pages, "bottom", compact=False)
+        theme_name = st.context.theme.type or "auto"
+    except AttributeError:
+        theme_name = "auto"
+    st.iframe(screening_bench().url(theme_name, stamp), height=BENCH_HEIGHT)
 
 
 # ---------------------------------------------------------------------------

@@ -3,6 +3,10 @@
 The **2 Screening** tab shows the archive, which holds every article you
 saved from a search. You can filter it, sort it, and mark each article.
 
+The tab is a page of its own inside the app, and it scrolls separately from
+the rest of the window. A tick or a filter is applied at once, without
+reloading the app.
+
 ![The archive](/shots/04-screening.png)
 
 ## Read, flagged and reading lists
@@ -14,10 +18,10 @@ section of your article. You can have any number of lists, and an article can
 be in several.
 
 To create a list, open **🗂 Lists** at the top of the tab, type a name and
-click **＋ Create**. You can also create one from the results of a search,
-with *Add selected to a list…*. To rename a list or change its note, edit the
-text in its box. The change is saved when you leave the field. Deleting a
-list does not delete its articles from the archive.
+click **＋ Create**. You can also create one from the results of a search, with
+*Add selected to a list…*. To rename a list or change its note, edit the text
+in its box. The change is saved when you leave the field or press Enter.
+Deleting a list does not delete its articles from the archive.
 
 To add an article to a list from the archive, use **🗂 Add to a list** on its
 card.
@@ -91,12 +95,23 @@ choose Settings. *System* follows your operating system.
 | **Journal quartile:** | One or more of Q1 to Q4, and *Not in SCImago* |
 
 The filters are applied by the database query, so the total and the number
-of pages count only the articles that match.
+of pages count only the articles that match. The list is updated as you type
+in the search box.
+
+An article you tick as read stays on the page until the list is loaded again,
+also when **Show:** is set to *To read*. The list is loaded again when you
+change a filter or a page, and when you come back to the tab.
+
+The filters and the selection are kept while the app is open in that browser
+tab.
 
 **Articles per page:** sets how many articles each page shows.
 
 **Sort by:** has six options: Recently added, Influential citations, Total
 citations, Citations per year, Year and Journal SJR.
+
+**‹ Previous** and **Next ›** change page, above and below the cards. The box
+between them takes a page number.
 
 ## The article card
 

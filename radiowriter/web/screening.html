@@ -1,0 +1,544 @@
+<!doctype html>
+<html lang="en" data-theme="%THEME%">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Radiowriter - Screening</title>
+<style>
+/*STYLE*/
+  /* I colori arrivano dal server come variabili (`--bg`, `--text`, ...), le
+     stesse dell'app: la pagina sta dentro la scheda 2 e non deve sembrare
+     un'altra applicazione. */
+  * { box-sizing: border-box; }
+  html { font-size: 16px; }
+  body {
+    margin: 0; padding: .25rem .35rem 3rem .15rem;
+    background: var(--bg); color: var(--text);
+    font-family: var(--ui-font); line-height: 1.45;
+  }
+  a { color: var(--link); }
+  button, select, input[type=text], input[type=number] {
+    font: inherit; color: inherit; background: var(--bg);
+    border: 1px solid var(--border); border-radius: 8px;
+    padding: .38rem .7rem; min-height: 2.35rem;
+  }
+  select, input[type=text], input[type=number] { background: var(--widget); width: 100%; }
+  button { cursor: pointer; white-space: nowrap; }
+  button:hover:not(:disabled) { border-color: var(--primary); color: var(--primary); }
+  button:disabled { opacity: .45; cursor: default; }
+  button.primary { background: var(--primary); border-color: var(--primary); color: #fff; }
+  button.primary:hover:not(:disabled) { color: #fff; filter: brightness(1.1); }
+  label { font-size: .88rem; }
+  .field { display: flex; flex-direction: column; gap: .2rem; min-width: 0; }
+  .muted { font-size: .86rem; opacity: .72; }
+  .row { display: flex; gap: .6rem; align-items: end; flex-wrap: wrap; margin: .55rem 0; }
+  .row > .field { flex: 1 1 9rem; }
+  .row > .grow { flex: 3 1 16rem; }
+  .box { border: 1px solid var(--border); border-radius: 10px; padding: .7rem .9rem; margin: .55rem 0; }
+  details.panel > summary, details.abs > summary {
+    cursor: pointer; padding: .3rem .6rem; list-style-position: inside;
+  }
+  details.panel, details.abs { border: 1px solid var(--border); border-radius: 10px; }
+  details.panel[open] > summary, details.abs[open] > summary { border-bottom: 1px solid var(--border); }
+  details.panel > div, details.abs > div { padding: .7rem .9rem; }
+  details.abs > summary { font-size: var(--summary-rem); }
+  .checks { display: flex; flex-wrap: wrap; gap: .3rem .9rem; align-items: center; }
+  .check { display: inline-flex; align-items: center; gap: .4rem; cursor: pointer; font-size: .95rem; }
+  .check input { width: 1.05rem; height: 1.05rem; accent-color: var(--primary); margin: 0; }
+  .card { display: grid; grid-template-columns: minmax(0, 1fr) 11.5rem; gap: .2rem 1.2rem; }
+  .card > details.abs { grid-column: 1 / -1; margin-top: .35rem; }
+  .card.gone { opacity: .45; }
+  .actions { display: flex; flex-direction: column; gap: .45rem; }
+  .actions button { width: 100%; }
+  .links { font-size: .98rem; }
+  .pop { position: relative; }
+  .pop > summary { list-style: none; cursor: pointer; text-align: center;
+    border: 1px solid var(--border); border-radius: 8px; padding: .38rem .7rem; }
+  .pop > summary::-webkit-details-marker { display: none; }
+  .pop > div { position: absolute; right: 0; z-index: 5; min-width: 15rem; margin-top: .3rem;
+    background: var(--bg); border: 1px solid var(--border); border-radius: 10px;
+    padding: .6rem .8rem; display: flex; flex-direction: column; gap: .4rem;
+    box-shadow: 0 6px 24px rgba(0,0,0,.22); }
+  .bar { display: grid; grid-template-columns: 1.3fr 1.5fr 1fr 1.6fr; gap: .6rem; margin: .55rem 0; }
+  .pager { display: grid; grid-template-columns: 1fr 2fr 1fr; gap: .6rem; margin: .55rem 0; }
+  .warn { border-color: var(--orange); }
+  #toasts { position: fixed; right: 1rem; bottom: 1rem; display: flex; flex-direction: column;
+    gap: .4rem; z-index: 20; max-width: 26rem; }
+  .toast { background: var(--widget); border: 1px solid var(--border); border-radius: 10px;
+    padding: .55rem .8rem; box-shadow: 0 6px 24px rgba(0,0,0,.22); font-size: .92rem; }
+  .toast.error { border-color: var(--red); }
+  .list-row { display: grid; grid-template-columns: 2fr 3fr auto; gap: .6rem; align-items: center; }
+  @media (max-width: 760px) {
+    .card { grid-template-columns: minmax(0, 1fr); }
+    .bar { grid-template-columns: 1fr 1fr; }
+  }
+</style>
+</head>
+<body>
+<details class="panel" id="lists-panel">
+  <summary id="lists-title">🗂 Lists</summary>
+  <div>
+    <div class="muted">A list is a named group of articles, for example the papers for one
+      section. An article can be in several lists. <b>An article in a list is not deleted
+      at startup</b>, even when it is marked read. To delete it, use 🗑 Delete on its card.</div>
+    <form class="row" id="new-list">
+      <div class="field"><input type="text" id="new-list-name" aria-label="Name" placeholder="Name of a new list"></div>
+      <div class="field grow"><input type="text" id="new-list-note" aria-label="Note" placeholder="What it is for (optional)"></div>
+      <button type="submit">＋ Create</button>
+    </form>
+    <div id="lists"></div>
+  </div>
+</details>
+
+<div class="row">
+  <div class="field"><label for="f-show">Show:</label><select id="f-show"></select></div>
+  <div class="field"><label for="f-list">In list:</label><select id="f-list"></select></div>
+  <div class="field grow"><label for="f-text">🔍 Search title, abstract or PMID:</label>
+    <input type="text" id="f-text"></div>
+  <div class="field"><label for="f-size">Articles per page:</label><select id="f-size"></select></div>
+</div>
+<div class="row">
+  <div class="field grow"><label>Journal quartile:</label><div class="checks" id="f-quartiles"></div></div>
+  <div class="field"><label for="f-sort">Sort by:</label><select id="f-sort"></select></div>
+  <label class="check" title="Show every abstract already open. The same choice applies to the search results, and is remembered.">
+    <input type="checkbox" id="f-open"> Abstracts open</label>
+</div>
+
+<div class="muted" id="count"></div>
+<div class="pager" id="pager-top"></div>
+<div class="row" id="fetchers"></div>
+<div class="bar">
+  <button id="sel-page">Select this page</button>
+  <button id="sel-all" title="Selects every article that matches the filters above, on every page.">Select all found</button>
+  <button id="sel-clear">Clear</button>
+  <button id="del-many">🗑 Delete 0 selected</button>
+</div>
+<div id="confirm"></div>
+<div id="cards"></div>
+<div class="pager" id="pager-bottom"></div>
+<div id="toasts"></div>
+
+<script>
+"use strict";
+// Il gettone arriva nell'indirizzo e torna in un'intestazione a ogni richiesta:
+// e' quello che dice al server che a chiamare e' questa pagina e non un'altra.
+const TOKEN = new URLSearchParams(location.search).get("t") || "";
+const $ = id => document.getElementById(id);
+
+// Un elemento. I figli sono elementi o testo: il testo passa da
+// `createTextNode`, quindi quello che arriva dall'archivio non diventa mai HTML.
+function el(tag, props, ...children) {
+  const node = document.createElement(tag);
+  for (const [key, value] of Object.entries(props || {})) {
+    if (key === "class") node.className = value;
+    else if (key.startsWith("on")) node.addEventListener(key.slice(2), value);
+    else if (value === true) node.setAttribute(key, "");
+    else if (value !== false && value != null) node.setAttribute(key, value);
+  }
+  for (const child of children.flat()) {
+    if (child == null || child === false) continue;
+    node.append(child.nodeType ? child : document.createTextNode(String(child)));
+  }
+  return node;
+}
+
+// I soli campi che entrano come HTML sono quelli che il server ha gia'
+// escapato (`title_html`, `badges_html`, `abstract_html`).
+function html(tag, cls, markup) {
+  const node = el(tag, {class: cls});
+  node.innerHTML = markup;
+  return node;
+}
+
+function toast(text, error) {
+  const node = el("div", {class: "toast" + (error ? " error" : "")}, text);
+  $("toasts").append(node);
+  setTimeout(() => node.remove(), error ? 9000 : 4000);
+}
+
+async function api(path, body) {
+  const options = {headers: {"X-Radiowriter-Token": TOKEN}};
+  if (body !== undefined) {
+    options.method = "POST";
+    options.headers["Content-Type"] = "application/json";
+    options.body = JSON.stringify(body);
+  }
+  let response;
+  try {
+    response = await fetch(path, options);
+  } catch (err) {
+    throw new Error("The app is not answering. Is Radiowriter still running?");
+  }
+  let data = {};
+  try { data = await response.json(); } catch (err) { /* risposta senza corpo */ }
+  if (!response.ok) throw new Error(data.error || `The request failed (${response.status}).`);
+  return data;
+}
+
+// Un'azione che puo' fallire: l'errore si dice, e chi chiama sa se e' andata.
+async function attempt(promise) {
+  try { return await promise; } catch (err) { toast(err.message, true); return null; }
+}
+
+// ---------------------------------------------------------------------------
+// lo stato
+// ---------------------------------------------------------------------------
+
+// I filtri restano per la durata della finestra: l'iframe si ricarica quando
+// cambiano il tema o le misure del testo, e non deve ripartire da capo.
+const saved = (() => { try { return JSON.parse(sessionStorage.getItem("rw-screening") || "{}"); }
+                       catch (err) { return {}; } })();
+const filters = Object.assign(
+  {show: "All", list: "", q: "", quartiles: [], sort: "Recently added", page: 1, size: 10},
+  saved.filters || {});
+const selection = new Set(saved.selection || []);
+let app = null;      // /api/state
+let view = null;     // /api/articles
+let confirming = false;
+
+function remember() {
+  try { sessionStorage.setItem("rw-screening",
+        JSON.stringify({filters, selection: [...selection]})); } catch (err) { /* pieno */ }
+}
+
+function query() {
+  return new URLSearchParams({
+    show: filters.show, list: filters.list, q: filters.q,
+    quartiles: filters.quartiles.join(","), sort: filters.sort,
+    page: filters.page, size: filters.size}).toString();
+}
+
+// Le risposte possono arrivare fuori ordine quando si scrive in fretta nella
+// casella: vale solo l'ultima chiesta.
+let asked = 0;
+async function loadArticles() {
+  const mine = ++asked;
+  const data = await attempt(api("/api/articles?" + query()));
+  if (!data || mine !== asked) return;
+  view = data;
+  filters.page = data.page;
+  remember();
+  drawArticles();
+}
+
+async function loadState() {
+  const data = await attempt(api("/api/state"));
+  if (!data) return false;
+  const first = app === null;
+  app = data;
+  if (first && !saved.filters) filters.size = app.page_size;
+  // una lista cancellata altrove non puo' restare scelta nel filtro
+  if (filters.list && !app.lists.some(l => String(l.id) === String(filters.list))) filters.list = "";
+  drawControls();
+  drawLists();
+  return true;
+}
+
+async function reload() {
+  if (await loadState()) await loadArticles();
+}
+
+// ---------------------------------------------------------------------------
+// i comandi
+// ---------------------------------------------------------------------------
+
+function fill(select, options, value) {
+  select.replaceChildren(...options.map(([v, label]) =>
+    el("option", {value: v, selected: String(v) === String(value)}, label)));
+}
+
+function drawControls() {
+  fill($("f-show"), app.show.map(s => [s, s]), filters.show);
+  fill($("f-list"), [["", "Any list"], ...app.lists.map(l => [l.id, l.name])], filters.list);
+  fill($("f-size"), app.page_sizes.map(n => [n, n]), filters.size);
+  fill($("f-sort"), app.sorts.map(s => [s, s]), filters.sort);
+  $("f-text").value = filters.q;
+  $("f-open").checked = app.abstracts_open;
+  $("f-quartiles").replaceChildren(...app.quartiles.map(q =>
+    el("label", {class: "check"},
+       el("input", {type: "checkbox", checked: filters.quartiles.includes(q),
+                    onchange: e => {
+                      filters.quartiles = e.target.checked
+                        ? [...filters.quartiles, q] : filters.quartiles.filter(x => x !== q);
+                      changed();
+                    }}), q)));
+}
+
+// Cambiato un filtro si riparte dalla prima pagina: il numero di pagine non e'
+// piu' quello di prima.
+function changed() { filters.page = 1; loadArticles(); }
+
+$("f-show").addEventListener("change", e => { filters.show = e.target.value; changed(); });
+$("f-list").addEventListener("change", e => { filters.list = e.target.value; changed(); });
+$("f-sort").addEventListener("change", e => { filters.sort = e.target.value; changed(); });
+$("f-size").addEventListener("change", e => {
+  filters.size = Number(e.target.value);
+  api("/api/prefs", {page_size: filters.size}).catch(() => {});
+  changed();
+});
+let typing = null;
+$("f-text").addEventListener("input", e => {
+  clearTimeout(typing);
+  typing = setTimeout(() => { filters.q = e.target.value.trim(); changed(); }, 250);
+});
+$("f-open").addEventListener("change", e => {
+  app.abstracts_open = e.target.checked;
+  api("/api/prefs", {abstracts_open: app.abstracts_open}).catch(() => {});
+  for (const d of document.querySelectorAll("details.abs")) d.open = app.abstracts_open;
+});
+
+// ---------------------------------------------------------------------------
+// le liste
+// ---------------------------------------------------------------------------
+
+function drawLists() {
+  $("lists-title").textContent = `🗂 Lists (${app.lists.length})`;
+  if (!app.lists.length) {
+    $("lists").replaceChildren(el("div", {class: "muted"},
+      "No lists yet. Create one here, or from the results of a search with “Add selected to a list…”."));
+    return;
+  }
+  $("lists").replaceChildren(...app.lists.map(list => {
+    const save = (field, input) => async () => {
+      const value = input.value.trim();
+      if (value === (list[field] || "")) return;
+      const done = await attempt(api("/api/list/update", {id: list.id, [field]: value}));
+      if (!done) input.value = list[field] || "";
+      await reload();
+    };
+    const name = el("input", {type: "text", value: list.name, "aria-label": "Name"});
+    const note = el("input", {type: "text", value: list.note, "aria-label": "Note",
+                              placeholder: "What it is for"});
+    name.addEventListener("change", save("name", name));
+    note.addEventListener("change", save("note", note));
+    const box = el("div", {class: "box"});
+    const ask = () => {
+      const warning = el("div", {class: "box warn"},
+        `Delete the list “${list.name}”? Its articles stay in the archive. `,
+        el("button", {class: "primary", onclick: async () => {
+          if (await attempt(api("/api/list/delete", {id: list.id}))) await reload();
+        }}, "Yes, delete the list"), " ",
+        el("button", {onclick: () => warning.remove()}, "Cancel"));
+      box.append(warning);
+    };
+    box.append(
+      el("div", {class: "list-row"}, name, note,
+         el("button", {title: "Delete this list", onclick: ask}, "🗑")),
+      el("div", {class: "muted"},
+         `${list.n_items} article(s) · ${list.n_unread} still to read`
+         + (list.updated ? ` · last touched ${list.updated}` : "")));
+    return box;
+  }));
+}
+
+$("new-list").addEventListener("submit", async e => {
+  e.preventDefault();
+  const done = await attempt(api("/api/list/create",
+    {name: $("new-list-name").value, note: $("new-list-note").value}));
+  if (!done) return;
+  $("new-list-name").value = ""; $("new-list-note").value = "";
+  await reload();
+});
+
+// ---------------------------------------------------------------------------
+// gli articoli
+// ---------------------------------------------------------------------------
+
+function mark(row) { return (row.flagged ? "★ " : "") + (row.read ? "✅ " : "📖 "); }
+
+function drawBar() {
+  $("sel-page").disabled = !view || !view.rows.length;
+  $("sel-all").disabled = !view || !view.total;
+  $("sel-all").textContent = `Select all ${view ? view.total : 0} found`;
+  $("sel-clear").disabled = !selection.size;
+  $("del-many").disabled = !selection.size;
+  $("del-many").textContent = `🗑 Delete ${selection.size} selected`;
+  if (!selection.size) confirming = false;
+  $("confirm").replaceChildren(...(confirming ? [el("div", {class: "box warn"},
+    `Delete ${selection.size} article(s) from the archive? They are removed from every list. `
+    + "Their PMIDs are kept, so later searches skip them. Articles with a PDF in the "
+    + "library are not deleted. ",
+    el("button", {class: "primary", onclick: () => removeArticles([...selection])}, "Yes, delete them"),
+    " ", el("button", {onclick: () => { confirming = false; drawBar(); }}, "Cancel"))] : []));
+}
+
+async function removeArticles(pmids) {
+  const done = await attempt(api("/api/delete", {pmids}));
+  if (!done) return;
+  for (const pmid of pmids) selection.delete(pmid);
+  confirming = false;
+  toast(`Deleted ${done.deleted} article(s) from the archive.`
+        + (done.kept ? ` ${done.kept} kept: they have a PDF in the library.` : ""));
+  await reload();
+}
+
+function pager(target) {
+  const n = view.n_pages, page = view.page;
+  if (n <= 1) { target.replaceChildren(); return; }
+  const go = to => { filters.page = Math.min(n, Math.max(1, to)); loadArticles().then(() => scrollTo(0, 0)); };
+  const jump = el("input", {type: "number", min: 1, max: n, value: page,
+                            "aria-label": `Page (of ${n})`});
+  jump.addEventListener("change", () => go(Number(jump.value) || page));
+  target.replaceChildren(
+    el("button", {disabled: page <= 1, onclick: () => go(page - 1)}, "‹ Previous"),
+    jump,
+    el("button", {disabled: page >= n, onclick: () => go(page + 1)}, "Next ›"));
+}
+
+function fetchers() {
+  const out = [];
+  const run = async (button, path, pmids, done) => {
+    button.disabled = true; button.textContent = "Working…";
+    const got = await attempt(api(path, {pmids}));
+    if (got) toast(done(got));
+    await loadArticles();
+  };
+  if (view.missing_citations.length) {
+    const b = el("button", {}, `📈 Fetch citations for ${view.missing_citations.length} articles on this page`);
+    b.addEventListener("click", () => run(b, "/api/citations", view.missing_citations,
+      g => `Queried ${g.queried} articles: ${g.found} found on Semantic Scholar, ${g.queried - g.found} not indexed yet.`));
+    out.push(b);
+  }
+  if (view.missing_oa.length) {
+    const b = el("button", {}, `🔓 Check open access for ${view.missing_oa.length} articles on this page`);
+    b.addEventListener("click", () => run(b, "/api/open-access", view.missing_oa,
+      g => `Checked ${g.checked} articles: ${g.free} have a free full text.`));
+    out.push(b);
+  }
+  $("fetchers").replaceChildren(...out);
+}
+
+function card(row) {
+  const title = html("div", "art-title", "");
+  const paint = () => { title.innerHTML = ""; title.append(mark(row)); title.insertAdjacentHTML("beforeend", row.title_html); };
+  paint();
+
+  const status = (field, key, label) => el("label", {class: "check"},
+    el("input", {type: "checkbox", checked: row[key], onchange: async e => {
+      const value = e.target.checked;
+      const done = await attempt(api("/api/status", {pmid: row.pmid, field, value}));
+      if (done) { row[key] = value; paint(); } else e.target.checked = !value;
+    }}), label);
+
+  const select = el("label", {class: "check", title: "Selects the article for 🗑 Delete selected, above the cards."},
+    el("input", {type: "checkbox", checked: selection.has(row.pmid), onchange: e => {
+      if (e.target.checked) selection.add(row.pmid); else selection.delete(row.pmid);
+      remember(); drawBar();
+    }}), "Select");
+
+  const actions = el("div", {class: "actions"},
+    status("is_read", "read", "✅ Read"), status("is_flagged", "flagged", "★ Flagged"), select);
+
+  let badges = null;
+  if (app.lists.length) {
+    const summary = el("summary", {});
+    const label = () => { summary.textContent = row.lists.length ? `🗂 ${row.lists.length} list(s)` : "🗂 Add to a list"; };
+    label();
+    actions.append(el("details", {class: "pop"}, summary, el("div", {},
+      app.lists.map(list => el("label", {class: "check"},
+        el("input", {type: "checkbox", checked: row.lists.includes(list.id), onchange: async e => {
+          const value = e.target.checked;
+          const done = await attempt(api("/api/membership", {pmid: row.pmid, list_id: list.id, value}));
+          if (!done) { e.target.checked = !value; return; }
+          row.lists = value ? [...row.lists, list.id] : row.lists.filter(id => id !== list.id);
+          label(); paintBadges();
+        }}), list.name)))));
+  }
+
+  // Il PDF: aprirlo se c'e', scaricarlo se e' libero. Quelli via LibKey si
+  // scaricano dal browser e si trascinano nella scheda Library.
+  if (row.pdf === "here") {
+    actions.append(el("button", {title: row.pdf_name, onclick: async () => {
+      const done = await attempt(api("/api/pdf/open", {pmid: row.pmid}));
+      if (done && done.message) toast(done.message);
+    }}, "📖 Read PDF"));
+  } else if (row.pdf === "missing") {
+    actions.append(el("div", {class: "muted"}, "📄 PDF not in the folder any more."));
+  } else if (row.free_url) {
+    const save = el("button", {title: "Downloads the open-access PDF into the library, named after the citation."},
+                    "⤓ Save free PDF");
+    save.addEventListener("click", async () => {
+      save.disabled = true; save.textContent = "Downloading…";
+      await attempt(api("/api/pdf/save", {pmid: row.pmid}));
+      await loadArticles();
+    });
+    actions.append(save);
+  }
+
+  // Un clic e basta, come la spunta Read seguita da un riavvio. Con un PDF
+  // no: resterebbe un file senza citazione.
+  actions.append(el("button", {
+    disabled: row.pdf !== "",
+    title: row.pdf !== "" ? "Remove the PDF in the Library tab first."
+      : "Deletes the article from the archive and from every list. Its PMID is kept, so later searches skip it.",
+    onclick: () => removeArticles([row.pmid])}, "🗑 Delete"));
+
+  const paintBadges = () => {
+    const names = row.lists.map(id => (app.lists.find(l => l.id === id) || {}).name).filter(Boolean);
+    badges.innerHTML = row.badges_html;
+    for (const name of names) badges.append(el("span", {}, "🗂 " + name));
+    if (row.pdf) badges.append(el("span", {}, "📄 PDF"));
+    badges.hidden = !badges.childNodes.length;
+  };
+  badges = el("div", {class: "art-badges"});
+  paintBadges();
+
+  const links = el("div", {class: "links"});
+  row.links.forEach(([label, url], i) => {
+    if (i) links.append(" · ");
+    links.append(el("a", {href: url, target: "_blank", rel: "noopener noreferrer"}, label));
+  });
+
+  const main = el("div", {}, title, el("div", {class: "art-meta"}, row.meta), badges,
+    row.categories ? el("div", {class: "muted"}, "in " + row.categories) : null, links);
+
+  const abstract = el("details", {class: "abs", open: app.abstracts_open},
+    el("summary", {}, "Abstract"), html("div", "", row.abstract_html));
+
+  return el("div", {class: "box card"}, main, actions, abstract);
+}
+
+function drawArticles() {
+  $("count").replaceChildren(el("b", {}, view.total), ` articles found. Page ${view.page} of `
+    + `${view.n_pages} (${view.rows.length} on this page).`);
+  pager($("pager-top")); pager($("pager-bottom"));
+  fetchers();
+  drawBar();
+  $("cards").replaceChildren(...view.rows.map(card));
+}
+
+$("sel-page").addEventListener("click", () => {
+  for (const row of view.rows) selection.add(row.pmid);
+  remember(); drawArticles();
+});
+$("sel-all").addEventListener("click", async () => {
+  const q = new URLSearchParams(query()); q.delete("page");
+  const data = await attempt(api("/api/pmids?" + q.toString()));
+  if (!data) return;
+  for (const pmid of data.pmids) selection.add(pmid);
+  remember(); drawArticles();
+});
+$("sel-clear").addEventListener("click", () => { selection.clear(); remember(); drawArticles(); });
+$("del-many").addEventListener("click", () => { confirming = true; drawBar(); });
+
+// Un menu delle liste aperto si chiude cliccando altrove.
+document.addEventListener("click", e => {
+  for (const pop of document.querySelectorAll("details.pop[open]"))
+    if (!pop.contains(e.target)) pop.open = false;
+});
+
+// La pagina vive dentro una scheda dell'app. Quando la scheda torna visibile
+// si rilegge l'archivio: nel frattempo una ricerca puo' averci salvato
+// articoli nuovi, o un'altra scheda aver cambiato una lista.
+let visible = true;
+new IntersectionObserver(entries => {
+  const now = entries[entries.length - 1].isIntersecting;
+  if (now && !visible) reload();
+  visible = now;
+}).observe(document.documentElement);
+document.addEventListener("visibilitychange", () => { if (!document.hidden && visible) reload(); });
+
+reload();
+</script>
+</body>
+</html>

@@ -11,6 +11,13 @@ Radiowriter runs on your computer and serves a page to your own browser on
 `localhost`. There is no account, no server of ours, and nothing is uploaded
 anywhere.
 
+The Screening tab is served by a second local server, on `127.0.0.1` and on a
+port chosen at start. It can change and delete articles, so it answers only
+requests that carry a random token created at each start, that name
+`127.0.0.1` or `localhost` as host, and, for a change, that are a JSON `POST`.
+A page from another website cannot meet these conditions. The details are in
+[the architecture page](https://gmadevs.github.io/Radiowriter/internals/architecture).
+
 ### What it stores, and where
 
 Everything lives in one SQLite file in your user data folder — run

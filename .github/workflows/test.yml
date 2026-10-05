@@ -49,6 +49,9 @@ jobs:
       - name: The PDF library and the Radiopaedia article list
         run: python check_library.py
 
+      - name: The Screening bench
+        run: python check_bench.py
+
       - name: The interface
         run: python check_app.py
 

@@ -8,17 +8,23 @@ status if any check failed. The descriptions of the checks are in Italian.
 ```bash
 python3 check_rules.py       # 147 checks: the Radiopaedia linter rules
 python3 check_structure.py   #  24 checks: the article structures
-python3 check_search.py      # 125 checks: query building, ISSG, strategies, lists
+python3 check_search.py      # 159 checks: query building, ISSG, strategies, lists
 python3 check_journals.py    #  85 checks: SCImago, matching, Unpaywall, backups
 python3 check_library.py     #  76 checks: PDF library, highlights, the Radiopaedia list
-python3 check_app.py         # 123 checks: the interface, driven without a browser
+python3 check_bench.py       #  87 checks: the Screening page and its local server
+python3 check_app.py         # 148 checks: the interface, driven without a browser
 ```
 
-That is 580 checks. None of them needs the network, and none reads or changes
-a real archive. The four scripts that use the database set `RADIOPAEDIA_DB`
-to a temporary file before they import `db`. `check_library.py` and
-`check_app.py` also set `RADIOWRITER_HOME` to a temporary folder, because the
-PDF library is created there.
+That is 726 checks. None of them needs the network, and none reads or changes
+a real archive. The five scripts that use the database set `RADIOPAEDIA_DB`
+to a temporary file before they import `db`. `check_library.py`,
+`check_bench.py` and `check_app.py` also set `RADIOWRITER_HOME` to a
+temporary folder, because the PDF library is created there.
+
+`check_bench.py` starts the Screening server on a free port of `127.0.0.1`
+and sends it real HTTP requests. It checks who may call the server, what the
+article pages contain, and every action. It does not run the JavaScript of
+`web/screening.html`. `scripts/shots.py` opens that page in a browser.
 
 `check_library.py` creates its PDFs with PyMuPDF, with highlights, and calls
 the reader's `ReaderApi` directly. It does not open any window.

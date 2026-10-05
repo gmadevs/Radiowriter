@@ -217,6 +217,7 @@ python3 check_structure.py   # the article structures
 python3 check_search.py      # query building, ISSG filters, strategies, lists
 python3 check_journals.py    # SCImago, journal matching, Unpaywall, backups
 python3 check_library.py     # PDF library, highlights, the Radiopaedia list
+python3 check_bench.py       # the Screening page and its local server
 python3 check_app.py         # the interface, driven without a browser
 ```
 

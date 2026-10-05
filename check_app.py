@@ -343,140 +343,29 @@ finally:
     db.delete_draft(draft_id)
 
 # ---------------------------------------------------------------------------
-# le liste, dalla scheda di screening
-# ---------------------------------------------------------------------------
-
-db.insert_articles([{"pmid": "9001", "title": "Un articolo di prova",
-                     "abstract": "niente"}])
-list_id = db.create_list("Prova")
-try:
-    at = AppTest.from_file(APP, default_timeout=60)
-    at.run()
-    is_("con una lista in giro l'app si apre lo stesso", exceptions(at), "[]")
-
-    box = next(c for c in at.checkbox if c.key == "inlist_9001_%d_0" % list_id)
-    at = box.set_value(True).run()
-    is_("spuntare la lista sulla scheda ce lo mette davvero",
-        db.list_pmids(list_id), "['9001']")
-    is_("...senza sollevare", exceptions(at), "[]")
-
-    box = next(c for c in at.checkbox if c.key == "inlist_9001_%d_1" % list_id)
-    at = box.set_value(False).run()
-    is_("e toglierla lo toglie", db.list_pmids(list_id), "[]")
-
-    # eliminare dall'archivio un articolo che sta in una lista
-    db.insert_articles([{"pmid": "9002", "title": "Secondo", "abstract": "x"},
-                        {"pmid": "9003", "title": "Terzo", "abstract": "x"}])
-    db.add_to_list(list_id, ["9001", "9002", "9003"])
-    is_("la pulizia all'avvio non tocca chi sta in una lista",
-        db.article_row("9001") is not None, "True")
-    at = AppTest.from_file(APP, default_timeout=60)
-    at.run()
-    at = at.button(key="del_9001").click().run()
-    is_("il pulsante sulla scheda elimina l'articolo", db.article_row("9001"), None)
-    is_("...lo toglie dalla lista", db.list_pmids(list_id), "['9002', '9003']")
-    is_("...e ne ricorda il PMID", "9001" in db.classify_pmids(["9001"])[1], "True")
-    at = at.checkbox(key="sel_0_9002").check().run()
-    at = at.checkbox(key="sel_0_9003").check().run()
-    is_("le spunte contano i selezionati",
-        at.button(key="screen_del_many").label, "🗑 Delete 2 selected")
-    at = at.button(key="screen_del_many").click().run()
-    is_("eliminare in gruppo chiede conferma",
-        db.article_row("9002") is not None, "True")
-    at = at.button(key="screen_del_yes").click().run()
-    is_("...e confermato li elimina tutti",
-        (db.article_row("9002"), db.article_row("9003")), "(None, None)")
-    is_("...svuotando la selezione",
-        at.button(key="screen_del_many").label, "🗑 Delete 0 selected")
-    is_("...senza sollevare", exceptions(at), "[]")
-    conn = db.get_connection()
-    conn.execute("DELETE FROM screened_pmids WHERE pmid IN ('9001','9002','9003')")
-    conn.commit()
-    conn.close()
-
-    names = [i.value for i in at.text_input if i.key == "lname_%d" % list_id]
-    is_("la lista si puo' rinominare dalla sua casella", names, "['Prova']")
-finally:
-    db.delete_list(list_id)
-    conn = db.get_connection()
-    conn.execute("DELETE FROM articles WHERE pmid = '9001'")
-    conn.commit()
-    conn.close()
-
-# ---------------------------------------------------------------------------
-# quartili e open access sulle schede
+# lo Screening
 # ---------------------------------------------------------------------------
 #
-# I motori li provano `check_journals.py` e `check_search.py`. Qui si prova che
-# quello che esce da una LEFT JOIN senza corrispondenza non finisca stampato
-# addosso a un articolo: NaN e' un float, passa qualsiasi `if`, e verrebbe fuori
-# un badge che dice "nan".
+# Non e' piu' una scheda Streamlit: e' una pagina servita da `bench.py` e
+# mostrata in un iframe. Qui si prova solo che l'app la monti; quello che la
+# pagina fa lo prova `check_bench.py`, con richieste vere al suo server.
 
-from radiowriter import journals as jr          # noqa: E402
+from radiowriter import bench as _bench          # noqa: E402
 
-db.import_journal_metrics([{
-    "title": "European Journal of Radiology",
-    "norm_title": jr.norm_title("European Journal of Radiology"),
-    "issns": ["0720048X"], "sjr": 1.075, "quartile": "Q1", "h_index": 140,
-    "cites_per_doc": 4.0, "categories": "Radiology (Q1)", "country": "Netherlands",
-    "publisher": "Elsevier",
-}])
-db.insert_articles([
-    {"pmid": "9201", "title": "Con quartile", "abstract": "a",
-     "journal": "European journal of radiology",
-     "journal_title": "European journal of radiology", "issn": "0720048X"},
-    {"pmid": "9202", "title": "Senza quartile", "abstract": "b",
-     "journal": "Cureus", "journal_title": "Cureus", "issn": "20408090"},
-])
-try:
-    at = AppTest.from_file(APP, default_timeout=60)
-    at.run()
-    is_("con le metriche caricate l'app si apre", exceptions(at), "[]")
-
-    def text_of(app):
-        """Tutto quello che la pagina scrive: `st.caption` non finisce fra i
-        markdown, e meta' dei conteggi dell'app sono caption."""
-        return " ".join([m.value for m in app.markdown]
-                        + [c.value for c in app.caption])
-
-    page = text_of(at)
-    is_("il quartile si vede, col suo colore", 'class="q1"' in page, "True")
-    is_("...e porta lo SJR con se'", "Q1 · SJR 1.07" in page, "True")
-    is_("una rivista senza metrica non stampa 'nan'", "nan" in page.lower(), "False")
-    is_("...e nemmeno un badge vuoto", 'class="none"' in page, "False")
-
-    # il filtro per quartile deve restringere per davvero, e il conteggio delle
-    # pagine con lui: e' una JOIN, non un filtro applicato dopo
-    def quartile_filter(app):
-        # Va ripreso dall'albero di QUESTO giro: un handle tenuto da prima
-        # rigioca lo stato di allora, e le spunte delle schede non ci sono piu'.
-        return next(m for m in app.multiselect if m.label == "Journal quartile:")
-
-    at_q1 = quartile_filter(at).set_value(["Q1"]).run()
-    is_("il filtro per quartile non solleva", exceptions(at_q1), "[]")
-    counts = text_of(at_q1)
-    is_("...e conta solo quelli che restano", "**1** articles found" in counts, "True")
-    is_("...cioe' quello Q1",
-        "Con quartile" in counts and "Senza quartile" not in counts, "True")
-
-    at_none = quartile_filter(at_q1).set_value(["Not in SCImago"]).run()
-    counts = text_of(at_none)
-    is_("e sa chiedere anche quelli che SCImago non ha",
-        "**1** articles found" in counts, "True")
-    is_("...che sono l'altro articolo",
-        "Senza quartile" in counts and "Con quartile" not in counts, "True")
-
-    # Unpaywall: il pulsante c'e' solo se c'e' un DOI da chiedere
-    labels = [b.label for b in at.button]
-    is_("senza DOI non si offre di chiedere a Unpaywall",
-        any("open access" in (l or "") for l in labels), "False")
-finally:
-    conn = db.get_connection()
-    conn.execute("DELETE FROM articles WHERE pmid IN ('9201', '9202')")
-    conn.execute("DELETE FROM journal_issns")
-    conn.execute("DELETE FROM journal_metrics")
-    conn.commit()
-    conn.close()
+at = AppTest.from_file(APP, default_timeout=60)
+at.run()
+is_("l'app si apre con lo Screening montato", exceptions(at), "[]")
+frames = [f.proto.src for f in at.get("iframe")]
+is_("lo Screening e' un iframe solo", len(frames), 1)
+is_("...che punta al banco su questa macchina, col suo gettone",
+    frames[0].startswith(f"http://127.0.0.1:{_bench.start().port}/?t={_bench.start().token}"),
+    "True")
+is_("...e gli dice il tema e le misure del testo",
+    "&theme=" in frames[0] and "&v=" in frames[0], "True")
+is_("della vecchia scheda non resta nessun controllo",
+    [w.key for kind in ("checkbox", "button") for w in at.get(kind)
+     if (w.key or "").startswith(("sel_", "del_", "read_", "flag_", "inlist_", "screen_"))],
+    "[]")
 
 # ---------------------------------------------------------------------------
 # una lista come sorgente di bibliografia
@@ -718,14 +607,15 @@ is_("i termini della ricerca fatta si evidenziano nell'abstract",
     "True")
 
 at_open = at.toggle(key="abs_open_search").set_value(True).run()
-is_("aprire gli abstract nei risultati li apre anche nello Screening",
-    at_open.toggle(key="abs_open_screen").value, "True")
-is_("...e la scelta resta al riavvio", db.get_settings()["abstracts_open"], "1")
+is_("aprire gli abstract nei risultati resta al riavvio, e lo Screening lo legge da li'",
+    db.get_settings()["abstracts_open"], "1")
 is_("...con gli abstract aperti davvero",
     all(e.proto.expanded for e in at_open.expander if e.label == "Abstract"), "True")
-at_open.toggle(key="abs_open_screen").set_value(False).run()
-is_("chiuderli dall'altra scheda vale per tutt'e due",
-    db.get_settings()["abstracts_open"], "0")
+# lo Screening scrive la stessa voce per conto suo: al giro dopo l'app la segue
+db.save_settings({"abstracts_open": "0"})
+at_open = at_open.run()
+is_("chiuderli dallo Screening li chiude anche nei risultati",
+    at_open.toggle(key="abs_open_search").value, "False")
 
 # L'abstract e' testo, non Markdown: `$...$` non deve diventare una formula ne'
 # `*...*` un corsivo, e l'HTML scritto dentro si vede com'e'.

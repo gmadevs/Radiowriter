@@ -658,6 +658,29 @@ def store_oa(found: dict[str, dict], by_doi: dict[str, str]) -> int:
     return db_retry(_run)
 
 
+def store_citations(found: dict[str, dict]) -> int:
+    """Scrive quello che Semantic Scholar ha detto, una voce per PMID. Anche
+    chi non e' stato trovato ha `s2_fetched_at`: il tentativo resta scritto e
+    non lo si ripete a ogni apertura della pagina."""
+    def _run():
+        conn = get_connection()
+        try:
+            for pmid, vals in found.items():
+                conn.execute(
+                    "UPDATE articles SET citation_count = ?, influential_citations = ?, "
+                    "citations_per_year = ?, s2_paper_id = ?, oa_pdf_url = ?, "
+                    "s2_fetched_at = ? WHERE pmid = ?",
+                    (vals["citation_count"], vals["influential_citations"],
+                     vals["citations_per_year"], vals["s2_paper_id"],
+                     vals["oa_pdf_url"], vals["s2_fetched_at"], pmid))
+            conn.commit()
+            return len(found)
+        finally:
+            conn.close()
+
+    return db_retry(_run)
+
+
 def archive_summary() -> dict:
     """Due numeri per la barra laterale: quanti articoli e quante liste.
 

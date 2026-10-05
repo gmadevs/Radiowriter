@@ -1,14 +1,17 @@
 # Architecture
 
 Radiowriter is a Streamlit app that stores its data in one SQLite file. There
-is no server run by the project and no account. The PDF reader and the study
-window run as a separate process, which exists only while their windows are
-open.
+is no server run by the project and no account. The Screening tab is a web
+page of its own, served by a second local server inside the same process. The
+PDF reader and the study window run as a separate process, which exists only
+while their windows are open.
 
 ```
 radiowriter/
   __main__.py     the `radiowriter` command: starts the Streamlit server, opens a browser
-  app.py          the interface
+  app.py          the interface: search, library, writing, and the frame around Screening
+  bench.py        the Screening page: its local server and its queries
+  cards.py        the article cards: badges, abstract, and their CSS
   theme.py        colours and typefaces of the light and dark themes
   paths.py        where the user's files are, per platform
   db.py           schema, additive migrations, every query
@@ -26,6 +29,7 @@ radiowriter/
   highlights.py   reading and writing highlights in a PDF, keeping the ticks
   study.py        the reader and study windows (pywebview), and the Radiopaedia article list
   web/viewer.html the PDF reader (PDF.js)
+  web/screening.html  the Screening page (HTML and JavaScript, no library)
   structure.py    the 23 article structures
   lint.py         Radiopaedia's linter rules
   radiopaedia.py  citations, numbering, Markdown → Radiopaedia's HTML
@@ -86,26 +90,63 @@ Both are used, with a comment at each place.
 
 ## What runs on a click
 
-Streamlit runs a script again from the top on every click. Each of the four
-tabs is a function decorated with `st.fragment` (`search_tab`, `screen_tab`,
-`library_tab`, `write_tab`). A click inside a tab runs only that function.
-The sidebar and the other three tabs are not run.
+Streamlit runs a script again from the top on every click. Three of the four
+tabs are functions decorated with `st.fragment` (`search_tab`, `library_tab`,
+`write_tab`). A click inside one of them runs only that function. The sidebar
+and the other tabs are not run. A call to `st.rerun()` inside a tab runs the
+whole script.
 
-A call to `st.rerun()` inside a tab runs the whole script. The actions that
-change the archive call it, so that the counts in the sidebar and the other
-tabs are updated.
+The article counts at the top of the sidebar are a fragment that runs every 5
+seconds, because saving or deleting an article in a tab does not run the
+sidebar.
 
 The export files are built when their download button is clicked:
 `st.download_button` receives a function as `data`. The numbers under the
 buttons come from `COUNT` queries.
 
-On an archive of 4,126 articles, ticking **Select** on a card in Screening
-took about 1.15 seconds before these two changes and about 0.46 seconds
-after, measured in the browser. A click that runs the whole script went from
-about 1.15 to about 0.75 seconds.
-
 `check_app.py` does not cover a tab running alone: `AppTest` runs the whole
 script on every interaction.
+
+## The Screening page
+
+Screening is the tab with the most clicks, several hundred ticks in a
+session. As a Streamlit fragment, a tick took about 0.46 seconds on an
+archive of 4,126 articles, and about 1.15 seconds before the tabs were
+fragments. As a web page, a tick on **Select** changes the page without a
+request, **✅ Read** takes about 15 milliseconds,
+and a new page of articles about 20.
+
+`bench.py` starts a `ThreadingHTTPServer` from the standard library on
+`127.0.0.1`, on a port chosen by the system, the first time the app runs.
+`app.py` shows `web/screening.html` from that server in an iframe inside the
+tab. The page asks the server for JSON (`/api/state`, `/api/articles`) and
+posts each action (`/api/status`, `/api/membership`, `/api/delete` and the
+others). `bench.py` does not import Streamlit.
+
+The server refuses a request unless all of these hold:
+
+- the request carries the token of this run. The token is random, 32 bytes,
+  and new at every start. The page receives it in its address and sends it
+  back in the header `X-Radiowriter-Token`. Another website does not know the
+  token, and cannot send a custom header without a CORS permission, which the
+  server never gives;
+- the `Host` header is `127.0.0.1` or `localhost` with the server's port, so a
+  hostname pointed at the computer from outside (DNS rebinding) is refused;
+- a write is a `POST` with a JSON body.
+
+The page has a Content Security Policy that allows no outside resource and
+allows framing only by a page on `localhost` or `127.0.0.1`.
+
+The text of an article reaches the page in two ways. Titles, badges and
+abstracts are escaped on the server by `cards.py` and `highlight.py`, the
+same functions that draw the search results. Every other field is written by
+the page as text. A full-text address is made a link only if it starts with
+`http://` or `https://`.
+
+The page reads the archive again when its tab becomes visible, because a
+search may have saved articles in the meantime. The theme and the text sizes
+are in the address of the iframe: when they change, the page is reloaded and
+keeps its filters and its selection.
 
 ## The reader and the study window
 

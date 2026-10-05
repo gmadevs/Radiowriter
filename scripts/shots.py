@@ -132,21 +132,22 @@ def take(page) -> None:
     settle(page, 5)
     page.get_by_role("tab", name="Screening", exact=False).click()
     settle(page, 5)
+    # Lo Screening e' una pagina sua dentro un iframe (`bench.py`): i comandi
+    # si cercano li' dentro, e la rotella va data col mouse sopra l'iframe.
+    bench = page.frame_locator('iframe[data-testid="stIFrame"]')
     # Gli abstract aperti e una parola cercata: e' come si legge davvero
     # l'archivio, e cosi' la schermata mostra l'impaginazione degli abstract e
-    # l'evidenziazione, non una fila di expander chiusi.
-    page.get_by_label("Search title, abstract or PMID", exact=False).fill("Joubert")
-    page.keyboard.press("Enter")
+    # l'evidenziazione, non una fila di abstract chiusi.
+    bench.get_by_label("Search title, abstract or PMID", exact=False).fill("Joubert")
     settle(page, 3)
-    page.get_by_text("Abstracts open", exact=True).last.click()
-    settle(page, 4)
-    page.mouse.wheel(0, 560)
+    bench.get_by_label("Abstracts open").check()
+    settle(page, 3)
+    page.mouse.move(WIDTH // 2 + 150, HEIGHT // 2)
+    page.mouse.wheel(0, 285)
     settle(page, 2)
     shoot(page, "04-screening")
 
     # --- la scrittura -------------------------------------------------------
-    page.mouse.wheel(0, -560)
-    settle(page)
     page.get_by_role("tab", name="Write", exact=False).click()
     settle(page, 3)
     page.get_by_role("button", name="New draft").click()
