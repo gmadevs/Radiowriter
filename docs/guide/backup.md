@@ -69,14 +69,14 @@ Use this file to move to another computer.
 
 The file does not contain:
 
-- **The settings.** Your email address, API keys and LibKey ID are left out,
+- The settings. Your email address, API keys and LibKey ID are left out,
   so that they are not in a file you may share or store online. You enter
   them again after restoring.
-- **The journal metrics.** They are loaded again from the SCImago file.
-- **The PDFs and what belongs to them.** The PDF files, the record of which
+- The journal metrics. They are loaded again from the SCImago file.
+- The PDFs and what belongs to them. The PDF files, the record of which
   PDF belongs to which article, and the ticks on the highlights are not in
   the backup. The highlights themselves are inside the PDF files.
-- **Two details of each draft**: the Radiopaedia page chosen for the study
+- Two details of each draft: the Radiopaedia page chosen for the study
   window, and which searches are attached to the draft.
 
 ## Restoring a backup
