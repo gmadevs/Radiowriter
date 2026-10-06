@@ -127,8 +127,13 @@ Type PubMed syntax on one line, or use the block builder. A block holds one
 concept. The terms inside a block are joined by OR, and the blocks are joined
 by AND.
 
-The ISSG published search filters for guidelines and evidence syntheses are
-included.
+The filter control sends PubMed's filters with the query: publication date,
+text availability, 66 article types, 58 languages, 14 age groups, species and
+sex. The ISSG published search filters for guidelines and evidence syntheses
+are included.
+
+**📰 Fetch recent literature** fetches the recent reviews and guidelines from
+the journals of a Radiopaedia editorial group. CNS is the only group for now.
 
 A generator turns the section headings of a Radiopaedia article into search
 strategies. For example, `Epidemiology` becomes terms for prevalence and
@@ -146,7 +151,8 @@ quartile, and sorted by citations or by SJR. Full text opens through LibKey if
 your library subscribes, or through Unpaywall if a legal free copy exists.
 
 You can create, rename and delete reading lists, and an article can be in
-several lists. Articles marked read are deleted from the archive at the next
+several lists. An article can be deleted from its card, and several can be
+selected and deleted together. Articles marked read are deleted from the archive at the next
 start, except those in a list or with a PDF in the library.
 
 ### Keep the PDFs
