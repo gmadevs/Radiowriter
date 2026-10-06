@@ -76,9 +76,9 @@ npm run docs:build      # writes docs/.vitepress/dist
 CI builds the site on every push to `main` that changes `docs/` and publishes
 it to [gmadevs.github.io/Radiowriter](https://gmadevs.github.io/Radiowriter/).
 
-While the repository is private, the deploy job is skipped, because GitHub
-Pages on a private repository needs a paid plan. The site is still built, so
-a dead link or a configuration error fails the build.
+The deploy job runs only when the repository is public, because GitHub Pages
+on a private repository needs a paid plan. On a private repository the site
+is still built, so a dead link or a configuration error fails the build.
 
 ## Screenshots
 
