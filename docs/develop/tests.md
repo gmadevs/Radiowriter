@@ -74,7 +74,7 @@ The output of `st.caption` is in `at.caption`, and is not included in
 `.github/workflows/test.yml` runs on every push to `main` and on every pull
 request, on macOS, Linux and Windows, with Python 3.11 and 3.13.
 
-It runs the six scripts. It then runs `radiowriter --version` and
+It runs the seven scripts. It then runs `radiowriter --version` and
 `radiowriter --where`, starts the installed command, and requests
 `/_stcore/health` until the server answers. This last step is the only test
 of the `radiowriter` entry point as it is installed.
