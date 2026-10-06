@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "radiowriter"
 version = "0.1.9"
-description = "Find the literature for a Radiopaedia article, screen it, and write the article against it."
+description = "Search PubMed, screen the results and write a Radiopaedia article from them."
 readme = "README.md"
 requires-python = ">=3.11"
 license = "AGPL-3.0-only"

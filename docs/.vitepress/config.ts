@@ -9,7 +9,7 @@ import { defineConfig } from 'vitepress'
 export default defineConfig({
   title: 'Radiowriter',
   description:
-    'Find the literature for a Radiopaedia article, screen it, and write the article against it',
+    'Search PubMed, screen the results and write a Radiopaedia article from them',
   base: '/Radiowriter/',
   lang: 'en',
   cleanUrls: true,

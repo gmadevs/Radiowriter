@@ -19,8 +19,8 @@ APP = Path(__file__).resolve().parent / "app.py"
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
         prog="radiowriter",
-        description="Find the literature for a Radiopaedia article, screen it, "
-                    "and write the article against it.")
+        description="Search PubMed, screen the results and write a "
+                    "Radiopaedia article from them.")
     parser.add_argument("--port", type=int, default=8501,
                         help="port to serve on (default: 8501)")
     parser.add_argument("--no-browser", action="store_true",
