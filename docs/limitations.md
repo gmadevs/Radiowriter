@@ -18,18 +18,11 @@
 - PubMed reads operators from left to right and does not give AND precedence
   over OR. The block builder puts each block in brackets. In a query typed on
   one line, you have to add the brackets yourself.
-
 - **📰 Fetch recent literature** takes its journals from the SCImago file.
   A journal that SCImago does not list, or lists in another category, is not
   searched. The journals are not limited by topic, so the results include
   radiology reviews on other body regions and neurology reviews that are not
   about imaging.
-- The article counts at the top of the sidebar are read again every 5
-  seconds. After you save or delete articles they can show the old number for
-  that long.
-- The Screening tab needs a second local port, which the system chooses at
-  start. A browser extension or a policy that blocks pages on `127.0.0.1`
-  leaves the tab empty.
 - The date of the last run of **📰 Fetch recent literature** is a setting.
   It is not in the `.json` backup, so after a restore on another computer the
   first run covers the last 30 days again.
@@ -110,3 +103,9 @@
 - Articles marked read are deleted from the archive each time the app
   starts. Their PMIDs are kept, so that later searches can skip them. An
   article in a reading list or with a PDF in the library is not deleted.
+- The article counts at the top of the sidebar are read again every 5
+  seconds. After you save or delete articles they can show the old number for
+  that long.
+- The Screening tab needs a second local port, which the system chooses at
+  start. A browser extension or a policy that blocks pages on `127.0.0.1`
+  leaves the tab empty.
