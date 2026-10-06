@@ -90,7 +90,8 @@ the package is installed from TestPyPI and its dependencies from PyPI.
    ```bash
    python3 check_rules.py && python3 check_structure.py && \
    python3 check_search.py && python3 check_journals.py && \
-   python3 check_library.py && python3 check_app.py
+   python3 check_library.py && python3 check_bench.py && \
+   python3 check_app.py
    ```
 
 3. Commit, tag and push:
