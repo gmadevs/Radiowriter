@@ -39,7 +39,7 @@ dependencies = [
   "streamlit>=1.61",
   "pandas>=2.0",
   "requests>=2.31",
-  "markdown-it-py>=3.0",
+  "markdown-it-py>=4.2.0",
   # Le regole del linter Radiopaedia usano lookbehind a lunghezza variabile, che
   # il modulo `re` della standard library non compila. Con `regex` i pattern
   # restano identici ai loro, quindi data/lint-rules.json resta un copia-incolla
