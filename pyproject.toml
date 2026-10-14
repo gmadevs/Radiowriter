@@ -52,7 +52,7 @@ dependencies = [
   # La finestra di studio: Radiopaedia vera, col suo login, accanto al PDF.
   # Un iframe non basta (un sito con login non si lascia incorniciare). Su
   # Linux vuole anche GTK o Qt, che pip non installa: li' l'app lo dice.
-  "pywebview>=5.0",
+  "pywebview>=6.2.1",
 ]
 
 [project.urls]
