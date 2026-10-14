@@ -37,7 +37,7 @@ dependencies = [
   # (prima AppTest non conosce `st.download_button`): si dichiara la versione
   # su cui tutti i controlli passano. Provato su 1.61 e 1.65.
   "streamlit>=1.61",
-  "pandas>=2.0",
+  "pandas>=3.0.6",
   "requests>=2.31",
   "markdown-it-py>=3.0",
   # Le regole del linter Radiopaedia usano lookbehind a lunghezza variabile, che
