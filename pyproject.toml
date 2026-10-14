@@ -44,7 +44,7 @@ dependencies = [
   # il modulo `re` della standard library non compila. Con `regex` i pattern
   # restano identici ai loro, quindi data/lint-rules.json resta un copia-incolla
   # anche quando cambiano le regole a monte.
-  "regex>=2023.0",
+  "regex>=2026.9.29",
   # La libreria dei PDF: leggere il DOI dentro un PDF scaricato per agganciarlo
   # all'articolo, e poi le evidenziazioni. AGPL come questo progetto, e l'unica
   # che estrae il testo sotto un'evidenziazione in modo affidabile.
